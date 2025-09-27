@@ -8,7 +8,7 @@
       [disabled]="isLoading()"
       (click)="onConfigure()"
     >
-      {{ 'Configure' | translate }}
+      {{ "Configure" | translate }}
     </button>
   }
 </ix-page-header>
@@ -24,7 +24,7 @@
         [matTooltip]="'Restore default set of widgets' | translate"
         (click)="onReset()"
       >
-        {{ 'Reset' | translate }}
+        {{ "Reset" | translate }}
       </button>
     }
 
@@ -35,7 +35,7 @@
       [disabled]="isLoading()"
       (click)="onAddGroup()"
     >
-      {{ 'Add' | translate }}
+      {{ "Add" | translate }}
     </button>
     <button
       mat-button
@@ -44,7 +44,7 @@
       [disabled]="isLoading()"
       (click)="onSave()"
     >
-      {{ 'Save' | translate }}
+      {{ "Save" | translate }}
     </button>
     <button
       mat-button
@@ -52,7 +52,7 @@
       [disabled]="isLoading()"
       (click)="onCancelConfigure()"
     >
-      {{ 'Cancel' | translate }}
+      {{ "Cancel" | translate }}
     </button>
   </div>
 }
@@ -82,10 +82,7 @@
           [animateOutDuration]="300"
           (animateOutComplete)="onGroupRemovalComplete(group)"
         >
-          <div
-            class="group-container"
-            [class.editing]="isEditing()"
-          >
+          <div class="group-container" [class.editing]="isEditing()">
             <ix-widget-group-controls
               class="controls"
               [index]="i"
@@ -110,5 +107,3 @@
     }
   </div>
 }
-
-

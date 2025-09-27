@@ -23,7 +23,7 @@
     "ng": "ng",
     "prepare": "husky",
     "reinstall": "rimraf yarn.lock; rimraf node_modules; yarn cache clean -f; yarn install",
-    "start": "yarn run check-env && node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng serve --no-hmr --proxy-config proxy.config.json",
+    "start": "yarn run check-env && node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng serve --proxy-config proxy.config.json",
     "start:prod": "node --max-old-space-size=8192 ./node_modules/@angular/cli/bin/ng serve --configuration production",
     "strict-null-checks": "node_modules/typescript/bin/tsc --project tsconfig.strictNullChecks.json",
     "test": "jest",

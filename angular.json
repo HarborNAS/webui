@@ -24,9 +24,7 @@
             },
             "index": "src/index.html",
             "tsConfig": "src/tsconfig.app.json",
-            "polyfills": [
-              "src/polyfills.ts"
-            ],
+            "polyfills": ["src/polyfills.ts"],
             "assets": ["src/assets"],
             "stylePreprocessorOptions": {
               "sass": {
@@ -37,18 +35,13 @@
                   "import"
                 ]
               },
-              "includePaths": [
-                "./src/assets/styles",
-                "./node_modules"
-              ]
+              "includePaths": ["./src/assets/styles", "./node_modules"]
             },
             "styles": [
               "node_modules/@bugsplat/angular-tree-component/css/angular-tree-component.css",
               "src/assets/styles/index.scss"
             ],
-            "scripts": [
-              "node_modules/marked/marked.min.js"
-            ],
+            "scripts": ["node_modules/marked/marked.min.js"],
             "extractLicenses": false,
             "sourceMap": true,
             "optimization": false,

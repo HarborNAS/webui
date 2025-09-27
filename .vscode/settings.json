@@ -1,9 +1,12 @@
 {
-    "typescript.updateImportsOnFileMove.enabled": "always",
-    "typescript.preferences.importModuleSpecifier": "non-relative",
-    "eslint.validate": [
-        "typescript",
-        "html"
-    ],
-    "angular.enable-strict-mode-prompt": false
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "eslint.validate": ["typescript", "html"],
+  "angular.enable-strict-mode-prompt": false,
+  "i18n-ally.localesPaths": [
+    "scripts/language",
+    "src/assets/i18n",
+    "src/app/modules/language"
+  ],
+  "i18n-ally.keystyle": "nested"
 }
