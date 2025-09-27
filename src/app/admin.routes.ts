@@ -16,6 +16,11 @@ export const adminRoutes: Routes = [
     canActivateChild: [BlockingActionGuardService],
     children: [
       {
+        path: 'desktop',
+        loadComponent: () => import('app/pages/desktop/desktop.component').then((module) => module.DesktopComponent),
+        data: { title: T('Desktop'), breadcrumb: T('Desktop') },
+      },
+      {
         path: 'dashboard',
         loadComponent: () => import('app/pages/dashboard/components/dashboard/dashboard.component').then((module) => module.DashboardComponent),
         data: { title: T('Dashboard'), breadcrumb: T('Dashboard') },
