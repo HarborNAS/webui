@@ -10,6 +10,7 @@ import {
   inject,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { MatButtonModule } from '@angular/material/button';
 import {
   MatDrawerMode,
   MatSidenav,
@@ -27,6 +28,7 @@ import { SubMenuItem } from 'app/interfaces/menu-item.interface';
 import { alertPanelClosed } from 'app/modules/alerts/store/alert.actions';
 import { selectIsAlertPanelOpen } from 'app/modules/alerts/store/alert.selectors';
 import { iconMarker } from 'app/modules/ix-icon/icon-marker.util';
+import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { LanguageService } from 'app/modules/language/language.service';
 import { SidenavService } from 'app/modules/layout/sidenav.service';
 // import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
@@ -43,6 +45,7 @@ import {
   waitForSystemInfo,
 } from 'app/store/system-info/system-info.selectors';
 
+
 @UntilDestroy()
 @Component({
   selector: 'ix-admin-layout',
@@ -51,10 +54,10 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatSidenavContainer,
-    // DefaultPageHeaderComponent,
     RouterOutlet,
-    // ConsoleFooterComponent,
     TranslateModule,
+    IxIconComponent,
+    MatButtonModule,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
