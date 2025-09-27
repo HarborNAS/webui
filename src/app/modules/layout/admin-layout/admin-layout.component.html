@@ -1,7 +1,8 @@
 <mat-sidenav-container class="app-side-nav-container">
-  <aside class="h-[calc(100vh-48px)] flex fixed w-16 left-6 top-6 flex-col">
-    <div>
-      <div class="app-side-nav-header">
+  <aside
+    class="h-[calc(100vh-48px)] flex fixed w-16 left-4 top-4 flex-col bg-white/10 backdrop-blur rounded-lg overflow-hidden border border-white/50 py-4">
+    <div class="flex-1 flex flex-col gap-4">
+      <div class="grid gap-4 text-center mx-auto">
         <button matMiniFab>
           <ix-icon name="mdi-monitor"></ix-icon>
         </button>
@@ -10,7 +11,7 @@
         </button>
       </div>
 
-      <div class="app-side-nav-menu">
+      <div class="grid gap-4 mx-auto">
         <button matMiniFab>
           <ix-icon name="mdi-view-dashboard"></ix-icon>
         </button>
@@ -26,13 +27,14 @@
       </div>
     </div>
 
-    <div class="app-side-nav-footer">
+    <div class="text-center">
       <button matMiniFab>
         <ix-icon name="mdi-cog"></ix-icon>
       </button>
     </div>
   </aside>
-  <main class="app-main-content">
+
+  <main class="ml-24 min-h-[calc(100vh-48px)] bg-red-500">
     <router-outlet></router-outlet>
   </main>
 </mat-sidenav-container>

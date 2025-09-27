@@ -6,37 +6,3 @@
   background-image: url('https://images.unsplash.com/photo-1525909002-1b05e0c869d8?q=80&w=1335&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
   background-size: cover;
 }
-
-// .app-side-nav {
-//   position: fixed;
-//   left: 24px;
-//   top: 24px;
-//   width: 64px;
-//   height: calc(100vh - 48px);
-//   // 毛玻璃效果
-//   backdrop-filter: blur(10px);
-//   background-color: rgba(255, 255, 255, 0.1);
-//   border: 1px solid rgba(255, 255, 255, 0.5);
-//   border-radius: 8px;
-//   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-//   z-index: 1000;
-//   display: flex;
-//   flex-direction: column;
-//   justify-content: space-between;
-// }
-
-.flex-1 {
-  flex: 1;
-}
-
-.app-side-nav>div {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 16px 0;
-}
-
-.app-main-content {
-  margin-left: 112px; // 64px (侧边栏宽度) + 24px (左边距) + 24px (间距)
-  padding: 24px;
-}
