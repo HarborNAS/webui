@@ -1,12 +1,38 @@
 <mat-sidenav-container class="app-side-nav-container">
-  <div>
-    <aside class="app-side-nav">
+  <aside class="h-[calc(100vh-48px)] flex fixed w-16 left-6 top-6 flex-col">
+    <div>
+      <div class="app-side-nav-header">
+        <button matMiniFab>
+          <ix-icon name="mdi-monitor"></ix-icon>
+        </button>
+        <button matMiniFab>
+          <ix-icon name="mdi-monitor"></ix-icon>
+        </button>
+      </div>
+
+      <div class="app-side-nav-menu">
+        <button matMiniFab>
+          <ix-icon name="mdi-view-dashboard"></ix-icon>
+        </button>
+        <button matMiniFab>
+          <ix-icon name="mdi-database"></ix-icon>
+        </button>
+        <button matMiniFab>
+          <ix-icon name="mdi-chart-bar"></ix-icon>
+        </button>
+        <button matMiniFab>
+          <ix-icon name="mdi-cog"></ix-icon>
+        </button>
+      </div>
+    </div>
+
+    <div class="app-side-nav-footer">
       <button matMiniFab>
-        <ix-icon name="mdi-monitor"></ix-icon>
+        <ix-icon name="mdi-cog"></ix-icon>
       </button>
-    </aside>
-    <main class="app-main-content">
-      <router-outlet></router-outlet>
-    </main>
-  </div>
+    </div>
+  </aside>
+  <main class="app-main-content">
+    <router-outlet></router-outlet>
+  </main>
 </mat-sidenav-container>
