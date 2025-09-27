@@ -1,7 +1,16 @@
 import { AsyncPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, input, OnDestroy, OnInit, inject } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  OnDestroy,
+  OnInit,
+} from '@angular/core';
+import { Router } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { map } from 'rxjs/operators';
+import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { LayoutService } from 'app/modules/layout/layout.service';
 import { PageTitleService } from 'app/modules/layout/page-title.service';
 import { FakeProgressBarComponent } from 'app/modules/loader/components/fake-progress-bar/fake-progress-bar.component';
@@ -17,7 +26,6 @@ import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
 @Component({
   selector: 'ix-page-header',
   templateUrl: './page-header.component.html',
-  styleUrls: ['./page-header.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     BreadcrumbComponent,
@@ -26,9 +34,11 @@ import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
     TranslateModule,
     AsyncPipe,
     TooltipComponent,
+    IxIconComponent,
   ],
 })
 export class PageHeaderComponent implements OnInit, OnDestroy {
+  private router = inject(Router);
   private pageTitleService = inject(PageTitleService);
   private layoutService = inject(LayoutService);
 
@@ -65,5 +75,9 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
     if (!this.default()) {
       this.layoutService.hasCustomPageHeader$.next(false);
     }
+  }
+
+  onCloseClick(): void {
+    this.router.navigate(['/desktop']);
   }
 }
