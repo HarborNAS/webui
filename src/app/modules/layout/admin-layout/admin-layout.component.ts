@@ -16,7 +16,7 @@ import {
   MatSidenav,
   MatSidenavContainer,
 } from '@angular/material/sidenav';
-import { RouterOutlet } from '@angular/router';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -58,6 +58,7 @@ import {
     TranslateModule,
     IxIconComponent,
     MatButtonModule,
+    RouterLink,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
