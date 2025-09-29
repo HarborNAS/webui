@@ -2,7 +2,7 @@
   @for (item of menuItems; track item) {
     @if (item.type === MenuItemType.Link) {
       <a
-        class="size-20 border rounded-md bg-background text-foreground overflow-hidden flex flex-col items-center justify-center"
+        class="size-20 shadow rounded-md bg-background/50 backdrop-blur text-foreground overflow-hidden flex flex-col items-center justify-center"
         [routerLink]="getRouterLink(item.state)"
       >
         <div class="size-12 mx-auto">
