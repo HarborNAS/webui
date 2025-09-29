@@ -20,7 +20,7 @@
     }
   },
   "[html]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true,
     "editor.suggest.insertMode": "replace"
   },

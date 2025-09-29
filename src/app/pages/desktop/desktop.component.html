@@ -1,26 +1,15 @@
-<div class="grid grid-rows-8 grid-flow-col gap-8 justify-start p-8">
-  <a routerLink="/dashboard" class="size-24 border rounded-md bg-background text-foreground overflow-hidden flex flex-col items-center justify-center">
-    <div class="size-16 mx-auto">
-      <ix-icon name="mdi-view-dashboard" [fullSize]="true"></ix-icon>
-    </div>
-    <div class="text-center line-clamp-1">Dashboard</div>
-  </a>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
-  <div class="size-24 border rounded-md"></div>
+<div class="grid grid-rows-12 grid-flow-col gap-4 justify-start p-8">
+  @for (item of menuItems; track item) {
+    @if (item.type === MenuItemType.Link) {
+      <a
+        class="size-20 border rounded-md bg-background text-foreground overflow-hidden flex flex-col items-center justify-center"
+        [routerLink]="getRouterLink(item.state)"
+      >
+        <div class="size-12 mx-auto">
+          <ix-icon [name]="item.icon" [fullSize]="true"></ix-icon>
+        </div>
+        <div class="text-center line-clamp-1">{{ item.name | translate }}</div>
+      </a>
+    }
+  }
 </div>
