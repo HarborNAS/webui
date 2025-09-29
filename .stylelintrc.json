@@ -4,6 +4,7 @@
   ],
 
   "rules": {
+    "@stylistic/object-curly-spacing": null,
     "selector-no-qualifying-type": null,
     "selector-max-compound-selectors": null,
     "color-named": null,

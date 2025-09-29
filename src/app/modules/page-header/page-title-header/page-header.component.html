@@ -26,17 +26,17 @@
     <div class="flex items-center gap-8">
       <ng-content></ng-content>
       <div class="flex items-center gap-8">
-        <a matIconButton class="cursor-pointer">
+        <button mat-button class="cursor-pointer">
           <ix-icon name="mdi-minus"></ix-icon>
-        </a>
+        </button>
 
         <!-- <a matIconButton class="cursor-pointer">
           <ix-icon name="mdi-fullscreen"></ix-icon>
         </a> -->
 
-        <a matIconButton class="cursor-pointer" [routerLink]="['/desktop']">
+        <button mat-button class="cursor-pointer" [routerLink]="['/desktop']">
           <ix-icon name="mdi-close"></ix-icon>
-        </a>
+        </button>
       </div>
     </div>
   </div>
