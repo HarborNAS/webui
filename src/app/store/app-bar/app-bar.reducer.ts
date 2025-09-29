@@ -20,7 +20,8 @@ export const initialState: AppBarState[] = [
     fixed: true,
     minimize: false,
     name: 'Desktop',
-    icon: iconMarker('desktop'),
+    icon: iconMarker('mdi-monitor'),
+    state: 'desktop',
   },
   // 可以在这里添加更多初始项
 ];

@@ -3,33 +3,11 @@
 >
   <div class="flex-1 flex flex-col gap-4">
     <div class="grid gap-4 text-center mx-auto">
-      <button matMiniFab [routerLink]="['/desktop']">
-        <ix-icon name="mdi-monitor"></ix-icon>
-      </button>
-      <button matMiniFab>
-        <ix-icon name="mdi-monitor"></ix-icon>
-      </button>
+      @for (item of (appBarState$ | async); track item) {
+        <button matMiniFab class="cursor-pointer" [routerLink]="getRouterLink(item.state)">
+          <ix-icon [name]="item.icon"></ix-icon>
+        </button>
+      }
     </div>
-
-    <div class="grid gap-4 mx-auto">
-      <button matMiniFab>
-        <ix-icon name="mdi-view-dashboard"></ix-icon>
-      </button>
-      <button matMiniFab>
-        <ix-icon name="mdi-database"></ix-icon>
-      </button>
-      <button matMiniFab>
-        <ix-icon name="mdi-chart-bar"></ix-icon>
-      </button>
-      <button matMiniFab>
-        <ix-icon name="mdi-cog"></ix-icon>
-      </button>
-    </div>
-  </div>
-
-  <div class="text-center">
-    <button matMiniFab>
-      <ix-icon name="mdi-cog"></ix-icon>
-    </button>
   </div>
 </aside>
