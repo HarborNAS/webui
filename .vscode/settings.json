@@ -1,107 +1,14 @@
 {
-  // 保存时自动格式化
-  "editor.formatOnSave": false,
-  "editor.formatOnPaste": false,
-  "editor.formatOnType": false,
-
-  // 特定语言的格式化工具 - 使用 ESLint
-  "[typescript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": "explicit"
-    }
-  },
-  "[javascript]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint",
-    "editor.formatOnSave": true,
-    "editor.codeActionsOnSave": {
-      "source.fixAll.eslint": "explicit"
-    }
-  },
-  "[html]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode",
-    "editor.formatOnSave": true,
-    "editor.suggest.insertMode": "replace"
-  },
-  "[scss]": {
-    "editor.formatOnSave": false
-  },
-  "[css]": {
-    "editor.formatOnSave": false
-  },
-  "[json]": {
-    "editor.formatOnSave": false
-  },
-  "[jsonc]": {
-    "editor.formatOnSave": false
-  },
-
-  // ESLint 配置 - 性能优化
-  "eslint.enable": true,
-  "eslint.validate": ["javascript", "typescript", "html"],
-  "eslint.format.enable": true,
-  "eslint.codeActionsOnSave.mode": "problems", // 从 "all" 改为 "problems"
-  "eslint.lintTask.enable": true,
-  "eslint.workingDirectories": ["./"], // 指定工作目录
-  "eslint.runtime": "node", // 明确指定运行时
-  "eslint.debug": false, // 关闭调试模式
-  "eslint.trace.server": "off", // 关闭服务器跟踪
-  "eslint.options": {
-    "cache": true, // 启用缓存
-    "cacheLocation": ".eslintcache" // 指定缓存位置
-  },
-
-  // 简化全局代码操作
-  "editor.codeActionsOnSave": {
-    "source.fixAll.eslint": "explicit"
-  },
-
-  // TypeScript - 关闭内置功能，让 ESLint 处理
-  "typescript.updateImportsOnFileMove.enabled": "always",
-  "typescript.suggest.autoImports": true,
-  "typescript.preferences.includePackageJsonAutoImports": "off",
-  "typescript.preferences.organizeImportsIgnoreCase": false,
-
-  // Angular 语言服务
-  "angular.enable-strict-mode-prompt": false,
-
-  // Tailwind CSS 智能提示
-  "tailwindCSS.includeLanguages": {
-    "typescript": "typescript",
-    "javascript": "javascript",
-    "html": "html"
-  },
-  "tailwindCSS.experimental.classRegex": [
-    "class:\\s*?[\"'`]([^\"'`]*).*?[\"'`]",
-    "[\"'`]([^\"'`]*)[\"'`]"
-  ],
-
-  // 文件关联
-  "files.associations": {
-    "*.mjs": "javascript"
-  },
-
-  // 性能优化
-  "files.watcherExclude": {
-    "**/.git/objects/**": true,
-    "**/.git/subtree-cache/**": true,
-    "**/node_modules/*/**": true,
-    "**/dist/**": true,
-    "**/.angular/**": true,
-    "**/.eslintcache": true // 排除 ESLint 缓存文件
-  },
-
-  // 编辑器性能优化
-  "editor.semanticTokenColorCustomizations": {
-    "enabled": false // 如果不需要语义高亮可以关闭
-  },
-  "editor.quickSuggestionsDelay": 100,
-  "editor.suggest.snippetsPreventQuickSuggestions": false,
-
-  "i18n-ally.localesPaths": [
-    "scripts/language",
-    "src/assets/i18n",
-    "src/app/modules/language"
-  ]
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "typescript.preferences.importModuleSpecifier": "non-relative",
+    "eslint.validate": [
+        "typescript",
+        "html"
+    ],
+    "angular.enable-strict-mode-prompt": false,
+    "i18n-ally.localesPaths": [
+        "scripts/language",
+        "src/assets/i18n",
+        "src/app/modules/language"
+    ]
 }

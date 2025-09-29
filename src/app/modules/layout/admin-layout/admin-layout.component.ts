@@ -1,3 +1,4 @@
+import { NgClass } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -16,11 +17,11 @@ import {
   MatSidenav,
   MatSidenavContainer,
 } from '@angular/material/sidenav';
-import { RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { map } from 'rxjs';
+import { map, Subject } from 'rxjs';
 import { exploreNasEnterpriseLink } from 'app/constants/explore-nas-enterprise-link.constant';
 import { productTypeLabels } from 'app/enums/product-type.enum';
 import { hashMessage } from 'app/helpers/hash-message';
@@ -53,6 +54,7 @@ import {
   styleUrls: ['./admin-layout.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    NgClass,
     MatSidenavContainer,
     RouterOutlet,
     TranslateModule,
@@ -68,6 +70,7 @@ export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   private languageService = inject(LanguageService);
   private sessionTimeoutService = inject(SessionTimeoutService);
   private sentryService = inject(SentryConfigurationService);
+  private destroy$ = new Subject<void>();
 
   @ViewChildren(MatSidenav) private sideNavs: QueryList<MatSidenav>;
 
@@ -82,6 +85,8 @@ export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly copyrightHtml = toSignal(this.store$.select(selectCopyrightHtml));
   readonly productType = toSignal(this.store$.select(selectProductType));
   readonly isEnterprise = toSignal(this.store$.select(selectIsEnterprise));
+
+  router = inject(Router);
 
   protected currentMessageHref = computed(
     () => `${exploreNasEnterpriseLink}?m=${hashMessage(this.productType())}`,
@@ -162,6 +167,8 @@ export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.sessionTimeoutService.stop();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private listenForSidenavChanges(): void {
