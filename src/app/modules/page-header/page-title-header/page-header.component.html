@@ -1,6 +1,8 @@
 <div>
   <!-- <ix-breadcrumb class="breadcrumbs"></ix-breadcrumb> -->
-  <div class="h-16 flex justify-between items-center p-4 bg-background border-b border-border text-foreground mb-4">
+  <div
+    class="h-16 flex justify-between items-center p-4 bg-background border-b border-border text-foreground mb-4"
+  >
     <div>
       @let title = pageTitle();
       <h1>
@@ -8,18 +10,23 @@
       </h1>
 
       @if (tooltip()) {
-      <ix-tooltip class="tooltip" [message]="tooltip() | translate"></ix-tooltip>
+        <ix-tooltip
+          class="tooltip"
+          [message]="tooltip() | translate"
+        ></ix-tooltip>
       }
 
       @if ((hasNewIndicator$ | async) || customBadgeTitle()) {
-      <ix-header-badge [customBadgeTitle]="customBadgeTitle()"></ix-header-badge>
+        <ix-header-badge
+          [customBadgeTitle]="customBadgeTitle()"
+        ></ix-header-badge>
       }
     </div>
 
     <div class="flex items-center gap-8">
       <ng-content></ng-content>
       <div class="flex items-center gap-8">
-        <button mat-button class="cursor-pointer">
+        <button mat-button class="cursor-pointer" (click)="minimize()">
           <ix-icon name="mdi-minus"></ix-icon>
         </button>
 
@@ -34,6 +41,6 @@
     </div>
   </div>
   @if (loading()) {
-  <ix-fake-progress-bar [loading]="true"></ix-fake-progress-bar>
+    <ix-fake-progress-bar [loading]="true"></ix-fake-progress-bar>
   }
 </div>

@@ -7,7 +7,7 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
 import { map } from 'rxjs/operators';
 import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
@@ -41,6 +41,7 @@ import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
 export class PageHeaderComponent implements OnInit, OnDestroy {
   private pageTitleService = inject(PageTitleService);
   private layoutService = inject(LayoutService);
+  private router = inject(Router);
 
   readonly pageTitle = input<string>();
   readonly customBadgeTitle = input<string>();
@@ -75,5 +76,9 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
     if (!this.default()) {
       this.layoutService.hasCustomPageHeader$.next(false);
     }
+  }
+
+  minimize(): void {
+    this.router.navigate(['/desktop']);
   }
 }
