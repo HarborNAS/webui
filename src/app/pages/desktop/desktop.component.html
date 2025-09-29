@@ -1,15 +1,15 @@
 <div class="grid grid-rows-12 grid-flow-col gap-4 justify-start p-8">
   @for (item of menuItems; track item) {
     @if (item.type === MenuItemType.Link) {
-      <a
+      <button
         class="size-20 shadow rounded-md bg-background/50 backdrop-blur text-foreground overflow-hidden flex flex-col items-center justify-center"
-        [routerLink]="getRouterLink(item.state)"
+        (click)="open(item)"
       >
         <div class="size-12 mx-auto">
           <ix-icon [name]="item.icon" [fullSize]="true"></ix-icon>
         </div>
         <div class="text-center line-clamp-1">{{ item.name | translate }}</div>
-      </a>
+      </button>
     }
   }
 </div>

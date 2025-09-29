@@ -15,6 +15,7 @@ import { userStateKey } from 'app/pages/credentials/users/store/user.selectors';
 import { SnapshotEffects } from 'app/pages/datasets/modules/snapshots/store/snapshot.effects';
 import { snapshotReducer, SnapshotsState } from 'app/pages/datasets/modules/snapshots/store/snapshot.reducer';
 import { snapshotStateKey } from 'app/pages/datasets/modules/snapshots/store/snapshot.selectors';
+import { AppBarEffects } from 'app/store/app-bar/app-bar.effects';
 import { appBarReducer, AppBarState } from 'app/store/app-bar/app-bar.reducer';
 import { appBarStateKey } from 'app/store/app-bar/app-bar.selectors';
 import { EulaEffects } from 'app/store/eula/eula.effects';
@@ -91,4 +92,5 @@ export const rootEffects = [
   UserEffects,
   GroupEffects,
   SnapshotEffects,
+  AppBarEffects,
 ];

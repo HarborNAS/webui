@@ -1,8 +1,9 @@
 import { createAction, props } from '@ngrx/store';
+import { AppBarItem } from 'app/interfaces/app-bar.interface';
 
 export const appBarOpened = createAction(
   '[AppBar] Opened',
-  props<{ name: string }>(),
+  props<{ item: AppBarItem }>(),
 );
 
 export const appBarClosed = createAction(
@@ -10,8 +11,8 @@ export const appBarClosed = createAction(
   props<{ name: string }>(),
 );
 
-export const appBarToggled = createAction(
-  '[AppBar] Toggled',
+export const appBarMinimized = createAction(
+  '[AppBar] Minimized',
   props<{ name: string }>(),
 );
 
@@ -19,3 +20,12 @@ export const appBarFixedChanged = createAction(
   '[AppBar] Fixed Changed',
   props<{ name: string; fixed: boolean }>(),
 );
+
+export const appBarAdded = createAction(
+  '[AppBar] Added',
+  props<{ item: AppBarItem }>(),
+);
+
+// 打开/缩小
+// 关闭 如果不是 fixed 则删除
+// 打开应用，如果不存在则添加

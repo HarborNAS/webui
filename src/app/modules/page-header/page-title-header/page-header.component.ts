@@ -7,7 +7,7 @@ import {
   OnDestroy,
   OnInit,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { map } from 'rxjs/operators';
@@ -18,7 +18,7 @@ import { FakeProgressBarComponent } from 'app/modules/loader/components/fake-pro
 // import { BreadcrumbComponent } from 'app/modules/page-header/breadcrumb/breadcrumb.component';
 import { HeaderBadgeComponent } from 'app/modules/page-header/header-badge/header-badge.component';
 import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
-import { appBarClosed } from 'app/store/app-bar/app-bar.actions';
+import { appBarMinimized } from 'app/store/app-bar/app-bar.actions';
 
 @Component({
   selector: 'ix-page-header',
@@ -32,7 +32,6 @@ import { appBarClosed } from 'app/store/app-bar/app-bar.actions';
     AsyncPipe,
     TooltipComponent,
     IxIconComponent,
-    RouterLink,
   ],
 })
 export class PageHeaderComponent implements OnInit, OnDestroy {
@@ -74,9 +73,10 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   }
 
   minimize(): void {
-    // 通知 appBarStore 收起当前页面
-    this.store.dispatch(appBarClosed({ name: this.pageTitle() || 'Desktop' }));
-    // 可选：跳转到桌面
-    this.router.navigate(['/desktop']);
+    this.store.dispatch(appBarMinimized({ name: this.pageTitle() }));
+  }
+
+  close(): void {
+    this.store.dispatch(appBarMinimized({ name: this.pageTitle() }));
   }
 }

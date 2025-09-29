@@ -4,24 +4,20 @@ import { iconMarker } from 'app/modules/ix-icon/icon-marker.util';
 import {
   appBarOpened,
   appBarClosed,
-  appBarToggled,
+  appBarMinimized,
   appBarFixedChanged,
+  appBarAdded,
 } from './app-bar.actions';
 
-export interface AppBarState extends AppBarItem {
-  open: boolean;
-  fixed: boolean;
-  minimize: boolean;
-}
+export type AppBarState = AppBarItem;
 
-export const initialState: AppBarState[] = [
+export const initialState: AppBarItem[] = [
   {
-    open: false,
-    fixed: true,
-    minimize: false,
+    status: 'minimized',
     name: 'Desktop',
     icon: iconMarker('mdi-monitor'),
     state: 'desktop',
+    fixed: true,
   },
   // 可以在这里添加更多初始项
 ];
@@ -32,10 +28,22 @@ function updateItem(state: AppBarState[], name: string, changes: Partial<AppBarS
 
 export const appBarReducer = createReducer(
   initialState,
-  on(appBarOpened, (state, { name }) => updateItem(state, name, { open: true, minimize: false })),
-  on(appBarClosed, (state, { name }) => updateItem(state, name, { open: false, minimize: true })),
-  on(appBarToggled, (state, { name }) => state.map((item) => (item.name === name
-    ? { ...item, open: !item.open, minimize: !item.open }
-    : item))),
+  on(appBarOpened, (state, { item }) => {
+    const itemExists = state.some((i) => i.name === item.name);
+    if (itemExists) {
+      return updateItem(state, item.name, { status: 'open' as const });
+    }
+
+    return [...state, { ...item, status: 'open' as const }];
+  }),
+  on(appBarClosed, (state, { name }) => state.filter((item) => !(item.name === name && !item.fixed))),
+  on(appBarMinimized, (state, { name }) => updateItem(state, name, { status: 'minimized' as const })),
   on(appBarFixedChanged, (state, { name, fixed }) => updateItem(state, name, { fixed })),
+  on(appBarAdded, (state, { item }) => {
+    const itemExists = state.some((i) => i.name === item.name);
+    if (itemExists) {
+      return state;
+    }
+    return [...state, item];
+  }),
 );

@@ -4,4 +4,6 @@ export interface AppBarItem {
   name: string;
   icon: MarkedIcon;
   state: string;
+  status: 'open' | 'minimized';
+  fixed: boolean;
 }
