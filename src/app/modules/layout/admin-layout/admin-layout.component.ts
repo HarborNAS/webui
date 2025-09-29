@@ -17,7 +17,7 @@ import {
   MatSidenav,
   MatSidenavContainer,
 } from '@angular/material/sidenav';
-import { Router, RouterLink, RouterOutlet } from '@angular/router';
+import { Router, RouterOutlet } from '@angular/router';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
@@ -29,8 +29,9 @@ import { SubMenuItem } from 'app/interfaces/menu-item.interface';
 import { alertPanelClosed } from 'app/modules/alerts/store/alert.actions';
 import { selectIsAlertPanelOpen } from 'app/modules/alerts/store/alert.selectors';
 import { iconMarker } from 'app/modules/ix-icon/icon-marker.util';
-import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
+// import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { LanguageService } from 'app/modules/language/language.service';
+import { AppBarComponent } from 'app/modules/layout/app-bar/app-bar.component';
 import { SidenavService } from 'app/modules/layout/sidenav.service';
 // import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
 import { ThemeService } from 'app/modules/theme/theme.service';
@@ -58,9 +59,8 @@ import {
     MatSidenavContainer,
     RouterOutlet,
     TranslateModule,
-    IxIconComponent,
     MatButtonModule,
-    RouterLink,
+    AppBarComponent,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {

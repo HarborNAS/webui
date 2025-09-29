@@ -8,6 +8,7 @@ import {
   OnInit,
 } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { map } from 'rxjs/operators';
 import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
@@ -17,12 +18,8 @@ import { FakeProgressBarComponent } from 'app/modules/loader/components/fake-pro
 // import { BreadcrumbComponent } from 'app/modules/page-header/breadcrumb/breadcrumb.component';
 import { HeaderBadgeComponent } from 'app/modules/page-header/header-badge/header-badge.component';
 import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
+import { appBarClosed } from 'app/store/app-bar/app-bar.actions';
 
-/**
- * Usage:
- * Use in your template to override default page title.
- * If you don't use this component, the default page title will be shown.
- */
 @Component({
   selector: 'ix-page-header',
   templateUrl: './page-header.component.html',
@@ -43,15 +40,14 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   private layoutService = inject(LayoutService);
   private router = inject(Router);
 
+  // 新增 store 注入
+  private store = inject(Store);
+
   readonly pageTitle = input<string>();
   readonly customBadgeTitle = input<string>();
   readonly tooltip = input<string>();
   readonly loading = input(false);
 
-  /**
-   * You probably don't need to use this.
-   * Set to true for automatic header when no header is set.
-   */
   readonly default = input(false);
 
   readonly defaultTitle$ = this.pageTitleService.title$;
@@ -61,7 +57,6 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
       if (!this.pageTitle()) {
         return defaultTitle;
       }
-
       return this.pageTitle();
     }),
   );
@@ -79,6 +74,9 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   }
 
   minimize(): void {
+    // 通知 appBarStore 收起当前页面
+    this.store.dispatch(appBarClosed({ name: this.pageTitle() || 'Desktop' }));
+    // 可选：跳转到桌面
     this.router.navigate(['/desktop']);
   }
 }

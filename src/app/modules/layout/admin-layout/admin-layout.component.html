@@ -1,40 +1,10 @@
 <mat-sidenav-container class="app-side-nav-container">
-  <aside
-    class="h-[calc(100vh-48px)] flex fixed w-16 left-4 top-4 flex-col bg-background/10 backdrop-blur rounded overflow-hidden border border-border/10 py-4">
-    <div class="flex-1 flex flex-col gap-4">
-      <div class="grid gap-4 text-center mx-auto">
-        <button matMiniFab [routerLink]="['/desktop']">
-          <ix-icon name="mdi-monitor"></ix-icon>
-        </button>
-        <button matMiniFab>
-          <ix-icon name="mdi-monitor"></ix-icon>
-        </button>
-      </div>
+  <ix-app-bar></ix-app-bar>
 
-      <div class="grid gap-4 mx-auto">
-        <button matMiniFab>
-          <ix-icon name="mdi-view-dashboard"></ix-icon>
-        </button>
-        <button matMiniFab>
-          <ix-icon name="mdi-database"></ix-icon>
-        </button>
-        <button matMiniFab>
-          <ix-icon name="mdi-chart-bar"></ix-icon>
-        </button>
-        <button matMiniFab>
-          <ix-icon name="mdi-cog"></ix-icon>
-        </button>
-      </div>
-    </div>
-
-    <div class="text-center">
-      <button matMiniFab>
-        <ix-icon name="mdi-cog"></ix-icon>
-      </button>
-    </div>
-  </aside>
-
-  <main class="ml-20 h-screen overflow-hidden" [ngClass]="{ 'bg-background': !router.url.startsWith('/desktop') }">
+  <main
+    class="ml-20 h-screen overflow-hidden"
+    [ngClass]="{ 'bg-background': !router.url.startsWith('/desktop') }"
+  >
     <router-outlet></router-outlet>
   </main>
 </mat-sidenav-container>
