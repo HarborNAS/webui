@@ -34,7 +34,7 @@
     </div>
   </aside>
 
-  <main class="ml-20 h-screen" [ngClass]="{ 'bg-background': !router.url.startsWith('/desktop') }">
+  <main class="ml-20 h-screen overflow-hidden" [ngClass]="{ 'bg-background': !router.url.startsWith('/desktop') }">
     <router-outlet></router-outlet>
   </main>
 </mat-sidenav-container>

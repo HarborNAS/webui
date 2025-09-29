@@ -1,19 +1,18 @@
 @use "tailwindcss";
 
 // Parts
-@import 'other/root-variables';
-@import 'fonts/index';
-@import 'components/charts';
-@import 'components/mat-card';
-@import 'components/mat-button-group';
-@import 'components/dynamic-markdown';
+@import "other/root-variables";
+@import "fonts/index";
+@import "components/charts";
+@import "components/mat-card";
+@import "components/mat-button-group";
+@import "components/dynamic-markdown";
 
 // Older scss files
-@import 'other/tn-styles';
-@import 'other/fn-styles';
-@import 'other/egret_overrides';
-@import 'other/material-reduction';
-
+@import "other/tn-styles";
+@import "other/fn-styles";
+@import "other/egret_overrides";
+@import "other/material-reduction";
 
 @custom-variant dark (&:is(.dark *));
 @theme inline {
@@ -56,7 +55,7 @@
 
 :root {
   --radius: 0.625rem;
-  --background: #1E1E1E;
+  --background: #1e1e1e;
   --foreground: #fff;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -125,7 +124,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border outline-ring/50 box-border;
   }
   body {
     @apply bg-background text-foreground;
