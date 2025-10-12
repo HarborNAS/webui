@@ -29,7 +29,7 @@ export const appBarReducer = createReducer(
   on(appBarOpened, (state, { item }) => {
     const itemExists = state.some((i) => i.state === item.state);
     if (itemExists) {
-      return updateItem(state, item.state, { status: 'open' as const });
+      return updateItem(state, item.state, { ...item, status: 'open' as const });
     }
 
     return [...state, { ...item, status: 'open' as const }];
