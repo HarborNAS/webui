@@ -16,11 +16,6 @@ export const appBarMinimized = createAction(
   props<{ name: string }>(),
 );
 
-export const appBarFixedChanged = createAction(
-  '[AppBar] Fixed Changed',
-  props<{ name: string; fixed: boolean }>(),
-);
-
 export const appBarAdded = createAction(
   '[AppBar] Added',
   props<{ item: AppBarItem }>(),

@@ -5,5 +5,4 @@ export interface AppBarItem {
   icon: MarkedIcon;
   state: string;
   status: 'open' | 'minimized';
-  fixed: boolean;
 }

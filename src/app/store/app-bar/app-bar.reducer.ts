@@ -5,7 +5,6 @@ import {
   appBarOpened,
   appBarClosed,
   appBarMinimized,
-  appBarFixedChanged,
   appBarAdded,
 } from './app-bar.actions';
 
@@ -17,7 +16,6 @@ export const initialState: AppBarItem[] = [
     name: 'Desktop',
     icon: iconMarker('mdi-monitor'),
     state: 'desktop',
-    fixed: true,
   },
   // 可以在这里添加更多初始项
 ];
@@ -36,9 +34,8 @@ export const appBarReducer = createReducer(
 
     return [...state, { ...item, status: 'open' as const }];
   }),
-  on(appBarClosed, (state, { name }) => state.filter((item) => !(item.name === name && !item.fixed))),
+  on(appBarClosed, (state, { name }) => state.filter((item) => item.name !== name)),
   on(appBarMinimized, (state, { name }) => updateItem(state, name, { status: 'minimized' as const })),
-  on(appBarFixedChanged, (state, { name, fixed }) => updateItem(state, name, { fixed })),
   on(appBarAdded, (state, { item }) => {
     const itemExists = state.some((i) => i.name === item.name);
     if (itemExists) {

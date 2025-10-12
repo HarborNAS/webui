@@ -4,12 +4,12 @@
   <div class="flex-1 flex flex-col gap-4">
     <div class="grid gap-4 text-center mx-auto">
       @for (item of (appBarState$ | async); track item) {
-        <button matMiniFab class="cursor-pointer size-10 relative flex items-center justify-center " [routerLink]="getRouterLink(item.state)">
-          <ix-icon [name]="item.icon"></ix-icon>
-          @if (item.status === 'minimized') {
-            <div class="size-2 absolute rounded-full bg-background -bottom-1 left-1/2 transform -translate-x-1/2"></div>
-          }
-        </button>
+          <button matMiniFab class="cursor-pointer size-10 relative flex items-center justify-center " [routerLink]="getRouterLink(item.state)">
+            <ix-icon [name]="item.icon"></ix-icon>
+            @if (item.status === 'minimized') {
+              <div class="size-2 absolute rounded-full bg-background -bottom-1 left-1/2 transform -translate-x-1/2"></div>
+            }
+          </button>
       }
     </div>
   </div>

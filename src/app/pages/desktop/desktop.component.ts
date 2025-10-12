@@ -40,7 +40,6 @@ export class DesktopComponent {
         name: item.name,
         icon: item.icon,
         state: item.state,
-        fixed: false,
         status: 'open',
       },
     }));
