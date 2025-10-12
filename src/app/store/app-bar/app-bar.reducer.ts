@@ -20,24 +20,24 @@ export const initialState: AppBarItem[] = [
   // 可以在这里添加更多初始项
 ];
 
-function updateItem(state: AppBarState[], name: string, changes: Partial<AppBarState>): AppBarState[] {
-  return state.map((item) => (item.name === name ? { ...item, ...changes } : item));
+function updateItem(state: AppBarState[], stateId: string, changes: Partial<AppBarState>): AppBarState[] {
+  return state.map((item) => (item.state === stateId ? { ...item, ...changes } : item));
 }
 
 export const appBarReducer = createReducer(
   initialState,
   on(appBarOpened, (state, { item }) => {
-    const itemExists = state.some((i) => i.name === item.name);
+    const itemExists = state.some((i) => i.state === item.state);
     if (itemExists) {
-      return updateItem(state, item.name, { status: 'open' as const });
+      return updateItem(state, item.state, { status: 'open' as const });
     }
 
     return [...state, { ...item, status: 'open' as const }];
   }),
-  on(appBarClosed, (state, { name }) => state.filter((item) => item.name !== name)),
-  on(appBarMinimized, (state, { name }) => updateItem(state, name, { status: 'minimized' as const })),
+  on(appBarClosed, (state, { stateName }) => state.filter((item) => item.state !== stateName)),
+  on(appBarMinimized, (state, { stateName }) => updateItem(state, stateName, { status: 'minimized' as const })),
   on(appBarAdded, (state, { item }) => {
-    const itemExists = state.some((i) => i.name === item.name);
+    const itemExists = state.some((i) => i.state === item.state);
     if (itemExists) {
       return state;
     }

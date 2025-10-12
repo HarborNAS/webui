@@ -8,12 +8,12 @@ export const appBarOpened = createAction(
 
 export const appBarClosed = createAction(
   '[AppBar] Closed',
-  props<{ name: string }>(),
+  props<{ stateName: string }>(),
 );
 
 export const appBarMinimized = createAction(
   '[AppBar] Minimized',
-  props<{ name: string }>(),
+  props<{ stateName: string }>(),
 );
 
 export const appBarAdded = createAction(
@@ -22,5 +22,4 @@ export const appBarAdded = createAction(
 );
 
 // 打开/缩小
-// 关闭 如果不是 fixed 则删除
 // 打开应用，如果不存在则添加

@@ -18,7 +18,8 @@ import { FakeProgressBarComponent } from 'app/modules/loader/components/fake-pro
 // import { BreadcrumbComponent } from 'app/modules/page-header/breadcrumb/breadcrumb.component';
 import { HeaderBadgeComponent } from 'app/modules/page-header/header-badge/header-badge.component';
 import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
-import { appBarMinimized } from 'app/store/app-bar/app-bar.actions';
+import { NavigationService } from 'app/services/navigation/navigation.service';
+import { appBarClosed, appBarMinimized } from 'app/store/app-bar/app-bar.actions';
 
 @Component({
   selector: 'ix-page-header',
@@ -38,9 +39,8 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   private pageTitleService = inject(PageTitleService);
   private layoutService = inject(LayoutService);
   private router = inject(Router);
-
-  // 新增 store 注入
   private store = inject(Store);
+  private navService = inject(NavigationService); // 移到这里
 
   readonly pageTitle = input<string>();
   readonly customBadgeTitle = input<string>();
@@ -73,10 +73,30 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   }
 
   minimize(): void {
-    this.store.dispatch(appBarMinimized({ name: this.pageTitle() }));
+    const currentState = this.getCurrentMenuItemState();
+    this.store.dispatch(appBarMinimized({ stateName: currentState }));
   }
 
   close(): void {
-    this.store.dispatch(appBarMinimized({ name: this.pageTitle() }));
+    const currentState = this.getCurrentMenuItemState();
+    this.store.dispatch(appBarClosed({ stateName: currentState }));
+  }
+
+  private getCurrentMenuItemState(): string {
+    const currentUrl = this.router.url.replace('/', '');
+
+    // 查找匹配的 menuItem
+    const matchedItem = this.navService.menuItems.find((item) => {
+      if (item.state === currentUrl) return true;
+
+      // 检查子菜单
+      if (item.sub) {
+        return item.sub.some((subItem) => subItem.state === currentUrl);
+      }
+
+      return false;
+    });
+
+    return (matchedItem?.state || currentUrl || 'desktop').toLowerCase();
   }
 }
