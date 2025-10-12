@@ -1,3 +1,5 @@
+<ix-page-header [pageTitle]="'Dataset' | translate" ></ix-page-header>
+
 @if (!isLoading && dataSource.data.length === 0) {
   <ng-container [ngTemplateOutlet]="empty"></ng-container>
 } @else {

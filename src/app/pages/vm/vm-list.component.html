@@ -1,3 +1,5 @@
+<ix-page-header [pageTitle]="'Virtual Machines' | translate" ></ix-page-header>
+
 @if (hasVirtualizationSupport$ | async) {
   <ix-page-header>
     <div *ixWithLoadingState="availableMemory$ as availableMemory" class="vm-summary">
