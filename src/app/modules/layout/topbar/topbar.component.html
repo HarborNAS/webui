@@ -1,8 +1,8 @@
 <nav [attr.aria-label]="'Top bar' | translate">
-  <mat-toolbar class="topbar">
+  <mat-toolbar class="topbar backdrop-blur-md">
     <mat-toolbar-row>
       <!-- Sidenav toggle button -->
-      <button
+      <!-- <button
         mat-icon-button
         id="sidenavToggle"
         matTooltipPosition="right"
@@ -12,11 +12,11 @@
         (click)="onSidenavIndicatorPressed()"
       >
         <ix-icon name="menu"></ix-icon>
-      </button>
+      </button> -->
 
-      <ix-global-search-trigger></ix-global-search-trigger>
+      <!-- <ix-global-search-trigger></ix-global-search-trigger> -->
 
-      <ix-truenas-logo></ix-truenas-logo>
+      <ix-truenas-logo [fullSize]="true"></ix-truenas-logo>
 
       <div class="topbar-mobile-footer" [class.has-console-footer]="hasConsoleFooter$ | async">
         <span

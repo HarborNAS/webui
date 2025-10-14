@@ -33,7 +33,7 @@ import { iconMarker } from 'app/modules/ix-icon/icon-marker.util';
 import { LanguageService } from 'app/modules/language/language.service';
 import { AppBarComponent } from 'app/modules/layout/app-bar/app-bar.component';
 import { SidenavService } from 'app/modules/layout/sidenav.service';
-// import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
+import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
 import { ThemeService } from 'app/modules/theme/theme.service';
 import { SentryConfigurationService } from 'app/services/errors/sentry-configuration.service';
 import { SessionTimeoutService } from 'app/services/session-timeout.service';
@@ -60,6 +60,7 @@ import {
     TranslateModule,
     MatButtonModule,
     AppBarComponent,
+    TopbarComponent,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {

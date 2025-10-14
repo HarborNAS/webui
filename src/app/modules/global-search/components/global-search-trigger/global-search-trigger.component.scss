@@ -1,11 +1,11 @@
-@import 'scss-imports/cssvars';
+@import "scss-imports/cssvars";
 
 :host {
   margin-left: 21px;
   position: relative;
   width: 100%;
 
-  @media(max-width: $breakpoint-xs) {
+  @media (max-width: $breakpoint-xs) {
     position: absolute;
     right: 0;
     top: 8px;
@@ -27,12 +27,13 @@
   font-size: 12px;
   position: relative;
   width: 450px;
+  height: 36px;
 
-  @media(max-width: $breakpoint-md) {
+  @media (max-width: $breakpoint-md) {
     width: 250px;
   }
 
-  @media(max-width: $breakpoint-xs) {
+  @media (max-width: $breakpoint-xs) {
     background-color: transparent;
     border: 0;
   }
@@ -58,7 +59,7 @@
     position: absolute;
     top: 3px;
 
-    @media(max-width: $breakpoint-xs) {
+    @media (max-width: $breakpoint-xs) {
       font-size: 28px;
     }
   }
@@ -67,7 +68,7 @@
     opacity: 0.7;
     padding-right: 30px;
 
-    @media(max-width: $breakpoint-xs) {
+    @media (max-width: $breakpoint-xs) {
       display: none;
     }
   }

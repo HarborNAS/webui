@@ -1,4 +1,4 @@
-@import 'scss-imports/variables';
+@import "scss-imports/variables";
 
 :host {
   position: fixed;
@@ -49,12 +49,11 @@
         margin: 4px;
       }
     }
-
   }
 }
 
 .topbar {
-  background-color: var(--topbar) !important;
+  background-color: rgba(from var(--topbar) r g b / 0.2) !important;
   color: var(--topbar-txt) !important;
 }
 
@@ -77,21 +76,21 @@
 }
 
 ix-truenas-logo {
-  height: 48px;
+  height: 36px;
   opacity: 1;
   visibility: visible;
 
-  @media(min-width: $breakpoint-tablet) {
+  @media (min-width: $breakpoint-tablet) {
     opacity: 0;
     visibility: hidden;
   }
 }
 
 :host ::ng-deep nav mat-toolbar {
-  min-height: 48px;
+  min-height: 36px;
 
   .mat-toolbar-row {
-    height: 48px !important;
+    height: 36px !important;
   }
 
   button .ix-icon,
