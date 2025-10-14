@@ -1,10 +1,11 @@
 <mat-sidenav-container class="app-side-nav-container">
   <ix-app-bar></ix-app-bar>
 
-  <main
-    class="ml-20 h-screen overflow-hidden"
-    [ngClass]="{ 'bg-background': !router.url.startsWith('/desktop') }"
-  >
+  <main class="ml-20"
+  [ngClass]="{
+    'bg-background min-h-screen pb-12': !router.url.startsWith('/desktop'),
+    'h-screen overflow-hidden':  router.url.startsWith('/desktop')
+  }">
     <router-outlet></router-outlet>
   </main>
 </mat-sidenav-container>

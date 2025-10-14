@@ -47,7 +47,6 @@ import {
   waitForSystemInfo,
 } from 'app/store/system-info/system-info.selectors';
 
-
 @UntilDestroy()
 @Component({
   selector: 'ix-admin-layout',
