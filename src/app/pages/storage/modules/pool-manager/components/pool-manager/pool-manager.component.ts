@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal, ViewChild, inject } from '@angular/core';
 import { UntilDestroy } from '@ngneat/until-destroy';
 import { Observable, of } from 'rxjs';
+import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { UnsavedChangesService } from 'app/modules/unsaved-changes/unsaved-changes.service';
 import {
   AddVdevsStore,
@@ -25,6 +26,7 @@ import {
     PoolManagerWizardComponent,
     ConfigurationPreviewComponent,
     InventoryComponent,
+    PageHeaderComponent,
   ],
   providers: [
     DiskStore,
