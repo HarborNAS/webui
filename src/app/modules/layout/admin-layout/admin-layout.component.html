@@ -2,11 +2,16 @@
   <ix-app-bar></ix-app-bar>
   <ix-topbar></ix-topbar>
 
-  <main class="ml-20"
+  <main
+    class="pl-20 pt-10"
   [ngClass]="{
-    'bg-background min-h-screen pb-4': !router.url.startsWith('/desktop'),
+    'min-h-screen': !router.url.startsWith('/desktop'),
     'h-screen overflow-hidden':  router.url.startsWith('/desktop')
   }">
-    <router-outlet></router-outlet>
+    <div class="relative h-full" [ngClass]="{
+      'bg-background min-h-screen': !router.url.startsWith('/desktop')
+    }">
+      <router-outlet></router-outlet>
+    </div>
   </main>
 </mat-sidenav-container>

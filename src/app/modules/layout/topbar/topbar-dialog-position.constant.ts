@@ -1,4 +1,4 @@
 export const topbarDialogPosition = {
-  top: '48px',
+  top: '36px',
   right: '16px',
 };

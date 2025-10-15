@@ -4,7 +4,7 @@
   position: fixed;
   top: 0;
   width: 100%;
-  z-index: 5;
+  z-index: 10;
 
   .topbar-mobile-footer {
     align-items: center;
@@ -50,11 +50,6 @@
       }
     }
   }
-}
-
-.topbar {
-  background-color: rgba(from var(--topbar) r g b / 0.2) !important;
-  color: var(--topbar-txt) !important;
 }
 
 .topbar button:focus-visible {
