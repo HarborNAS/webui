@@ -1,10 +1,12 @@
-@import 'scss-imports/cssvars';
-@import 'mixins/text';
-@import 'mixins/animations';
+@import "scss-imports/cssvars";
+@import "mixins/text";
+@import "mixins/animations";
 
 /* TYPOGRAPHY */
 
-p { margin-bottom: 1.15rem; }
+p {
+  margin-bottom: 1.15rem;
+}
 
 h1,
 h2,
@@ -34,15 +36,25 @@ h5 {
   font-weight: 400;
 }
 
-h2 {font-size: 2.074em;}
+h2 {
+  font-size: 2.074em;
+}
 
-h3 {font-size: 1.728em;}
+h3 {
+  font-size: 1.728em;
+}
 
-h4 {font-size: 1.44em;}
+h4 {
+  font-size: 1.44em;
+}
 
-h5 {font-size: 1.2em;}
+h5 {
+  font-size: 1.2em;
+}
 
-small {font-size: 0.833em;}
+small {
+  font-size: 0.833em;
+}
 
 span.code {
   background: rgba(255, 255, 255, 0.1);
@@ -148,10 +160,10 @@ textarea.mat-input-element::placeholder {
 }
 
 .form-element .mat-mdc-text-field-wrapper,
-.form-element input[type = 'password'],
-.form-element input[type = 'email'],
-.form-element input[type = 'text'],
-.form-element input[type = 'number'],
+.form-element input[type="password"],
+.form-element input[type="email"],
+.form-element input[type="text"],
+.form-element input[type="number"],
 .form-element textarea,
 .form-element select {
   background-color: var(--bg1);
@@ -171,11 +183,11 @@ textarea.mat-input-element::placeholder {
 .mat-mdc-form-field-flex .mat-mdc-form-field-infix .mat-mdc-chip-grid,
 .mat-mdc-form-field-flex .mat-mdc-form-field-infix .mat-mdc-chip-grid input,
 .form-element .form-button,
-.form-element input[type = 'password'],
-.form-element input[type = 'email'],
-.form-element input[type = 'text'],
-.form-element input[type = 'number'],
-.form-element input[type = 'search'],
+.form-element input[type="password"],
+.form-element input[type="email"],
+.form-element input[type="text"],
+.form-element input[type="number"],
+.form-element input[type="search"],
 .form-element textarea,
 .form-element select {
   border-radius: 0;
@@ -285,14 +297,14 @@ button.mat-mdc-button.mat-default,
 .mat-mdc-card-actions button.mat-default,
 button.mat-default,
 button.mat-mdc-button.mat-accent.btn-default,
-button.mat-mdc-button[type='button']:not(button.mat-primary) {
+button.mat-mdc-button[type="button"]:not(button.mat-primary) {
   background: var(--btn-default-bg);
   background-color: var(--btn-default-bg);
   color: var(--fg2) !important;
 }
 
-button.mat-mdc-button[type='button']:hover,
-button.mat-mdc-button.mat-accent[type='button']:hover {
+button.mat-mdc-button[type="button"]:hover,
+button.mat-mdc-button.mat-accent[type="button"]:hover {
   background-color: var(--alt-bg1) !important;
   color: var(--fg2) !important;
 }
@@ -402,7 +414,7 @@ body .mdc-card__actions,
   justify-content: space-between;
   padding: 8px 16px;
 
-  @media(max-width: $breakpoint-sm) {
+  @media (max-width: $breakpoint-sm) {
     h3 {
       white-space: normal !important;
     }
@@ -422,7 +434,7 @@ body .mdc-card__actions,
   }
 
   h3.mat-card-title-text {
-    @media(max-width: $breakpoint-sm) {
+    @media (max-width: $breakpoint-sm) {
       margin: 0 auto;
       max-width: 75%;
       white-space: pre-wrap;
@@ -511,7 +523,7 @@ td.mat-cell.mat-mdc-table-sticky {
 }
 
 td.mat-cell.mat-mdc-table-sticky::before {
-  content: '';
+  content: "";
   display: block;
   height: 1000px;
   left: 0;
@@ -591,19 +603,19 @@ ix-tooltip {
 .ngxp__container {
   border-radius: 6px !important;
 
-  &[aria-hidden='false'] {
+  &[aria-hidden="false"] {
     display: block !important;
   }
 
-  &[data-popper-placement=right] {
+  &[data-popper-placement="right"] {
     margin-left: 13px !important;
   }
 
-  &[data-popper-placement=top] {
+  &[data-popper-placement="top"] {
     margin-left: 11px !important;
   }
 
-  &[data-popper-placement=bottom] {
+  &[data-popper-placement="bottom"] {
     margin-left: 11px !important;
   }
 }
@@ -837,14 +849,14 @@ body .mat-calendar-next-button::after {
 }
 
 .cdk-overlay-pane.mat-mdc-dialog-panel {
-  @media(max-width: $breakpoint-xs) {
+  @media (max-width: $breakpoint-xs) {
     max-width: 95% !important;
     width: inherit;
   }
 }
 
 body .mat-vertical-content {
-  @media(max-width: $breakpoint-sm) {
+  @media (max-width: $breakpoint-sm) {
     padding: 0 8px 8px;
   }
 }
@@ -853,7 +865,7 @@ ix-table,
 table {
   overflow: auto;
 
-  @media(max-width: $breakpoint-md) {
+  @media (max-width: $breakpoint-md) {
     tr th {
       width: 78px;
     }
@@ -885,7 +897,7 @@ mat-list-item {
   }
 }
 
-@media(max-width: $breakpoint-sm) {
+@media (max-width: $breakpoint-sm) {
   .mdc-dialog__container,
   mat-dialog-container {
     max-width: 100% !important;
@@ -912,17 +924,20 @@ mat-tab-nav-panel {
 
 .custom-slide-in-backdrop {
   background: rgba(0, 0, 0, 0.75);
-  top: 48px !important;
+  top: 36px !important;
 }
 
 .custom-slide-in-nobackdrop {
-  top: 48px !important;
+  top: 36px !important;
 }
 
 // When debug panel is open, adjust the backdrop
 body:has(ix-websocket-debug-panel .websocket-debug-panel.open) {
   .custom-slide-in-backdrop,
   .custom-slide-in-nobackdrop {
-    right: var(--debug-panel-width, 550px) !important; // Use dynamic debug panel width
+    right: var(
+      --debug-panel-width,
+      550px
+    ) !important; // Use dynamic debug panel width
   }
 }

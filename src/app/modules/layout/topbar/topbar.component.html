@@ -2,20 +2,22 @@
   <mat-toolbar class="topbar backdrop-blur-md !bg-background/10 !text-foreground">
     <mat-toolbar-row>
       <!-- Sidenav toggle button -->
-      <!-- <button
-        mat-icon-button
-        id="sidenavToggle"
-        matTooltipPosition="right"
-        ixTest="toggle-sidenav"
-        [attr.aria-label]="'Toggle Sidenav' | translate"
-        [matTooltip]="tooltips.toggleCollapse | translate"
-        (click)="onSidenavIndicatorPressed()"
-      >
-        <ix-icon name="menu"></ix-icon>
-      </button> -->
+      <button matIconButton class="mat-icon-button" [matMenuTriggerFor]="menu">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 453.42 228.14">
+          <g>
+            <g>
+              <path fill="currentColor" d="M145.57,0h82.57c0,125.8-102.34,228.14-228.14,228.14v-82.57c80.27,0,145.57-65.3,145.57-145.58Z" />
+              <path fill="currentColor" d="M307.85,228.14h-82.57C225.28,102.34,327.62,0,453.42,0v82.57c-80.27,0-145.57,65.3-145.57,145.58Z" />
+            </g>
+          </g>
+        </svg>
+      </button>
+      <mat-menu #menu="matMenu">
+        <button mat-menu-item>About TrueNas</button>
+        <a mat-menu-item [routerLink]="['/system/general']">System Settings...</a>
+      </mat-menu>
 
       <!-- <ix-global-search-trigger></ix-global-search-trigger> -->
-
       <ix-truenas-logo [fullSize]="true"></ix-truenas-logo>
 
       <div class="topbar-mobile-footer" [class.has-console-footer]="hasConsoleFooter$ | async">

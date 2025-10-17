@@ -3,11 +3,15 @@ import {
   ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, OnInit, signal, inject,
 } from '@angular/core';
 import { MatBadge } from '@angular/material/badge';
-import { MatIconButton } from '@angular/material/button';
+import { MatIconButton, MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
+import { MatIconRegistry } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbar, MatToolbarRow } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
+import { DomSanitizer } from '@angular/platform-browser';
 import { Router } from '@angular/router';
+import { ɵɵRouterLink } from '@angular/router/testing';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -73,6 +77,9 @@ import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
     TruecommandButtonComponent,
     TruenasLogoComponent,
     TruenasConnectButtonComponent,
+    MatButtonModule, MatMenuModule,
+    // MatIcon,
+    ɵɵRouterLink,
   ],
 })
 export class TopbarComponent implements OnInit {
@@ -85,6 +92,8 @@ export class TopbarComponent implements OnInit {
   private translate = inject(TranslateService);
   private tnc = inject(TruenasConnectService);
   private apiService = inject<ApiService>(ApiService);
+  private matIconRegistry = inject(MatIconRegistry);
+  private domSanitizer = inject(DomSanitizer);
 
   updateIsDone: Subscription;
 
@@ -130,6 +139,11 @@ export class TopbarComponent implements OnInit {
         this.cdr.markForCheck();
       });
     }
+
+    this.matIconRegistry.addSvgIcon(
+      'truenas_logo',
+      this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/logo.svg'),
+    );
 
     this.store$.select(selectUpdateJob).pipe(untilDestroyed(this)).subscribe((jobs) => {
       const job = jobs[0];
