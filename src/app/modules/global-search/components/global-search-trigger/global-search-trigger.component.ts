@@ -1,7 +1,7 @@
 import { Overlay, OverlayConfig, OverlayRef } from '@angular/cdk/overlay';
 import { ComponentPortal } from '@angular/cdk/portal';
 import { AfterViewInit, ChangeDetectionStrategy, ChangeDetectorRef, Component, HostListener, ViewContainerRef, inject } from '@angular/core';
-import { MatInput } from '@angular/material/input';
+// import { MatInput } from '@angular/material/input';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { TranslateModule } from '@ngx-translate/core';
 import { delay, take } from 'rxjs';
@@ -10,21 +10,18 @@ import { searchDelayConst } from 'app/modules/global-search/constants/delay.cons
 import { UiSearchProvider } from 'app/modules/global-search/services/ui-search.service';
 import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { KeyboardShortcutComponent } from 'app/modules/keyboard-shortcut/keyboard-shortcut.component';
-import { TestDirective } from 'app/modules/test-id/test.directive';
+// import { TestDirective } from 'app/modules/test-id/test.directive';
 import { FocusService } from 'app/services/focus.service';
 
 @UntilDestroy()
 @Component({
   selector: 'ix-global-search-trigger',
   templateUrl: './global-search-trigger.component.html',
-  styleUrls: ['./global-search-trigger.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     IxIconComponent,
-    MatInput,
-    TestDirective,
-    KeyboardShortcutComponent,
     TranslateModule,
+    KeyboardShortcutComponent,
   ],
 })
 export class GlobalSearchTriggerComponent implements AfterViewInit {

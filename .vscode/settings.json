@@ -12,7 +12,7 @@
     "*.css": "tailwindcss"
   },
   "[html]": {
-    "editor.defaultFormatter": "rvest.vs-code-prettier-eslint",
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
     "editor.formatOnSave": true
   },
   "[css]": {

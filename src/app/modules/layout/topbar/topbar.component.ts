@@ -26,7 +26,7 @@ import { AlertSlice, selectImportantUnreadAlertsCount } from 'app/modules/alerts
 import { RebootRequiredDialog } from 'app/modules/dialog/components/reboot-required-dialog/reboot-required-dialog.component';
 import { UpdateDialog } from 'app/modules/dialog/components/update-dialog/update-dialog.component';
 import { FeedbackDialog } from 'app/modules/feedback/components/feedback-dialog/feedback-dialog.component';
-// import { GlobalSearchTriggerComponent } from 'app/modules/global-search/components/global-search-trigger/global-search-trigger.component';
+import { GlobalSearchTriggerComponent } from 'app/modules/global-search/components/global-search-trigger/global-search-trigger.component';
 import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { selectUpdateJob } from 'app/modules/jobs/store/job.selectors';
 import { CheckinIndicatorComponent } from 'app/modules/layout/topbar/checkin-indicator/checkin-indicator.component';
@@ -62,7 +62,7 @@ import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
     MatIconButton,
     MatTooltip,
     IxIconComponent,
-    // GlobalSearchTriggerComponent,
+    GlobalSearchTriggerComponent,
     CheckinIndicatorComponent,
     ResilveringIndicatorComponent,
     HaStatusIconComponent,
@@ -78,7 +78,6 @@ import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
     TruenasLogoComponent,
     TruenasConnectButtonComponent,
     MatButtonModule, MatMenuModule,
-    // MatIcon,
     ɵɵRouterLink,
   ],
 })

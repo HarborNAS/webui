@@ -1,37 +1,41 @@
 <div
-  #searchBoxWrapper
-  cdkTrapFocus
-  class="search-box-wrapper"
-  [class.sidenav-collapsed]="sidenavService.isMenuCollapsed"
-  [class.sidenav-mobile]="sidenavService.isMobile()"
-  [cdkTrapFocusAutoCapture]="true"
+  class="w-screen h-screen absolute inset-0 flex justify-center items-center"
 >
-  <div class="search-box">
-    <ix-icon name="search" class="search-icon"></ix-icon>
+  <div
+    #searchBoxWrapper
+    cdkTrapFocus
+    class="search-box-wrapper"
+    [class.sidenav-collapsed]="sidenavService.isMenuCollapsed"
+    [class.sidenav-mobile]="sidenavService.isMobile()"
+    [cdkTrapFocusAutoCapture]="true"
+  >
+    <div class="search-box">
+      <ix-icon name="search" class="search-icon"></ix-icon>
 
-    <input
-      #searchInput
-      matInput
-      ixTest="global-search"
-      class="search-input"
-      [placeholder]="'Search UI' | translate"
-      [formControl]="searchControl"
+      <input
+        #searchInput
+        matInput
+        ixTest="global-search"
+        class="search-input"
+        [placeholder]="'Search UI' | translate"
+        [formControl]="searchControl"
+        (keydown)="handleKeyDown($event)"
+      />
+
+      @if (searchControl.value) {
+        <span class="reset-icon reset-input" (click)="resetInput()">
+          <ix-icon name="mdi-close-circle"></ix-icon>
+        </span>
+      }
+    </div>
+
+    <ix-global-search-results
+      [searchTerm]="searchControl.value"
+      [results]="searchResults"
+      [isLoading]="isLoading"
+      [isSearchInputFocused]="isSearchInputFocused"
       (keydown)="handleKeyDown($event)"
-    />
-
-    @if (searchControl.value) {
-      <span class="reset-icon reset-input" (click)="resetInput()">
-        <ix-icon name="mdi-close-circle"></ix-icon>
-      </span>
-    }
+      (recentSearchRemoved)="setInitialSearchResults()"
+    ></ix-global-search-results>
   </div>
-
-  <ix-global-search-results
-    [searchTerm]="searchControl.value"
-    [results]="searchResults"
-    [isLoading]="isLoading"
-    [isSearchInputFocused]="isSearchInputFocused"
-    (keydown)="handleKeyDown($event)"
-    (recentSearchRemoved)="setInitialSearchResults()"
-  ></ix-global-search-results>
 </div>

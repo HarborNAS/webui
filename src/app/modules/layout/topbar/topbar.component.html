@@ -17,10 +17,14 @@
         <a mat-menu-item [routerLink]="['/system/general']">System Settings...</a>
       </mat-menu>
 
-      <!-- <ix-global-search-trigger></ix-global-search-trigger> -->
+
       <ix-truenas-logo [fullSize]="true"></ix-truenas-logo>
 
       <div class="topbar-mobile-footer" [class.has-console-footer]="hasConsoleFooter$ | async">
+        <div class="topbar-button-right">
+          <ix-global-search-trigger></ix-global-search-trigger>
+        </div>
+
         <span
           [matTooltip]="'Send Feedback' | translate"
         >

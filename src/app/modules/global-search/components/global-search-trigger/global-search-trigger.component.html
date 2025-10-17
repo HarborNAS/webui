@@ -1,17 +1,8 @@
-<div class="search-box" [class.hidden]="overlayRef?.hasAttached()">
-  <ix-icon name="search" class="search-icon" (click)="showOverlay()"></ix-icon>
+<button matIconButton class="flex items-center justify-center">
+  <ix-icon name="search" (click)="showOverlay()"></ix-icon>
+</button>
 
-  <input
-    #searchInput
-    matInput
-    ixTest="global-search"
-    class="search-input"
-    [placeholder]="'Search UI' | translate"
-    (click)="showOverlay()"
-    (focus)="overlayRef?.detach(); searchInput.blur(); showOverlay()"
-    (blur)="overlayRef?.detach()"
-  />
-
+<div class="hidden">
   <ix-keyboard-shortcut
     class="shortcut"
     key="/"
