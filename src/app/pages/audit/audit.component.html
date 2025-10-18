@@ -1,4 +1,4 @@
-<ix-page-header>
+<ix-page-header [isSub]="true">
   @if (isHaLicensed()) {
     <ix-button-group
       [formControl]="controllerTypeControl"
@@ -15,7 +15,7 @@
     fragment="audit-card"
     [routerLink]="['/system/advanced']"
   >
-    {{ 'Audit Settings' | translate }}
+    {{ "Audit Settings" | translate }}
   </a>
 </ix-page-header>
 
@@ -32,7 +32,7 @@
   ></ix-audit-list>
 
   <ng-container detail-header>
-    {{ 'Log Details' | translate }}
+    {{ "Log Details" | translate }}
   </ng-container>
 
   <ng-container detail>

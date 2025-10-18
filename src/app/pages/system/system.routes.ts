@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
+import { AuditComponent } from 'app/pages/audit/audit.component';
 import { ServicesComponent } from 'app/pages/services/services.component';
 import { ShellComponent } from 'app/pages/shell/shell.component';
 import {
@@ -8,6 +9,7 @@ import {
 import { AlertServiceListComponent } from 'app/pages/system/alert-service/alert-service-list/alert-service-list.component';
 import { AlertSettingsComponent } from 'app/pages/system/alert-settings/alert-settings.component';
 import { GeneralSettingsComponent } from 'app/pages/system/general-settings/general-settings.component';
+import { SystemComponent } from 'app/pages/system/system.component';
 import { ManualUpdateFormComponent } from 'app/pages/system/update/components/manual-update-form/manual-update-form.component';
 import { AdvancedSettingsComponent } from './advanced/advanced-settings.component';
 import { CronListComponent } from './advanced/cron/cron-list/cron-list.component';
@@ -21,6 +23,7 @@ export const systemRoutes: Routes = [
   {
     path: '',
     data: { title: T('System') },
+    component: SystemComponent,
     children: [
       {
         path: '',
@@ -124,6 +127,11 @@ export const systemRoutes: Routes = [
             component: AlertSettingsComponent,
           },
         ],
+      },
+      {
+        path: 'audit',
+        component: AuditComponent,
+        data: { title: T('Audit'), breadcrumb: null },
       },
       {
         path: 'support',

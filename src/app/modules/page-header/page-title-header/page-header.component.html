@@ -1,29 +1,31 @@
-  <!-- <ix-breadcrumb class="breadcrumbs"></ix-breadcrumb> -->
-  <div
-    class="h-16 flex justify-between items-center p-4 bg-background border-b border-border text-foreground mb-4 sticky top-11 z-10"
-  >
-    <div>
-      @let title = pageTitle();
-      <h1>
-        {{ title ? (title | translate) : (currentTitle$ | async | translate) }}
-      </h1>
+<!-- <ix-breadcrumb class="breadcrumbs"></ix-breadcrumb> -->
+<div
+  class="h-16 flex justify-between items-center p-4 bg-background border-b border-border text-foreground mb-4 sticky z-10"
+  [ngClass]="isSub() ? 'top-0' : 'top-11'"
+>
+  <div>
+    @let title = pageTitle();
+    <h1>
+      {{ title ? (title | translate) : (currentTitle$ | async | translate) }}
+    </h1>
 
-      @if (tooltip()) {
-        <ix-tooltip
-          class="tooltip"
-          [message]="tooltip() | translate"
-        ></ix-tooltip>
-      }
+    @if (tooltip()) {
+      <ix-tooltip
+        class="tooltip"
+        [message]="tooltip() | translate"
+      ></ix-tooltip>
+    }
 
-      @if ((hasNewIndicator$ | async) || customBadgeTitle()) {
-        <ix-header-badge
-          [customBadgeTitle]="customBadgeTitle()"
-        ></ix-header-badge>
-      }
-    </div>
+    @if ((hasNewIndicator$ | async) || customBadgeTitle()) {
+      <ix-header-badge
+        [customBadgeTitle]="customBadgeTitle()"
+      ></ix-header-badge>
+    }
+  </div>
 
-    <div class="flex items-center gap-8">
-      <ng-content></ng-content>
+  <div class="flex items-center gap-8">
+    <ng-content></ng-content>
+    @if (!isSub()) {
       <div class="flex items-center gap-8">
         <button mat-button class="cursor-pointer" (click)="minimize()">
           <ix-icon name="mdi-minus"></ix-icon>
@@ -37,8 +39,9 @@
           <ix-icon name="mdi-close"></ix-icon>
         </button>
       </div>
-    </div>
+    }
   </div>
-  @if (loading()) {
-    <ix-fake-progress-bar [loading]="true"></ix-fake-progress-bar>
-  }
+</div>
+@if (loading()) {
+  <ix-fake-progress-bar [loading]="true"></ix-fake-progress-bar>
+}

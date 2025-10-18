@@ -1,4 +1,4 @@
-import { AsyncPipe } from '@angular/common';
+import { AsyncPipe, NgClass } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,7 +15,6 @@ import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { LayoutService } from 'app/modules/layout/layout.service';
 import { PageTitleService } from 'app/modules/layout/page-title.service';
 import { FakeProgressBarComponent } from 'app/modules/loader/components/fake-progress-bar/fake-progress-bar.component';
-// import { BreadcrumbComponent } from 'app/modules/page-header/breadcrumb/breadcrumb.component';
 import { HeaderBadgeComponent } from 'app/modules/page-header/header-badge/header-badge.component';
 import { TooltipComponent } from 'app/modules/tooltip/tooltip.component';
 import { NavigationService } from 'app/services/navigation/navigation.service';
@@ -26,13 +25,13 @@ import { appBarClosed, appBarMinimized } from 'app/store/app-bar/app-bar.actions
   templateUrl: './page-header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    // BreadcrumbComponent,
     HeaderBadgeComponent,
     FakeProgressBarComponent,
     TranslateModule,
     AsyncPipe,
     TooltipComponent,
     IxIconComponent,
+    NgClass,
   ],
 })
 export class PageHeaderComponent implements OnInit, OnDestroy {
@@ -40,12 +39,14 @@ export class PageHeaderComponent implements OnInit, OnDestroy {
   private layoutService = inject(LayoutService);
   private router = inject(Router);
   private store = inject(Store);
-  private navService = inject(NavigationService); // 移到这里
+  private navService = inject(NavigationService);
 
   readonly pageTitle = input<string>();
   readonly customBadgeTitle = input<string>();
   readonly tooltip = input<string>();
   readonly loading = input(false);
+  // 是否是子菜单
+  readonly isSub = input(false);
 
   readonly default = input(false);
 
