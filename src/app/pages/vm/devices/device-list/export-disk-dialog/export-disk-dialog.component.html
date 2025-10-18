@@ -1,13 +1,20 @@
-<h1 mat-dialog-title>{{ 'Export Disk to Image' | translate }}</h1>
+<h1 mat-dialog-title>{{ "Export Disk to Image" | translate }}</h1>
 
 <mat-dialog-content>
   <form [formGroup]="form">
     <div class="info-message">
-      <p>{{ 'This operation will export the VM disk contents to a portable image file. The exported image can be imported into other TrueNAS systems or virtualization platforms like VMware, VirtualBox, or QEMU/KVM. Export time varies based on disk size and storage pool performance.' | translate }}</p>
+      <p>
+        {{
+          "This operation will export the VM disk contents to a portable image file. The exported image can be imported into other HarborNAS systems or virtualization platforms like VMware, VirtualBox, or QEMU/KVM. Export time varies based on disk size and storage pool performance."
+            | translate
+        }}
+      </p>
     </div>
 
     <div class="source-info">
-      <p>{{ 'Source Disk' | translate }}: <strong>{{ sourcePath }}</strong></p>
+      <p>
+        {{ "Source Disk" | translate }}: <strong>{{ sourcePath }}</strong>
+      </p>
     </div>
 
     <ix-explorer
@@ -15,14 +22,19 @@
       [label]="'Destination Directory' | translate"
       [required]="true"
       [nodeProvider]="treeNodeProvider"
-      [tooltip]="'Select the directory where the disk image will be exported' | translate"
+      [tooltip]="
+        'Select the directory where the disk image will be exported' | translate
+      "
     ></ix-explorer>
 
     <ix-input
       formControlName="imageName"
       [label]="'Image Name' | translate"
       [required]="true"
-      [tooltip]="'Enter the name for the exported image file. The appropriate extension will be added automatically based on the selected format.' | translate"
+      [tooltip]="
+        'Enter the name for the exported image file. The appropriate extension will be added automatically based on the selected format.'
+          | translate
+      "
     ></ix-input>
 
     <ix-select
@@ -37,13 +49,8 @@
 
 <mat-dialog-actions>
   <ix-form-actions>
-    <button
-      mat-button
-      ixTest="cancel"
-      type="button"
-      [mat-dialog-close]="false"
-    >
-      {{ 'Cancel' | translate }}
+    <button mat-button ixTest="cancel" type="button" [mat-dialog-close]="false">
+      {{ "Cancel" | translate }}
     </button>
     <button
       mat-button
@@ -54,7 +61,7 @@
       [attr.aria-label]="'Export disk image' | translate"
       (click)="onSubmit()"
     >
-      {{ 'Export' | translate }}
+      {{ "Export" | translate }}
     </button>
   </ix-form-actions>
 </mat-dialog-actions>

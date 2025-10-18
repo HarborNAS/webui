@@ -111,7 +111,7 @@ export class TruenasConnectStatusModalComponent {
         catchError((_: unknown) => {
           this.dialog.error({
             title: this.translate.instant('Connection Error'),
-            message: this.translate.instant('Failed to connect to TrueNAS Connect'),
+            message: this.translate.instant('Failed to connect to HarborNAS Connect'),
           });
           return EMPTY;
         }),
@@ -123,8 +123,8 @@ export class TruenasConnectStatusModalComponent {
 
   protected disableService(): void {
     this.dialog.confirm({
-      title: this.translate.instant('Disable TrueNAS Connect'),
-      message: this.translate.instant('Are you sure you wish to disable TrueNAS Connect? You will be able to re-connect this system later.'),
+      title: this.translate.instant('Disable HarborNAS Connect'),
+      message: this.translate.instant('Are you sure you wish to disable HarborNAS Connect? You will be able to re-connect this system later.'),
       buttonText: this.translate.instant('Disable'),
     })
       .pipe(
@@ -138,7 +138,7 @@ export class TruenasConnectStatusModalComponent {
               catchError((_: unknown) => {
                 this.dialog.error({
                   title: this.translate.instant('Disable Error'),
-                  message: this.translate.instant('Failed to disable TrueNAS Connect service'),
+                  message: this.translate.instant('Failed to disable HarborNAS Connect service'),
                 });
                 return EMPTY;
               }),
@@ -158,7 +158,7 @@ export class TruenasConnectStatusModalComponent {
         catchError((_: unknown) => {
           this.dialog.error({
             title: this.translate.instant('Retry Error'),
-            message: this.translate.instant('Failed to retry TrueNAS Connect connection'),
+            message: this.translate.instant('Failed to retry HarborNAS Connect connection'),
           });
           return EMPTY;
         }),

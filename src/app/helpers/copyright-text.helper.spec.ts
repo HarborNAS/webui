@@ -6,14 +6,14 @@ const buildYear = environment.buildYear;
 
 describe('getCopyrightHtml', () => {
   it('general: copyright text', () => {
-    expect(getCopyrightHtml()).toBe(`TrueNAS® <br /> © ${buildYear}`);
+    expect(getCopyrightHtml()).toBe(`HarborNAS® <br /> © ${buildYear}`);
   });
 
   it('community edition: copyright text', () => {
-    expect(getCopyrightHtml(ProductType.CommunityEdition)).toBe(`TrueNAS® Community Edition <br /> © ${buildYear}`);
+    expect(getCopyrightHtml(ProductType.CommunityEdition)).toBe(`HarborNAS® Community Edition <br /> © ${buildYear}`);
   });
 
   it('enterprise: copyright text', () => {
-    expect(getCopyrightHtml(ProductType.Enterprise)).toBe(`TrueNAS® Enterprise <br /> © ${buildYear}`);
+    expect(getCopyrightHtml(ProductType.Enterprise)).toBe(`HarborNAS® Enterprise <br /> © ${buildYear}`);
   });
 });

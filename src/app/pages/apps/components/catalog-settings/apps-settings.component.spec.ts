@@ -60,7 +60,7 @@ describe('AppsSettingsComponent', () => {
         mockCall('docker.nvidia_present', () => hasNvidiaCard),
         mockCall('catalog.trains', ['stable', 'community', 'test']),
         mockCall('catalog.config', {
-          label: 'TrueNAS',
+          label: 'HarborNAS',
           preferred_trains: ['test'],
         } as CatalogConfig),
         mockCall('docker.status'),

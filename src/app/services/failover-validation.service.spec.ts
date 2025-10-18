@@ -88,7 +88,7 @@ describe('FailoverValidationService', () => {
       spectator.service.validateFailover().subscribe((result) => {
         expect(result).toEqual({
           success: false,
-          error: 'TrueNAS High Availability is in an inconsistent state. Please try again in a few minutes and contact the system administrator if the problem persists.',
+          error: 'HarborNAS High Availability is in an inconsistent state. Please try again in a few minutes and contact the system administrator if the problem persists.',
           errorType: FailoverErrorType.FailoverFailed,
         });
       });
@@ -168,7 +168,7 @@ describe('FailoverValidationService', () => {
       api.mockCall('failover.disabled.reasons', [FailoverDisabledReason.LocFailoverOngoing]);
 
       // Mock a subscription that never emits
-      jest.spyOn(api, 'subscribe').mockReturnValue(new Observable(() => {}));
+      jest.spyOn(api, 'subscribe').mockReturnValue(new Observable(() => { }));
 
       let result: FailoverValidationResult;
       spectator.service.validateFailover().subscribe((response) => {

@@ -44,7 +44,7 @@ export class EulaEffects {
     return this.api.call('truenas.get_eula').pipe(
       switchMap((eula) => {
         return this.dialogService.confirm({
-          title: this.translate.instant('End User License Agreement - TrueNAS'),
+          title: this.translate.instant('End User License Agreement - HarborNAS'),
           message: ignoreTranslation(eula),
           hideCheckbox: true,
           buttonText: this.translate.instant('I Agree'),

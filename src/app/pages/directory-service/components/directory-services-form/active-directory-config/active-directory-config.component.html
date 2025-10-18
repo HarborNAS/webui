@@ -2,7 +2,7 @@
   <ix-fieldset [title]="'Active Directory Configuration' | translate">
     <ix-input
       formControlName="hostname"
-      [label]="'TrueNAS Hostname' | translate"
+      [label]="'HarborNAS Hostname' | translate"
       [required]="true"
     ></ix-input>
 
@@ -26,7 +26,7 @@
       [label]="'Use Default Domain' | translate"
     ></ix-checkbox>
   </ix-fieldset>
-  
+
   <ix-trusted-domains-config
     [enableTrustedDomains]="form.controls.enable_trusted_domains.value"
     [trustedDomains]="form.controls.trusted_domains.value"

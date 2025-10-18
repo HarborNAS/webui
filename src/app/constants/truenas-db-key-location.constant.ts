@@ -1,1 +1,1 @@
-export const truenasDbKeyLocation = '$TrueNAS';
+export const truenasDbKeyLocation = '$HarborNAS';

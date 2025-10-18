@@ -54,7 +54,7 @@ describe('IpaConfigComponent', () => {
     const values = await form.getValues();
     expect(values).toEqual(expect.objectContaining({
       'Target Server': 'ipa.example.com',
-      'TrueNAS Hostname': 'test-host',
+      'HarborNAS Hostname': 'test-host',
       Domain: 'example.com',
       'Base DN': 'dc=example,dc=com',
       'Validate Certificates': true,
@@ -103,7 +103,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': '',
-        'TrueNAS Hostname': '',
+        'HarborNAS Hostname': '',
         Domain: '',
         'Base DN': '',
       });
@@ -119,7 +119,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': 'ipa.test.com',
-        'TrueNAS Hostname': 'test_host',
+        'HarborNAS Hostname': 'test_host',
         Domain: 'test.com',
         'Base DN': 'dc=test,dc=com',
         'Validate Certificates': false,
@@ -165,7 +165,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': 'valid-server',
-        'TrueNAS Hostname': 'valid-host',
+        'HarborNAS Hostname': 'valid-host',
         Domain: 'valid-domain',
         'Base DN': 'dc=valid,dc=com',
         'Use Default SMB Domain Configuration': true,
@@ -182,7 +182,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': 'new-server',
-        'TrueNAS Hostname': 'new-host',
+        'HarborNAS Hostname': 'new-host',
         Domain: 'new-domain',
         'Base DN': 'dc=new,dc=com',
         'Validate Certificates': false,
@@ -207,7 +207,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': 'test-server',
-        'TrueNAS Hostname': 'test-host',
+        'HarborNAS Hostname': 'test-host',
         Domain: 'test-domain',
         'Base DN': 'dc=test,dc=com',
         'Validate Certificates': true,
@@ -246,7 +246,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': '',
-        'TrueNAS Hostname': '',
+        'HarborNAS Hostname': '',
         Domain: '',
         'Base DN': '',
         'Use Default SMB Domain Configuration': true,
@@ -270,7 +270,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': '',
-        'TrueNAS Hostname': '',
+        'HarborNAS Hostname': '',
         Domain: '',
         'Base DN': '',
         'Validate Certificates': false,
@@ -291,7 +291,7 @@ describe('IpaConfigComponent', () => {
 
       await form.fillForm({
         'Target Server': 'test-server',
-        'TrueNAS Hostname': 'test-host',
+        'HarborNAS Hostname': 'test-host',
         Domain: 'test-domain',
         'Base DN': 'dc=test,dc=com',
         'Use Default SMB Domain Configuration': false,

@@ -1,5 +1,9 @@
 <div mat-dialog-title class="dialog-title-with-logo">
-  <img class="title-logo" src="assets/images/truenas-connect-logo-horizontal.svg" alt="TrueNAS Connect" />
+  <img
+    class="title-logo"
+    src="assets/images/truenas-connect-logo-horizontal.svg"
+    alt="HarborNAS Connect"
+  />
   @if (status() === TncStatus.Active) {
     <button
       mat-icon-button
@@ -19,7 +23,7 @@
     <div class="loading-state-content">
       <ix-truenas-connect-spinner></ix-truenas-connect-spinner>
       <div class="loading-state-text">
-        {{ "Initializing TrueNAS Connect service..." | translate }}
+        {{ "Initializing HarborNAS Connect service..." | translate }}
       </div>
     </div>
   } @else {
@@ -42,7 +46,7 @@
       [disabled]="isDisabling()"
       (click)="open()"
     >
-      {{ "Open TrueNAS Connect" | translate }}
+      {{ "Open HarborNAS Connect" | translate }}
     </button>
   } @else if (status() === TncStatus.Waiting) {
     <button

@@ -2,10 +2,13 @@
   <ix-fieldset [title]="'IDMAP Configuration' | translate">
     <ix-checkbox
       formControlName="use_default_idmap"
-      [label]="'Use TrueNAS Server IDMAP Defaults' | translate"
+      [label]="'Use HarborNAS Server IDMAP Defaults' | translate"
     ></ix-checkbox>
-    @if (!(form.controls.use_default_idmap.value)) {
-      <ix-fieldset [title]="'Builtin' | translate" [formGroup]="form.controls.builtin">
+    @if (!form.controls.use_default_idmap.value) {
+      <ix-fieldset
+        [title]="'Builtin' | translate"
+        [formGroup]="form.controls.builtin"
+      >
         <ix-input
           formControlName="name"
           [label]="'Name' | translate"
@@ -23,7 +26,10 @@
           [type]="'number'"
         ></ix-input>
       </ix-fieldset>
-      <ix-fieldset [title]="'IDMAP Domain' | translate" [formGroup]="form.controls.idmap_domain">
+      <ix-fieldset
+        [title]="'IDMAP Domain' | translate"
+        [formGroup]="form.controls.idmap_domain"
+      >
         <ix-select
           formControlName="idmap_backend"
           [required]="true"
@@ -66,7 +72,10 @@
             [required]="true"
           ></ix-checkbox>
         }
-        @if (idmapType() === IdmapBackend.Rfc2307 || idmapType() === IdmapBackend.Ldap) {
+        @if (
+          idmapType() === IdmapBackend.Rfc2307 ||
+          idmapType() === IdmapBackend.Ldap
+        ) {
           @if (idmapType() === IdmapBackend.Rfc2307) {
             <ix-input
               formControlName="ldap_url"

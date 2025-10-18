@@ -54,7 +54,7 @@ export class AppComponent implements OnInit {
 
       this.isAuthenticated = isAuthenticated;
     });
-    this.title.setTitle('TrueNAS - ' + this.window.location.hostname);
+    this.title.setTitle('HarborNAS - ' + this.window.location.hostname);
 
     this.setFavicon(this.window.matchMedia('(prefers-color-scheme: dark)').matches);
 

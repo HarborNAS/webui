@@ -4,7 +4,7 @@ export const defaultTheme: Theme = {
   name: 'ix-dark',
   label: 'Dark',
   labelSwatch: 'blue',
-  description: 'TrueNAS default theme',
+  description: 'HarborNAS default theme',
   accentColors: ['blue', 'magenta', 'orange', 'cyan', 'yellow', 'violet', 'red', 'green', 'pink', 'aqua', 'tomato', 'teal', 'slategray', 'salmon'],
   primary: 'var(--blue)',
   topbar: '#111111',

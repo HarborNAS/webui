@@ -178,9 +178,9 @@ describe('SshConnectionFormComponent', () => {
       await form.fillForm(
         {
           'Connection Name': 'Update',
-          'Setup Method': 'Semi-automatic (TrueNAS only)',
+          'Setup Method': 'Semi-automatic (HarborNAS only)',
 
-          'TrueNAS URL': '10.11.12.13',
+          'HarborNAS URL': '10.11.12.13',
           Username: 'john',
           'Admin Username': 'admin',
           'Admin Password': '12345678',
@@ -239,7 +239,7 @@ describe('SshConnectionFormComponent', () => {
     it('allows new primary key to be generated when creating a new connection', async () => {
       await form.fillForm({
         'Connection Name': 'Test',
-        'TrueNAS URL': 'truenas.com',
+        'HarborNAS URL': 'truenas.com',
         'Admin Password': '123456',
         'Private Key': 'Generate New',
       });

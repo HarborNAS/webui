@@ -3,8 +3,8 @@ import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 export const helptextSystemSupport = {
   proactive: {
     title: T('Proactive Support'),
-    instructions: T('Silver / Gold Coverage Customers can enable TrueNAS Proactive Support. This \
- automatically emails TrueNAS when certain conditions occur on this TrueNAS system. The TrueNAS Support \
+    instructions: T('Silver / Gold Coverage Customers can enable HarborNAS Proactive Support. This \
+ automatically emails HarborNAS when certain conditions occur on this HarborNAS system. The HarborNAS Support \
  Team will promptly communicate with the Contacts saved below to quickly resolve any issue that may \
  have occurred on the system.'),
     primaryContact: T('Primary Contact'),
@@ -25,7 +25,7 @@ export const helptextSystemSupport = {
   review: {
     message: {
       placeholder: T('Share your thoughts on our product\'s features, usability, or any suggestions for improvement.'),
-      placeholderHighRating: T('Any part of TrueNAS that you like in particular?'),
+      placeholderHighRating: T('Any part of HarborNAS that you like in particular?'),
       placeholderLowRating: T('If something isn’t working correctly, it may be better to use the “Report a bug” option. This way you’ll automatically get status updates as we fix it.'),
     },
     voteForNewFeatures: T('You can also vote for new features <a target="_blank" href="https://forums.truenas.com/feature-requests">on our forum.</a>'),
@@ -48,7 +48,7 @@ export const helptextSystemSupport = {
   },
 
   cc: {
-    tooltip: T('Email addresses to receive copies of TrueNAS Support \
+    tooltip: T('Email addresses to receive copies of HarborNAS Support \
   messages about this issue. Use the format <i>name</i>@<i>domain.com</i>. \
   Separate entries by pressing <code>Enter</code>.'),
     err: T('Email addresses must be entered in the format \
@@ -97,13 +97,13 @@ export const helptextSystemSupport = {
   },
 
   docHub: T('<a href="https://www.truenas.com/docs/hub/" target="_blank">\
- TrueNAS Documentation Hub</a> - Read and contribute to the open-source documentation.'),
+ HarborNAS Documentation Hub</a> - Read and contribute to the open-source documentation.'),
 
   forums: T('<a href="https://forums.truenas.com/" target="_blank">\
- TrueNAS Forums</a> - Find answers from other users in the forums.'),
+ HarborNAS Forums</a> - Find answers from other users in the forums.'),
 
   licensing: T('<a href="https://www.ixsystems.com/support/truenas-arrays/" target="_blank">\
- TrueNAS Licensing</a> - Learn more about enterprise-grade support.'),
+ HarborNAS Licensing</a> - Learn more about enterprise-grade support.'),
 
   updateTxt: T('Update License'),
   enterTxt: T('Add License'),

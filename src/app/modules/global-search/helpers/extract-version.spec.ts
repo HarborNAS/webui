@@ -1,8 +1,8 @@
 import { extractVersion } from './extract-version';
 
 describe('extractVersion', () => {
-  it('should extract the version "24.10" from "TrueNAS-SCALE-24.10.0-MASTER-20240324-065034"', () => {
-    const result = extractVersion('TrueNAS-SCALE-24.10.0-MASTER-20240324-065034');
+  it('should extract the version "24.10" from "HarborNAS-SCALE-24.10.0-MASTER-20240324-065034"', () => {
+    const result = extractVersion('HarborNAS-SCALE-24.10.0-MASTER-20240324-065034');
     expect(result).toBe('24.10');
   });
 

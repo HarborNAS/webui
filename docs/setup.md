@@ -4,12 +4,13 @@
 
 - yarn >= 1.22
 - Node.js >= 20.19
-- Running instance with TrueNAS nightly (VM is fine).
+- Running instance with HarborNAS nightly (VM is fine).
 
 > [!TIP]
-> `master` branch usually corresponds to TrueNAS nightly, but you _may_ be able to run master WebUI on non-master TrueNAS instance, if it's relatively new.
+> `master` branch usually corresponds to HarborNAS nightly, but you _may_ be able to run master WebUI on non-master HarborNAS instance, if it's relatively new.
 
 ## Getting The Code
+
 - Clone WebUI repo:
 
 ```sh
@@ -23,10 +24,10 @@ $ cd webui
 $ yarn
 ```
 
-- Create an environment file and point it to your TrueNAS instance:
+- Create an environment file and point it to your HarborNAS instance:
 
 ```sh
-$ yarn ui remote -i <ip address or hostname of the server where TrueNAS is running>
+$ yarn ui remote -i <ip address or hostname of the server where HarborNAS is running>
 ```
 
 > [!TIP]
@@ -41,6 +42,3 @@ yarn start
 ```
 
 - Open WebUI in your browser. By default, it's on http://localhost:4200.
-
-
-

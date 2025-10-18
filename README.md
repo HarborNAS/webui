@@ -4,17 +4,19 @@
  <a href="https://ixsystems.atlassian.net/browse/NAS/"><img alt="File Issue" src="https://badgen.net/badge/Jira/File%20Issue//red?icon=jira" /></a>
 </p>
 
-TrueNAS WebUI
-================
-Angular-based WebUI for TrueNAS.
+# HarborNAS WebUI
+
+Angular-based WebUI for HarborNAS.
 
 ### Participate In The Project
+
 - :earth_africa: [Translate UI in your language.](https://github.com/truenas/webui/blob/master/docs/contributing_translations.md)
 - :mage: [Contribute code.](https://github.com/truenas/webui/blob/master/docs/contributing_code.md)
 
 ### Set up Development Environment
+
 - :toolbox: [Set up local environment.](https://github.com/truenas/webui/blob/master/docs/setup.md)
 
 ### Test Specific UI Version
-- :test_tube: Learn [How To Run WebUI In a Docker Container.](https://github.com/truenas/webui/blob/master/docs/testing_ui.md)
 
+- :test_tube: Learn [How To Run WebUI In a Docker Container.](https://github.com/truenas/webui/blob/master/docs/testing_ui.md)

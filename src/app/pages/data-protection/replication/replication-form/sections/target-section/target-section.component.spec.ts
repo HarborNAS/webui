@@ -67,7 +67,7 @@ describe('TargetSectionComponent', () => {
       'Inherit Encryption': false,
       'Encryption Key Format': 'PASSPHRASE',
       Passphrase: '12345678',
-      'Store Encryption key in Sending TrueNAS database': true,
+      'Store Encryption key in Sending HarborNAS database': true,
       'Replication from scratch': true,
       'Snapshot Retention Policy': 'None',
     });
@@ -130,7 +130,7 @@ describe('TargetSectionComponent', () => {
       expect(labels).toContain('Inherit Encryption');
       expect(labels).not.toContain('Encryption Key Format');
       expect(labels).not.toContain('Generate Encryption Key');
-      expect(labels).not.toContain('Store Encryption key in Sending TrueNAS database');
+      expect(labels).not.toContain('Store Encryption key in Sending HarborNAS database');
 
       expect(spectator.component.getPayload()).toMatchObject({
         encryption: true,
@@ -144,7 +144,7 @@ describe('TargetSectionComponent', () => {
       expect(labels).toContain('Inherit Encryption');
       expect(labels).toContain('Encryption Key Format');
       expect(labels).toContain('Generate Encryption Key');
-      expect(labels).toContain('Store Encryption key in Sending TrueNAS database');
+      expect(labels).toContain('Store Encryption key in Sending HarborNAS database');
 
       expect(spectator.component.getPayload()).toMatchObject({
         encryption: true,
@@ -187,10 +187,10 @@ describe('TargetSectionComponent', () => {
       });
     });
 
-    it('shows encryption key location when `Store key in TrueNAS db` is unticked', async () => {
+    it('shows encryption key location when `Store key in HarborNAS db` is unticked', async () => {
       await form.fillForm(
         {
-          'Store Encryption key in Sending TrueNAS database': false,
+          'Store Encryption key in Sending HarborNAS database': false,
           'Encryption Key Location in Target System': '/dbpath',
         },
       );

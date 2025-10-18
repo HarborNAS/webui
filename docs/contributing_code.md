@@ -1,6 +1,6 @@
 # Contributing Code
 
-TrueNAS is an open-source project, and we welcome contributions from the community.\
+HarborNAS is an open-source project, and we welcome contributions from the community.\
 Our code is licensed under GPL-3 license.
 
 We've created this document to explain how to contribute to the project.
@@ -12,14 +12,15 @@ We've created this document to explain how to contribute to the project.
 We maintain a [Help Wanted list](https://ixsystems.atlassian.net/issues/?filter=12107) – a list of tasks that are easier to get started with.
 
 - Pick an issue from the [Help Wanted list.](https://ixsystems.atlassian.net/issues/?filter=12107)
-- Assign it to yourself, so that no one else works on it. 
+- Assign it to yourself, so that no one else works on it.
 
 Feel free to assign any one issue from the queue, regardless of current assignee.
 
 > [!NOTE]
-> If you have discovered a new bug in TrueNAS, it's still best to create a Jira ticket first before attempting to fix it.
+> If you have discovered a new bug in HarborNAS, it's still best to create a Jira ticket first before attempting to fix it.
 
 ### Update The code
+
 - Fork the repo.
 
 - Set up development environment by following the [Setup Guide.](https://github.com/truenas/webui/blob/master/docs/setup.md)
@@ -28,7 +29,7 @@ Feel free to assign any one issue from the queue, regardless of current assignee
 
 ### Add Tests If Necessary
 
-If you are fixing a small styling issue, adding test may not be necessary. 
+If you are fixing a small styling issue, adding test may not be necessary.
 
 However, for a bigger change, adding or updating test may be required.\
 We have a minimum coverage requirement that is automatically enforced by our CI.
@@ -70,7 +71,6 @@ We appreciate your contribution.
 
 ### Get [Forum](https://forums.truenas.com) Contributor Credit!
 
-Once you have successfully had your pull-request merged into the TrueNAS repository, you are eligible for an exclusive forum badge and group to highlight your contributor status!
+Once you have successfully had your pull-request merged into the HarborNAS repository, you are eligible for an exclusive forum badge and group to highlight your contributor status!
 
-To claim your contributor badge, please include a `TrueNAS Forums Username: <name>` on your pull request description. Once the pull request merges, message the forum moderators with a link to the PR and your will be granted membership to the contributors group.
-
+To claim your contributor badge, please include a `HarborNAS Forums Username: <name>` on your pull request description. Once the pull request merges, message the forum moderators with a link to the PR and your will be granted membership to the contributors group.

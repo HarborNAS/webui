@@ -14,7 +14,7 @@
 
         <ix-checkbox
           formControlName="master"
-          [label]="'Default TrueNAS controller' | translate"
+          [label]="'Default HarborNAS controller' | translate"
           [tooltip]="helptext.masterTooltip | translate"
         ></ix-checkbox>
 
@@ -44,7 +44,7 @@
           [disabled]="isLoading()"
           (click)="onSyncToPeerPressed()"
         >
-          {{ 'Sync To Peer' | translate }}
+          {{ "Sync To Peer" | translate }}
         </button>
 
         <button
@@ -54,7 +54,7 @@
           [disabled]="isLoading()"
           (click)="onSyncFromPeerPressed()"
         >
-          {{ 'Sync From Peer' | translate }}
+          {{ "Sync From Peer" | translate }}
         </button>
       </ix-form-actions>
     </form>

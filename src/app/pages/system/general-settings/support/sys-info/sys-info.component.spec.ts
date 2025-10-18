@@ -5,14 +5,14 @@ import { SystemInfoInSupport } from 'app/pages/system/general-settings/support/s
 
 describe('SysInfoComponent', () => {
   const systemInfo = {
-    version: 'TrueNAS-SCALE-22.12-MASTER-20220318-020017',
+    version: 'HarborNAS-SCALE-22.12-MASTER-20220318-020017',
     system_product: 'VirtualBox',
     model: 'AMD Ryzen 3 3200G',
     memory: '5 GiB',
     system_serial: 'ffbb355c',
   };
   const licenseInfo = {
-    customer_name: 'TrueNAS',
+    customer_name: 'HarborNAS',
     features: ['DEDUP', 'FIBRECHANNEL', 'VM'],
     model: 'M60',
     contract_type: 'GOLD',

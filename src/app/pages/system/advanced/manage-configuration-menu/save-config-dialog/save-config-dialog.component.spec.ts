@@ -33,7 +33,7 @@ describe('SaveConfigDialogComponent', () => {
             selector: selectSystemInfo,
             value: {
               hostname: 'truenas',
-              version: 'TrueNAS-SCALE-22.12',
+              version: 'HarborNAS-SCALE-22.12',
             } as SystemInfo,
           },
         ],

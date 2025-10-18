@@ -65,7 +65,7 @@ describe('GlobalSearchComponent', () => {
             selector: selectSystemInfoState,
             value: {
               systemInfo: {
-                version: 'TrueNAS-SCALE-24.10.0-MASTER-20240324-065034',
+                version: 'HarborNAS-SCALE-24.10.0-MASTER-20240324-065034',
               },
             } as SystemInfoState,
           },

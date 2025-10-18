@@ -52,14 +52,18 @@
               type="button"
               ixTest="generate-key"
               [disabled]="!hasNqn || isGeneratingHostKey()"
-              [matTooltip]="!hasNqn ? (helptext.generateHostKeyDisabled | translate) : ''"
+              [matTooltip]="
+                !hasNqn ? (helptext.generateHostKeyDisabled | translate) : ''
+              "
               (click)="generateHostKey()"
-            >{{ 'Generate Key' | translate }}</button>
+            >
+              {{ "Generate Key" | translate }}
+            </button>
           </div>
 
           <ix-textarea
             formControlName="dhchap_ctrl_key"
-            [label]="'Key For TrueNAS To Present (Optional)' | translate"
+            [label]="'Key For HarborNAS To Present (Optional)' | translate"
             [tooltip]="helptext.dhchapCtrlKey | translate"
           ></ix-textarea>
 
@@ -70,24 +74,30 @@
               ixTest="generate-key"
               [disabled]="isGeneratingTrueNasKey()"
               (click)="generateTrueNasKey()"
-            >{{ 'Generate Key' | translate }}</button>
+            >
+              {{ "Generate Key" | translate }}
+            </button>
           </div>
 
           <ix-checkbox
             formControlName="addDhKeyExchange"
             class="dh-checkbox"
-            [label]="'Also use Diffie–Hellman key exchange for additional security' | translate"
+            [label]="
+              'Also use Diffie–Hellman key exchange for additional security'
+                | translate
+            "
             [tooltip]="helptext.dhKeyExchangeTooltip | translate"
           ></ix-checkbox>
 
           @if (form.value.addDhKeyExchange) {
             <ix-details-table class="authentication-details">
-              <ix-details-item
-                [label]="'DH Group' | translate"
-              >
+              <ix-details-item [label]="'DH Group' | translate">
                 <ix-editable>
                   <div view>
-                    {{ form.value.dhchap_dhgroup || (helptext.noDhText | translate) }}
+                    {{
+                      form.value.dhchap_dhgroup ||
+                        (helptext.noDhText | translate)
+                    }}
                   </div>
 
                   <div edit>
@@ -113,7 +123,7 @@
           ixTest="save"
           [disabled]="form.invalid || isLoading()"
         >
-          {{ 'Save' | translate }}
+          {{ "Save" | translate }}
         </button>
       </ix-form-actions>
     </form>

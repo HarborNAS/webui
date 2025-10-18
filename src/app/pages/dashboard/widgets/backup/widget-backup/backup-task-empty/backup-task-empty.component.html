@@ -4,12 +4,14 @@
       <div class="empty-message">
         <ix-icon name="mdi-format-list-text" class="empty-icon"></ix-icon>
         <div class="backup-actions">
-          <ng-template *ngTemplateOutlet="backupActions() || null"></ng-template>
+          <ng-template
+            *ngTemplateOutlet="backupActions() || null"
+          ></ng-template>
         </div>
       </div>
 
       <div class="details-item">
-        <div class="label">{{ 'Actions' | translate }}</div>
+        <div class="label">{{ "Actions" | translate }}</div>
       </div>
       <div class="details-item">
         <a
@@ -20,19 +22,22 @@
           (click)="addCloudSyncTask.emit()"
           (keydown.enter)="addCloudSyncTask.emit()"
         >
-          {{ 'Cloud Sync to Storj or similar provider' | translate }}
+          {{ "Cloud Sync to Storj or similar provider" | translate }}
         </a>
       </div>
       <div class="details-item">
         <a
-          *ixRequiresRoles="[Role.ReplicationTaskWrite, Role.ReplicationTaskWritePull]"
+          *ixRequiresRoles="[
+            Role.ReplicationTaskWrite,
+            Role.ReplicationTaskWritePull,
+          ]"
           class="action"
           tabIndex="0"
           ixTest="replication"
           (click)="addReplicationTask.emit()"
           (keydown.enter)="addReplicationTask.emit()"
         >
-          {{ 'ZFS Replication to another TrueNAS' | translate }}
+          {{ "ZFS Replication to another HarborNAS" | translate }}
         </a>
       </div>
       <div class="details-item">
@@ -44,16 +49,21 @@
           (click)="addRsyncTask.emit()"
           (keydown.enter)="addRsyncTask.emit()"
         >
-          {{ 'Rsync to another server' | translate }}
+          {{ "Rsync to another server" | translate }}
         </a>
       </div>
     </div>
   } @else {
     <div class="loading-card-content">
-      @for (item of [1,2,3]; track item) {
+      @for (item of [1, 2, 3]; track item) {
         <ngx-skeleton-loader
           class="skeleton"
-          [theme]="{ height: '90px', marginBottom: 0, background: 'var(--alt-bg2)', opacity: 0.25 }"
+          [theme]="{
+            height: '90px',
+            marginBottom: 0,
+            background: 'var(--alt-bg2)',
+            opacity: 0.25,
+          }"
         ></ngx-skeleton-loader>
       }
     </div>

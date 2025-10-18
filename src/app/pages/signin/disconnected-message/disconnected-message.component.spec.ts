@@ -13,8 +13,8 @@ describe('DisconnectedMessageComponent', () => {
     spectator = createComponent();
   });
 
-  it('shows "Connecting to TrueNAS" message', () => {
-    expect(spectator.fixture.nativeElement).toHaveText('Connecting to TrueNAS');
-    expect(spectator.fixture.nativeElement).toHaveText('Make sure the TrueNAS system is powered on and connected to the network.');
+  it('shows "Connecting to HarborNAS" message', () => {
+    expect(spectator.fixture.nativeElement).toHaveText('Connecting to HarborNAS');
+    expect(spectator.fixture.nativeElement).toHaveText('Make sure the HarborNAS system is powered on and connected to the network.');
   });
 });

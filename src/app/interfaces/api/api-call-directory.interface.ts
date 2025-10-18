@@ -438,7 +438,7 @@ export interface ApiCallDirectory {
   'core.download': { params: CoreDownloadQuery; response: CoreDownloadResponse };
   'core.get_jobs': { params: QueryParams<Job>; response: Job[] };
   'core.job_abort': { params: [jobId: number]; response: void };
-  'core.job_download_logs': { params: [ id: number, filename: string ]; response: string };
+  'core.job_download_logs': { params: [id: number, filename: string]; response: string };
   'core.resize_shell': { params: ResizeShellRequest; response: void };
   'core.subscribe': { params: [name: ApiEventMethod]; response: void };
   'core.unsubscribe': { params: [id: string]; response: void };
@@ -862,7 +862,7 @@ export interface ApiCallDirectory {
   'tn_connect.generate_claim_token': { params: void; response: string };
   'tn_connect.get_registration_uri': { params: void; response: string };
 
-  // TrueNAS
+  // HarborNAS
   'truenas.accept_eula': { params: void; response: void };
   'truenas.get_eula': { params: void; response: string };
   'truenas.is_eula_accepted': { params: void; response: boolean };

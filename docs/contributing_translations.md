@@ -1,4 +1,4 @@
-# Translating TrueNAS UI
+# Translating HarborNAS UI
 
 ## TL;DR
 
@@ -6,7 +6,7 @@
 
 ## Details
 
-All JSON files for translating TrueNAS UI are located in [src/assets/i18n](https://github.com/truenas/webui/tree/master/src/assets/i18n). \
+All JSON files for translating HarborNAS UI are located in [src/assets/i18n](https://github.com/truenas/webui/tree/master/src/assets/i18n). \
 These files can be edited using your editor of choice or directly on GitHub.
 
 Translation needs to be added to the right part of the string. For example:
@@ -23,7 +23,7 @@ becomes
 
 ## Branches
 
-Different branches correspond to different versions of TrueNAS.
+Different branches correspond to different versions of HarborNAS.
 
 To keep things simple, we suggest you make changes to the `master` branch.\
 After your PR is merged, changes will appear in the next nightly.
@@ -93,7 +93,7 @@ If your language has the same form of the word regadless of whether it's singula
 "({n, plural, =1 {# widget} other {# widgets}})": "({n} 个小部件)",
 ```
 
-Russian is an example of a language that has even more complicated plural forms. 
+Russian is an example of a language that has even more complicated plural forms.
 
 In Russian, the word for `user` has three different forms depending on the number of users:
 
@@ -112,5 +112,6 @@ You would have to research ICU Message Format for your language to find out how 
 It's also helpful to test plural strings in an [online editor](http://format-message.github.io/icu-message-format-for-translators/editor.html).
 
 ## Contributing Code
+
 By the way, we also welcome code contributions.\
 [Learn how to contribute.](https://github.com/truenas/webui/blob/master/docs/contributing_code.md)

@@ -1,6 +1,6 @@
 # UI Search
 
-Global search allows user to search for UI elements across TrueNAS.
+Global search allows user to search for UI elements across HarborNAS.
 
 ## How it works
 
@@ -21,6 +21,7 @@ yarn extract-ui-search-elements
 ```
 
 ## Clicking Buttons
+
 Let's say you want to add a form to the search.
 
 Most of the time, it's better to target the button and let user press it, rather than trying to open the form directly, when user searches for the form.

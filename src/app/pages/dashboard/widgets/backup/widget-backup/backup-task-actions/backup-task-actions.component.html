@@ -1,23 +1,25 @@
 @if (!!allCount()) {
-  {{ 'Backup' | translate }}
+  {{ "Backup" | translate }}
   <a
     *ixRequiresRoles="[Role.CloudSyncWrite]"
     class="backup-action"
     ixTest="cloud"
     (click)="addCloudSyncTask.emit()"
   >
-    {{ 'to cloud' | translate }}
+    {{ "to cloud" | translate }}
   </a>
-  {{ 'or' | translate }}
+  {{ "or" | translate }}
   <a
-    *ixRequiresRoles="[Role.ReplicationTaskWrite, Role.ReplicationTaskWritePull]"
+    *ixRequiresRoles="[
+      Role.ReplicationTaskWrite,
+      Role.ReplicationTaskWritePull,
+    ]"
     class="backup-action"
-    ixTest="another-TrueNAS"
+    ixTest="another-HarborNAS"
     (click)="addReplicationTask.emit()"
   >
-    {{ 'to another TrueNAS' | translate }}
+    {{ "to another HarborNAS" | translate }}
   </a>
 } @else {
-  {{ 'Backup to Cloud or another TrueNAS via links below' | translate }}
+  {{ "Backup to Cloud or another HarborNAS via links below" | translate }}
 }
-

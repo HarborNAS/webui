@@ -1,6 +1,6 @@
 <mat-card id="eula-card" [ixUiSearch]="searchableElements.elements.eula">
   <div id="eula">
-    <h2>{{ 'End User License Agreement - TrueNAS' | translate }}</h2>
+    <h2>{{ "End User License Agreement - HarborNAS" | translate }}</h2>
     <div [innerHTML]="eula"></div>
   </div>
   @if (eula) {
@@ -14,7 +14,7 @@
           ixTest="back-to-support"
           [routerLink]="['/system/general']"
         >
-          {{ 'Back to Support' | translate }}
+          {{ "Back to Support" | translate }}
         </button>
       </mat-card-actions>
     </div>

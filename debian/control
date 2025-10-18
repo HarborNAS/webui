@@ -8,7 +8,7 @@ Standards-Version: 4.0.0
 Package: truenas-webui
 Architecture: all
 Depends: ${misc:Depends}
-Description: TrueNAS Angular UI
+Description: HarborNAS Angular UI
  .
- This package installs the TrueNAS Angular web-ui component,
- it should be installed as part of the general TrueNAS suite of packages.
+ This package installs the HarborNAS Angular web-ui component,
+ it should be installed as part of the general HarborNAS suite of packages.

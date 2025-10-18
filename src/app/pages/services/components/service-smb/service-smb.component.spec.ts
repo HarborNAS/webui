@@ -44,7 +44,7 @@ describe('ServiceSmbComponent', () => {
           id: 1,
           netbiosname: 'truenas',
           workgroup: 'WORKGROUP',
-          description: 'TrueNAS Server',
+          description: 'HarborNAS Server',
           unixcharset: 'UTF-8',
           debug: true,
           syslog: false,
@@ -112,7 +112,7 @@ describe('ServiceSmbComponent', () => {
       'NetBIOS Name': 'truenas',
       'NetBIOS Alias': [],
       Workgroup: 'WORKGROUP',
-      Description: 'TrueNAS Server',
+      Description: 'HarborNAS Server',
       'Enable SMB1 support': false,
       'NTLMv1 Auth': false,
     });
@@ -127,7 +127,7 @@ describe('ServiceSmbComponent', () => {
 
     expect(values).toEqual({
       'Administrators Group': '',
-      Description: 'TrueNAS Server',
+      Description: 'HarborNAS Server',
       'Directory Mask': '',
       'Enable Apple SMB2/3 Protocol Extensions': false,
       'Enable SMB1 support': false,
@@ -151,7 +151,7 @@ describe('ServiceSmbComponent', () => {
     await form.fillForm({
       'NetBIOS Name': 'truenas-scale',
       'NetBIOS Alias': ['truenas-alias', 'truenas-alias2'],
-      Description: 'TrueNAS SCALE Server',
+      Description: 'HarborNAS SCALE Server',
       'Enable SMB1 support': true,
       'NTLMv1 Auth': true,
       Workgroup: 'WORKGROUP2',
@@ -164,7 +164,7 @@ describe('ServiceSmbComponent', () => {
       // New basic options
       netbiosname: 'truenas-scale',
       netbiosalias: ['truenas-alias', 'truenas-alias2'],
-      description: 'TrueNAS SCALE Server',
+      description: 'HarborNAS SCALE Server',
       enable_smb1: true,
       ntlmv1_auth: true,
       workgroup: 'WORKGROUP2',
@@ -207,7 +207,7 @@ describe('ServiceSmbComponent', () => {
       'Administrators Group': 'test-group',
       'File Mask': '0666',
       'Directory Mask': '0777',
-      'Transport Encryption Behavior': 'Default – follow upstream / TrueNAS default',
+      'Transport Encryption Behavior': 'Default – follow upstream / HarborNAS default',
     });
 
     const saveButton = await loader.getHarness(MatButtonHarness.with({ text: 'Save' }));
@@ -217,7 +217,7 @@ describe('ServiceSmbComponent', () => {
       // Old basic options
       netbiosname: 'truenas',
       netbiosalias: [],
-      description: 'TrueNAS Server',
+      description: 'HarborNAS Server',
       enable_smb1: false,
       ntlmv1_auth: false,
       workgroup: 'WORKGROUP',

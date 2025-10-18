@@ -1,16 +1,28 @@
-<h1 matDialogTitle>{{ 'Leave Domain' | translate }}</h1>
+<h1 matDialogTitle>{{ "Leave Domain" | translate }}</h1>
 <form class="ix-form-container" [formGroup]="form" (submit)="onSubmit()">
   <div class="warning-section">
-    <p><strong>{{ 'Warning:' | translate }}</strong> {{ 'This action will:' | translate }}</p>
+    <p>
+      <strong>{{ "Warning:" | translate }}</strong>
+      {{ "This action will:" | translate }}
+    </p>
     <ul>
-      <li>{{ 'Disable the directory service' | translate }}</li>
-      <li>{{ 'Delete the TrueNAS account from the directory service' | translate }}</li>
+      <li>{{ "Disable the directory service" | translate }}</li>
+      <li>
+        {{
+          "Delete the HarborNAS account from the directory service" | translate
+        }}
+      </li>
     </ul>
-    <p><strong>{{ 'This action cannot be undone.' | translate }}</strong></p>
+    <p>
+      <strong>{{ "This action cannot be undone." | translate }}</strong>
+    </p>
   </div>
 
   <p>
-    {{ 'Leaving the domain requires sufficient privileges. Enter your credentials below.' | translate }}
+    {{
+      "Leaving the domain requires sufficient privileges. Enter your credentials below."
+        | translate
+    }}
   </p>
 
   <ix-input
@@ -28,7 +40,7 @@
 
   <ix-form-actions>
     <button mat-button type="button" matDialogClose ixTest="cancel">
-      {{ 'Cancel' | translate }}
+      {{ "Cancel" | translate }}
     </button>
     <button
       *ixRequiresRoles="[Role.DirectoryServiceWrite]"
@@ -38,7 +50,7 @@
       ixTest="leave-domain"
       [disabled]="form.invalid"
     >
-      {{ 'Leave Domain' | translate }}
+      {{ "Leave Domain" | translate }}
     </button>
   </ix-form-actions>
 </form>
