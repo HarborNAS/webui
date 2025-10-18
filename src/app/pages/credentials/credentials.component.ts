@@ -13,8 +13,8 @@ import { NavigationService } from 'app/services/navigation/navigation.service';
 
 @UntilDestroy()
 @Component({
-  selector: 'ix-system',
-  templateUrl: './system.component.html',
+  selector: 'ix-credentials',
+  templateUrl: './credentials.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     PageHeaderComponent,
@@ -27,21 +27,21 @@ import { NavigationService } from 'app/services/navigation/navigation.service';
     MatListItem,
   ],
 })
-export class SystemComponent implements OnInit {
+export class CredentialsComponent implements OnInit {
   private navService = inject(NavigationService);
+
   menuItems = [] as SubMenuItem[];
-  isHighlighted = 'general';
-
-
-  ngOnInit(): void {
-    this.buildMenuItems();
-  }
+  isHighlighted = 'users';
 
   updateHighlightedClass(state: string): void {
     this.isHighlighted = state;
   }
 
+  ngOnInit(): void {
+    this.buildMenuItems();
+  }
+
   private buildMenuItems(): void {
-    this.menuItems = this.navService.menuItems.find((item) => item.state === 'system')?.sub;
+    this.menuItems = this.navService.menuItems.find((item) => item.state === 'credentials')?.sub;
   }
 }

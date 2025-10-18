@@ -2,12 +2,14 @@ import { Routes } from '@angular/router';
 import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 import { BackupCredentialsComponent } from 'app/pages/credentials/backup-credentials/backup-credentials.component';
 import { CertificatesDashComponent } from 'app/pages/credentials/certificates-dash/certificates-dash.component';
+import { CredentialsComponent } from 'app/pages/credentials/credentials.component';
 import { KmipComponent } from 'app/pages/credentials/kmip/kmip.component';
 import { DirectoryServicesComponent } from 'app/pages/directory-service/directory-services.component';
 
 export const credentialsRoutes: Routes = [{
   path: '',
   data: { title: T('Credentials'), breadcrumb: T('Credentials') },
+  component: CredentialsComponent,
   children: [
     {
       path: '',
