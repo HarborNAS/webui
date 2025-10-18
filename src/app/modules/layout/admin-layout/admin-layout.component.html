@@ -1,16 +1,18 @@
-<mat-sidenav-container class="app-side-nav-container">
+<mat-sidenav-container
+  class="app-side-nav-container flex flex-col h-full overflow-hidden"
+>
   <ix-app-bar></ix-app-bar>
   <ix-topbar></ix-topbar>
 
   <main
-    class="pl-20 pt-10"
-  [ngClass]="{
-    'min-h-screen': !router.url.startsWith('/desktop'),
-    'h-screen overflow-hidden':  router.url.startsWith('/desktop')
-  }">
-    <div class="relative h-full" [ngClass]="{
-      'bg-background min-h-screen': !router.url.startsWith('/desktop')
-    }">
+    mat-sidenav-content
+    class="pl-20 h-full pt-[36px] overflow-hidden"
+    [ngClass]=""
+  >
+    <div
+      class="relative h-full overflow-y-auto"
+      [ngClass]="router.url.startsWith('/desktop') ? '' : 'bg-background'"
+    >
       <router-outlet></router-outlet>
     </div>
   </main>

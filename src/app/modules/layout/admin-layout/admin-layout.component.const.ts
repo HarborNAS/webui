@@ -1,2 +1,2 @@
-export const headerHeight = 48;
+export const headerHeight = 36;
 export const footerHeight = 45;
