@@ -1,21 +1,23 @@
-<ix-page-header [title]="'System'"></ix-page-header>
+<div class="flex flex-col h-full">
+  <ix-page-header [title]="'System'"></ix-page-header>
 
-<mat-drawer-container class="min-h-[calc(100vh-14rem)] !bg-background">
-  <mat-drawer mode="side" opened class="!w-64 !h-full">
-    <mat-nav-list>
-      @for (item of menuItems; track item) {
-        <a
-          mat-list-item
-          [activated]="isHighlighted === item.state"
-          [routerLink]="item.state"
-          (click)="updateHighlightedClass(item.state)"
-        >
-          {{ item.name }}
-        </a>
-      }
-    </mat-nav-list>
-  </mat-drawer>
-  <mat-drawer-content class="bg-background">
-    <router-outlet></router-outlet>
-  </mat-drawer-content>
-</mat-drawer-container>
+  <mat-drawer-container class="!bg-background flex-1">
+    <mat-drawer mode="side" opened class="!w-64 !h-full">
+      <mat-nav-list class="sticky top-0 !pt-0">
+        @for (item of menuItems; track item) {
+          <a
+            mat-list-item
+            [activated]="isHighlighted === item.state"
+            [routerLink]="item.state"
+            (click)="updateHighlightedClass(item.state)"
+          >
+            {{ item.name }}
+          </a>
+        }
+      </mat-nav-list>
+    </mat-drawer>
+    <mat-drawer-content>
+      <router-outlet></router-outlet>
+    </mat-drawer-content>
+  </mat-drawer-container>
+</div>
