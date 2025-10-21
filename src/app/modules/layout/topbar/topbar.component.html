@@ -42,11 +42,26 @@
             mat-icon-button
             class="topbar-button-right"
             ixTest="leave-feedback"
-            [ixUiSearch]="searchableElements.elements.sendFeedback"
-            (click)="onFeedbackIndicatorPressed()"
+            [matMenuTriggerFor]="feedbackMenu"
           >
             <ix-icon name="mdi-emoticon"></ix-icon>
           </button>
+          <mat-menu #feedbackMenu="matMenu">
+            <a
+              mat-menu-item
+              href="https://github.com/HarborNAS/community/discussions/new?category=bug"
+              target="_blank"
+            >
+              Submit a Bug Report...
+            </a>
+            <a
+              mat-menu-item
+              href="https://github.com/HarborNAS/community/discussions/categories/feedback"
+              target="_blank"
+            >
+              Submit Feedback...
+            </a>
+          </mat-menu>
         </span>
 
         <ix-truecommand-button></ix-truecommand-button>

@@ -50,6 +50,7 @@ import { selectHasConsoleFooter } from 'app/store/system-config/system-config.se
 import { alertIndicatorPressed, sidenavIndicatorPressed } from 'app/store/topbar/topbar.actions';
 import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
 
+
 @UntilDestroy()
 @Component({
   selector: 'ix-topbar',
