@@ -1,6 +1,6 @@
-@import 'scss-imports/cssvars';
-@import 'mixins/text';
-@import '../../dashboard-variables';
+@import "scss-imports/cssvars";
+@import "mixins/text";
+@import "../../dashboard-variables";
 
 :host ::ng-deep {
   ix-breadcrumb {
@@ -8,7 +8,7 @@
   }
 
   ix-page-header {
-    @media(max-width: 767px) {
+    @media (max-width: 767px) {
       margin-bottom: 0;
     }
   }
@@ -17,15 +17,16 @@
 .edit-mode-buttons {
   background: var(--bg1);
   display: flex;
+  align-items: center;
   gap: 10px;
+  height: 56px;
   margin: 0;
-  padding: 12px;
   position: fixed;
-  right: 19px;
-  top: 64px;
-  z-index: 2;
+  right: 108px;
+  top: 36px;
+  z-index: 100;
 
-  @media(max-width: 767px) {
+  @media (max-width: 767px) {
     flex-wrap: wrap;
     justify-content: flex-end;
     margin-bottom: 8px;
@@ -104,7 +105,7 @@
 
   mat-card-content .header h3,
   .slot .wrapper h3 {
-    @media(max-width: 767px) {
+    @media (max-width: 767px) {
       @include line-clamp(1);
       font-size: 20px;
     }
