@@ -90,7 +90,10 @@
       formControlName="attach_debug"
       [label]="'Attach debug' | translate"
       [tooltip]="tooltips.attach_debug | translate"
-      [hint]="'Debugs may contain log files with personal information such as usernames or other identifying information about your system.' | translate"
+      [hint]="
+        'Debugs may contain log files with personal information such as usernames or other identifying information about your system.'
+          | translate
+      "
     ></ix-checkbox>
 
     <ix-checkbox
@@ -125,16 +128,11 @@
       ixTest="user-guide"
       (click)="onUserGuidePressed()"
     >
-      {{ 'User Guide' | translate }}
+      {{ "User Guide" | translate }}
     </button>
 
-    <button
-      mat-button
-      type="button"
-      ixTest="eula"
-      (click)="onEulaPressed()"
-    >
-      {{ 'EULA' | translate }}
+    <button mat-button type="button" ixTest="eula" (click)="onEulaPressed()">
+      {{ "EULA" | translate }}
     </button>
 
     <button
@@ -145,7 +143,7 @@
       [disabled]="form.invalid || isLoading()"
       (click)="onSubmit()"
     >
-      {{ 'Submit' | translate }}
+      {{ "Submit" | translate }}
     </button>
   </ix-form-actions>
 </mat-dialog-actions>

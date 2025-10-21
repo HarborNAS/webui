@@ -231,11 +231,11 @@ export class FeedbackService {
       );
     }
 
-    if (data.attach_images && data.images?.length) {
-      operations.push(
-        ...data.images.map((image) => this.addReviewAttachment(reviewId, image)),
-      );
-    }
+    // if (data.attach_images && data.images?.length) {
+    //   operations.push(
+    //     ...data.images.map((image) => this.addReviewAttachment(reviewId, image)),
+    //   );
+    // }
 
     if (!operations.length) {
       return of(undefined);
