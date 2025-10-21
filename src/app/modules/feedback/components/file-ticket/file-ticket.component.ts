@@ -1,24 +1,22 @@
 import { ChangeDetectionStrategy, Component, input, output, inject } from '@angular/core';
 import { FormBuilder, Validators, ReactiveFormsModule } from '@angular/forms';
+import { MatButton } from '@angular/material/button';
 import { MatDialogRef, MatDialogContent, MatDialogActions } from '@angular/material/dialog';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { TranslateModule } from '@ngx-translate/core';
-import { finalize } from 'rxjs';
 import { MiB } from 'app/constants/bytes.constant';
-import { TicketType, ticketAcceptedFiles } from 'app/enums/file-ticket.enum';
+import { ticketAcceptedFiles } from 'app/enums/file-ticket.enum';
 import { helptextSystemSupport as helptext } from 'app/helptext/system/support';
 import { OauthButtonType } from 'app/modules/buttons/oauth-button/interfaces/oauth-button.interface';
-import { OauthButtonComponent } from 'app/modules/buttons/oauth-button/oauth-button.component';
+// import { OauthButtonComponent } from 'app/modules/buttons/oauth-button/oauth-button.component';
 import { FeedbackDialog } from 'app/modules/feedback/components/feedback-dialog/feedback-dialog.component';
 import { SimilarIssuesComponent } from 'app/modules/feedback/components/similar-issues/similar-issues.component';
 import { FeedbackType } from 'app/modules/feedback/interfaces/feedback.interface';
-import { FeedbackService } from 'app/modules/feedback/services/feedback.service';
 import { FormActionsComponent } from 'app/modules/forms/ix-forms/components/form-actions/form-actions.component';
 import { IxCheckboxComponent } from 'app/modules/forms/ix-forms/components/ix-checkbox/ix-checkbox.component';
-import { IxFileInputComponent } from 'app/modules/forms/ix-forms/components/ix-file-input/ix-file-input.component';
+// import { IxFileInputComponent } from 'app/modules/forms/ix-forms/components/ix-file-input/ix-file-input.component';
 import { IxInputComponent } from 'app/modules/forms/ix-forms/components/ix-input/ix-input.component';
 import { IxTextareaComponent } from 'app/modules/forms/ix-forms/components/ix-textarea/ix-textarea.component';
-import { FormErrorHandlerService } from 'app/modules/forms/ix-forms/services/form-error-handler.service';
 import { ImageValidatorService } from 'app/modules/forms/ix-forms/validators/image-validator/image-validator.service';
 import { ApiService } from 'app/modules/websocket/api.service';
 
@@ -35,18 +33,19 @@ import { ApiService } from 'app/modules/websocket/api.service';
     SimilarIssuesComponent,
     IxTextareaComponent,
     IxCheckboxComponent,
-    IxFileInputComponent,
+    // IxFileInputComponent,
     MatDialogActions,
     FormActionsComponent,
-    OauthButtonComponent,
+    // OauthButtonComponent,
     TranslateModule,
+    MatButton,
   ],
 })
 export class FileTicketComponent {
   private formBuilder = inject(FormBuilder);
-  private feedbackService = inject(FeedbackService);
+  // private feedbackService = inject(FeedbackService);
   private imageValidator = inject(ImageValidatorService);
-  private formErrorHandler = inject(FormErrorHandlerService);
+  // private formErrorHandler = inject(FormErrorHandlerService);
   private api = inject(ApiService);
 
   readonly type = input.required<FeedbackType.Bug | FeedbackType.Suggestion>();
@@ -74,28 +73,38 @@ export class FileTicketComponent {
     attach_debug: helptext.attachDebug.tooltip,
   };
 
-  private get ticketType(): TicketType {
-    return this.type() === FeedbackType.Bug ? TicketType.Bug : TicketType.Suggestion;
-  }
+  // private get ticketType(): TicketType {
+  //   return this.type() === FeedbackType.Bug ? TicketType.Bug : TicketType.Suggestion;
+  // }
 
   constructor() {
     this.getSystemFileSizeLimit();
   }
 
-  onSubmit(token: unknown): void {
+  onSubmit(): void {
     this.isLoadingChange.emit(true);
 
-    this.feedbackService.createTicket(token as string, this.ticketType, this.form.getRawValue()).pipe(
-      finalize(() => this.isLoadingChange.emit(false)),
-      untilDestroyed(this),
-    ).subscribe({
-      next: (createdTicket) => this.onSuccess(createdTicket.url),
-      error: (error: unknown) => this.formErrorHandler.handleValidationErrors(error, this.form),
-    });
+    const {
+      message,
+      title,
+    } = this.form.value;
+
+    // eslint-disable-next-line no-restricted-globals
+    window.open(`https://github.com/HarborNAS/internal_wiki/issues/new?labels=bug&title=${encodeURI(title)}&body=${encodeURI('Message: \n' + message)}`, '_blank');
+
+    this.onSuccess();
+
+    // this.feedbackService.createTicket(token as string, this.ticketType, this.form.getRawValue()).pipe(
+    //   finalize(() => this.isLoadingChange.emit(false)),
+    //   untilDestroyed(this),
+    // ).subscribe({
+    //   next: (createdTicket) => this.onSuccess(createdTicket.url),
+    //   error: (error: unknown) => this.formErrorHandler.handleValidationErrors(error, this.form),
+    // });
   }
 
-  private onSuccess(ticketUrl: string): void {
-    this.feedbackService.showTicketSuccessMessage(ticketUrl);
+  private onSuccess(): void {
+    // this.feedbackService.showTicketSuccessMessage();
     this.dialogRef().close();
   }
 
