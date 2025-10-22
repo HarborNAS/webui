@@ -8,8 +8,9 @@
     (click)="stopTrueCommandConnecting()"
   >
     <ix-icon
-      class="truecommand-button-connecting-animation"
+      class="truecommand-button-connecting-animation !size-5"
       name="ix-truecommand-logo-mark"
+      [fullSize]="true"
     ></ix-icon>
   </button>
 }
@@ -26,6 +27,10 @@
     [ixUiSearch]="searchableElements.elements.trueCommand"
     (click)="handleClick()"
   >
-    <ix-icon name="ix-truecommand-logo-mark"></ix-icon>
+    <ix-icon
+      class="!text-foreground !size-5"
+      name="ix-truecommand-logo-mark"
+      [fullSize]="true"
+    ></ix-icon>
   </button>
 }

@@ -1,11 +1,15 @@
 <nav [attr.aria-label]="'Top bar' | translate">
   <mat-toolbar
-    class="topbar backdrop-blur-md !bg-background/10 !text-foreground"
+    class="topbar backdrop-blur-md !bg-background/10 !text-foreground border-b border-border/10"
   >
     <mat-toolbar-row>
       <!-- Sidenav toggle button -->
       <button matIconButton class="mat-icon-button" [matMenuTriggerFor]="menu">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 453.42 228.14">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 453.42 228.14"
+          class="!text-foreground"
+        >
           <g>
             <g>
               <path
@@ -44,7 +48,7 @@
             ixTest="leave-feedback"
             [matMenuTriggerFor]="feedbackMenu"
           >
-            <ix-icon name="mdi-emoticon"></ix-icon>
+            <ix-icon class="!text-foreground" name="mdi-emoticon"></ix-icon>
           </button>
           <mat-menu #feedbackMenu="matMenu">
             <a
@@ -77,7 +81,7 @@
             [matTooltip]="tooltips.rebootInfo | translate"
             (click)="showRebootInfoDialog()"
           >
-            <ix-icon class="movement" name="update"></ix-icon>
+            <ix-icon class="movement !text-foreground" name="update"></ix-icon>
           </button>
         }
 
@@ -113,7 +117,7 @@
           [ixUiSearch]="searchableElements.elements.alerts"
           (click)="onAlertIndicatorPressed()"
         >
-          <ix-icon name="notifications"></ix-icon>
+          <ix-icon class="!text-foreground" name="notifications"></ix-icon>
         </button>
 
         <ix-user-menu></ix-user-menu>

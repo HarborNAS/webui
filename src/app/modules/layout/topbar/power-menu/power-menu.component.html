@@ -7,7 +7,7 @@
   [matMenuTriggerFor]="powerMenu"
   [ixUiSearch]="searchableElements.elements.powerMenu"
 >
-  <ix-icon name="power_settings_new"></ix-icon>
+  <ix-icon class="!text-foreground" name="power_settings_new"></ix-icon>
 </button>
 <mat-menu #powerMenu="matMenu">
   <button
@@ -19,7 +19,7 @@
     (click)="onReboot()"
   >
     <ix-icon name="replay"></ix-icon>
-    {{ 'Restart' | translate }}
+    {{ "Restart" | translate }}
   </button>
 
   <button
@@ -31,6 +31,6 @@
     (click)="onShutdown()"
   >
     <ix-icon name="power_settings_new"></ix-icon>
-    {{ 'Shut Down' | translate }}
+    {{ "Shut Down" | translate }}
   </button>
 </mat-menu>

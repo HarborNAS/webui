@@ -1,4 +1,4 @@
-@if ((loggedInUser$ | async); as user) {
+@if (loggedInUser$ | async; as user) {
   <div class="user-menu-wrapper">
     <button
       name="Settings"
@@ -11,14 +11,14 @@
     >
       @if (user.pw_name) {
         <span
-          class="username"
+          class="username !text-foreground"
           [matTooltip]="user.pw_name"
           [matMenuTriggerFor]="userMenu"
         >
           {{ user.pw_name }}
         </span>
       }
-      <ix-icon name="account_circle"></ix-icon>
+      <ix-icon name="account_circle" class="!text-foreground"></ix-icon>
     </button>
 
     <mat-menu #userMenu="matMenu">
@@ -31,7 +31,7 @@
           (click)="openChangePasswordDialog()"
         >
           <ix-icon name="dialpad"></ix-icon>
-          {{ 'Change Password' | translate }}
+          {{ "Change Password" | translate }}
         </button>
       }
 
@@ -43,7 +43,7 @@
           (click)="onTwoFactorAuth()"
         >
           <ix-icon name="ix-two-factor-auth"></ix-icon>
-          {{ 'Two-Factor Authentication' | translate }}
+          {{ "Two-Factor Authentication" | translate }}
         </button>
       }
 
@@ -56,7 +56,7 @@
         [ixUiSearch]="searchableElements.elements.myApiKeys"
       >
         <ix-icon name="mdi-laptop"></ix-icon>
-        {{ 'My API Keys' | translate }}
+        {{ "My API Keys" | translate }}
       </a>
 
       <a
@@ -68,11 +68,11 @@
         [ixUiSearch]="searchableElements.elements.guide"
       >
         <ix-icon name="library_books"></ix-icon>
-        {{ 'Guide' | translate }}
+        {{ "Guide" | translate }}
       </a>
 
       <!-- Inline styles because mat-menu contents are rendered outside of the component -->
-      <mat-divider style="margin: 5px 0;"></mat-divider>
+      <mat-divider style="margin: 5px 0"></mat-divider>
 
       <button
         name="power-log-out"
@@ -82,7 +82,7 @@
         (click)="onSignOut()"
       >
         <ix-icon name="exit_to_app"></ix-icon>
-        {{ 'Log Out' | translate }}
+        {{ "Log Out" | translate }}
       </button>
     </mat-menu>
   </div>
