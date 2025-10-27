@@ -25,7 +25,9 @@
         </svg>
       </button>
       <mat-menu #menu="matMenu">
-        <button mat-menu-item>About HarborNAS</button>
+        <button mat-menu-item (click)="showAboutNasDialog()">
+          About HarborNAS
+        </button>
         <a mat-menu-item [routerLink]="['/system/general']">
           System Settings...
         </a>

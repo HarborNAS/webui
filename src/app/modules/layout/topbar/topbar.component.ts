@@ -29,12 +29,12 @@ import { FeedbackDialog } from 'app/modules/feedback/components/feedback-dialog/
 import { GlobalSearchTriggerComponent } from 'app/modules/global-search/components/global-search-trigger/global-search-trigger.component';
 import { IxIconComponent } from 'app/modules/ix-icon/ix-icon.component';
 import { selectUpdateJob } from 'app/modules/jobs/store/job.selectors';
+import { AboutNasDialog } from 'app/modules/layout/topbar/about-nas-dialog/about-nas-dialog.component';
 import { CheckinIndicatorComponent } from 'app/modules/layout/topbar/checkin-indicator/checkin-indicator.component';
 import { HaStatusIconComponent } from 'app/modules/layout/topbar/ha-status-icon/ha-status-icon.component';
 import { JobsIndicatorComponent } from 'app/modules/layout/topbar/jobs-indicator/jobs-indicator.component';
 import { PowerMenuComponent } from 'app/modules/layout/topbar/power-menu/power-menu.component';
 import { ResilveringIndicatorComponent } from 'app/modules/layout/topbar/resilvering-indicator/resilvering-indicator.component';
-import { topbarDialogPosition } from 'app/modules/layout/topbar/topbar-dialog-position.constant';
 import { toolBarElements } from 'app/modules/layout/topbar/topbar.elements';
 import { UserMenuComponent } from 'app/modules/layout/topbar/user-menu/user-menu.component';
 import { TestDirective } from 'app/modules/test-id/test.directive';
@@ -189,6 +189,12 @@ export class TopbarComponent implements OnInit {
     this.showRebootInfoDialog();
   }
 
+  showAboutNasDialog(): void {
+    this.matDialog.open(AboutNasDialog, {
+      width: '400px',
+    });
+  }
+
   onAlertIndicatorPressed(): void {
     this.store$.dispatch(alertIndicatorPressed());
   }
@@ -206,19 +212,7 @@ export class TopbarComponent implements OnInit {
   }
 
   showUpdateDialog(): void {
-    const title = this.translate.instant('Update in Progress');
-    const message = this.updateText();
-
-    this.updateDialog = this.matDialog.open(UpdateDialog, {
-      width: '400px',
-      hasBackdrop: true,
-      panelClass: 'topbar-panel',
-      position: topbarDialogPosition,
-      data: {
-        title,
-        message,
-      },
-    });
+    this.matDialog.open(UpdateDialog);
   }
 
   showRebootInfoDialog(): void {
