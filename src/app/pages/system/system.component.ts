@@ -5,8 +5,9 @@ import {
   MatDrawer,
   MatDrawerContent,
 } from '@angular/material/sidenav';
-import { RouterOutlet, RouterModule } from '@angular/router';
-import { UntilDestroy } from '@ngneat/until-destroy';
+import { Router, RouterOutlet, RouterModule, NavigationEnd } from '@angular/router';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import { filter } from 'rxjs/operators';
 import { SubMenuItem } from 'app/interfaces/menu-item.interface';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { NavigationService } from 'app/services/navigation/navigation.service';
@@ -29,12 +30,15 @@ import { NavigationService } from 'app/services/navigation/navigation.service';
 })
 export class SystemComponent implements OnInit {
   private navService = inject(NavigationService);
+  private router = inject(Router);
+
   menuItems = [] as SubMenuItem[];
   isHighlighted = 'general';
 
-
   ngOnInit(): void {
     this.buildMenuItems();
+    this.setInitialHighlight();
+    this.subscribeToRouteChanges();
   }
 
   updateHighlightedClass(state: string): void {
@@ -43,5 +47,35 @@ export class SystemComponent implements OnInit {
 
   private buildMenuItems(): void {
     this.menuItems = this.navService.menuItems.find((item) => item.state === 'system')?.sub;
+  }
+
+  private setInitialHighlight(): void {
+    const currentUrl = this.router.url;
+    const matchedState = this.getStateFromUrl(currentUrl);
+    if (matchedState) {
+      this.isHighlighted = matchedState;
+    }
+  }
+
+  private subscribeToRouteChanges(): void {
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      untilDestroyed(this),
+    ).subscribe((event: NavigationEnd) => {
+      const matchedState = this.getStateFromUrl(event.url);
+      if (matchedState) {
+        this.isHighlighted = matchedState;
+      }
+    });
+  }
+
+  private getStateFromUrl(url: string): string | null {
+    // 移除 /system/ 前缀
+    const path = url.replace('/system/', '').split('?')[0];
+
+    // 查找匹配的菜单项
+    const matchedItem = this.menuItems?.find((item) => path === item.state || path.startsWith(item.state + '/'));
+
+    return matchedItem?.state || null;
   }
 }
