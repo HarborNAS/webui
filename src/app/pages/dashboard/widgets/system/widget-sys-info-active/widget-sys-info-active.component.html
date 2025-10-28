@@ -3,7 +3,14 @@
     <div [class]="['container', size()]">
       <div class="content-left fn-theme-contrast-lighter">
         <div class="product-logo-container">
-          <ix-icon [name]="isIxHardware() ? iconMarker('ix-truenas-logo') : iconMarker('ix-truenas-logo-type')" [fullSize]="true"></ix-icon>
+          <ix-icon
+            [name]="
+              isIxHardware()
+                ? iconMarker('ix-truenas-logo')
+                : iconMarker('ix-truenas-logo-type')
+            "
+            [fullSize]="true"
+          ></ix-icon>
         </div>
 
         <ix-product-image
@@ -14,13 +21,18 @@
           [isEnterprise]="!!isEnterprise()"
           [isIxHardware]="!!isIxHardware()"
         >
-          <span>{{ 'Active' | translate }}</span>
+          <span>{{ "Active" | translate }}</span>
         </ix-product-image>
 
         @if (systemInfo()?.system_serial && isIxHardware()) {
           <div class="hostname">
             @if (isLoaded()) {
-              <span [matTooltip]="'Hostname: {hostname}' | translate: { hostname: systemInfo()?.hostname }">
+              <span
+                [matTooltip]="
+                  'Hostname: {hostname}'
+                    | translate: { hostname: systemInfo()?.hostname }
+                "
+              >
                 {{ systemInfo()?.hostname }}
               </span>
             }
@@ -34,7 +46,9 @@
               color="primary"
               [ixTest]="['widget-sysinfo', 'update-running']"
               [disabled]="true"
-            >{{ 'Update in Progress' | translate }}</button>
+            >
+              {{ "Update in Progress" | translate }}
+            </button>
           } @else {
             <button
               mat-button
@@ -43,9 +57,9 @@
               [routerLink]="['/system', 'update']"
             >
               @if (updateAvailable()) {
-                {{ 'Updates Available' | translate }}
+                {{ "Updates Available" | translate }}
               } @else {
-                {{ 'Check for Updates' | translate }}
+                {{ "Check for Updates" | translate }}
               }
             </button>
           }
@@ -54,7 +68,7 @@
 
       <div class="content-right">
         <div class="header">
-          <h3>{{ 'System Information' | translate }}</h3>
+          <h3>{{ "System Information" | translate }}</h3>
 
           <button
             mat-icon-button
@@ -70,13 +84,13 @@
 
         <mat-list>
           <mat-list-item>
-            <strong>{{ 'Platform' | translate }}:</strong>
+            <strong>{{ "Platform" | translate }}:</strong>
             @if (isLoaded()) {
               <span>
                 @if (systemInfo()?.platform && isIxHardware()) {
                   {{ systemInfo()?.platform }}
                 } @else {
-                  {{ 'Generic' }}
+                  {{ "Generic" }}
                 }
               </span>
             } @else {
@@ -85,22 +99,7 @@
           </mat-list-item>
 
           <mat-list-item>
-            <strong>{{ 'Edition' | translate }}:</strong>
-            @if (isLoaded()) {
-              <span>
-                @if (isEnterprise()) {
-                  {{ 'Enterprise' | translate }}
-                } @else {
-                  {{ 'Community' | translate }}
-                }
-              </span>
-            } @else {
-              <ng-container *ngTemplateOutlet="skeletonLoader"></ng-container>
-            }
-          </mat-list-item>
-
-          <mat-list-item>
-            <strong>{{ 'Version' | translate }}:</strong>
+            <strong>{{ "Version" | translate }}:</strong>
             @if (isLoaded()) {
               <div class="copy-version">
                 <div class="copy-version-text" [matTooltip]="version()">
@@ -119,19 +118,24 @@
           @if (systemInfo()?.license) {
             <mat-list-item>
               <div class="license-info">
-                <div class="title">{{ 'Support License' | translate }}:</div>
+                <div class="title">{{ "Support License" | translate }}:</div>
                 <div class="info">
                   <div>
                     {{
-                      '{license} Contract,' | translate:
-                      {
-                        license: getLabelForContractType(systemInfo().license.contract_type),
-                      }
+                      "{license} Contract,"
+                        | translate
+                          : {
+                              license: getLabelForContractType(
+                                systemInfo().license.contract_type
+                              ),
+                            }
                     }}
                   </div>
                   <div>
                     {{
-                      'Expires on {date}' | translate: { date: systemInfo().license.contract_end.$value }
+                      "Expires on {date}"
+                        | translate
+                          : { date: systemInfo().license.contract_end.$value }
                     }}
                   </div>
                 </div>
@@ -141,14 +145,14 @@
 
           @if (systemInfo()?.system_serial && isIxHardware()) {
             <mat-list-item>
-              <strong>{{ 'System Serial' | translate }}:</strong>
+              <strong>{{ "System Serial" | translate }}:</strong>
               <span>
                 {{ systemInfo()?.system_serial }}
               </span>
             </mat-list-item>
           } @else {
             <mat-list-item>
-              <strong>{{ 'Hostname' | translate }}:</strong>
+              <strong>{{ "Hostname" | translate }}:</strong>
               @if (isLoaded()) {
                 <span>
                   {{ systemInfo()?.hostname }}
@@ -160,7 +164,7 @@
           }
 
           <mat-list-item>
-            <strong>{{ 'Uptime' | translate }}:</strong>
+            <strong>{{ "Uptime" | translate }}:</strong>
             @if (isLoaded()) {
               <span>
                 {{ uptime() | uptime: datetime() }}
@@ -170,11 +174,11 @@
             }
           </mat-list-item>
 
-          @if (!isEnterprise()) {
+          <!-- @if (!isEnterprise()) {
             <mat-list-item class="use-enterprise">
               <ix-use-enterprise-marketing-link></ix-use-enterprise-marketing-link>
             </mat-list-item>
-          }
+          } -->
         </mat-list>
       </div>
     </div>

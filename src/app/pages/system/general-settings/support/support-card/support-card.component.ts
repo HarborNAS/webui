@@ -18,8 +18,6 @@ import { UiSearchDirective } from 'app/directives/ui-search.directive';
 import { Role } from 'app/enums/role.enum';
 import { helptextSystemSupport as helptext } from 'app/helptext/system/support';
 import { SystemInfo } from 'app/interfaces/system-info.interface';
-import { FeedbackDialog } from 'app/modules/feedback/components/feedback-dialog/feedback-dialog.component';
-import { FeedbackType } from 'app/modules/feedback/interfaces/feedback.interface';
 import {
   IxSlideToggleComponent,
 } from 'app/modules/forms/ix-forms/components/ix-slide-toggle/ix-slide-toggle.component';
@@ -92,7 +90,7 @@ export class SupportCardComponent implements OnInit {
   hasLicense = false;
   productImageSrc = signal<string | null>(null);
   licenseInfo: LicenseInfoInSupport | null = null;
-  links = [helptext.docHub, helptext.forums, helptext.licensing];
+  links = [helptext.docHub, helptext.forums];
   ticketText = helptext.ticket;
   proactiveText = helptext.proactive.title;
 
@@ -151,10 +149,6 @@ export class SupportCardComponent implements OnInit {
 
   updateLicense(): void {
     this.slideIn.open(LicenseComponent);
-  }
-
-  feedbackDialog(): void {
-    this.matDialog.open(FeedbackDialog, { data: FeedbackType.Bug });
   }
 
   openProactive(): void {
