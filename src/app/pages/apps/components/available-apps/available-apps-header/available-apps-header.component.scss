@@ -1,11 +1,10 @@
-@import 'scss-imports/variables';
+@import "scss-imports/variables";
 
 :host {
   border-bottom: 1px solid var(--lines);
   color: var(--fg1);
   display: flex;
   justify-content: space-between;
-  padding: 0 10px 25px;
 
   @media (max-width: $breakpoint-sm) {
     flex-direction: column-reverse;

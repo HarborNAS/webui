@@ -3,7 +3,7 @@
   [loading]="isLoading()"
 ></ix-page-header>
 
-<div class="flex-container">
+<div class="flex-container p-4">
   <div class="app-wrapper">
     <section>
       <ix-app-details-header
@@ -14,20 +14,30 @@
 
     @if (isLoading() || app()?.screenshots?.length) {
       <section>
-        <h2>{{ 'Screenshots' | translate }}</h2>
+        <h2>{{ "Screenshots" | translate }}</h2>
         <div>
           @if (isLoading()) {
             <div class="screenshots-loader">
-              <ngx-skeleton-loader class="screenshot-loader"></ngx-skeleton-loader>
-              <ngx-skeleton-loader class="screenshot-loader"></ngx-skeleton-loader>
-              <ngx-skeleton-loader class="screenshot-loader"></ngx-skeleton-loader>
+              <ngx-skeleton-loader
+                class="screenshot-loader"
+              ></ngx-skeleton-loader>
+              <ngx-skeleton-loader
+                class="screenshot-loader"
+              ></ngx-skeleton-loader>
+              <ngx-skeleton-loader
+                class="screenshot-loader"
+              ></ngx-skeleton-loader>
             </div>
           } @else {
             <div class="screenshots" gallerize>
               @let screenshots = app()?.screenshots || [];
               @for (image of screenshots; track image) {
                 <div class="screenshot">
-                  <img class="screenshot-image" [src]="image" [src-fallback]="imagePlaceholder" />
+                  <img
+                    class="screenshot-image"
+                    [src]="image"
+                    [src-fallback]="imagePlaceholder"
+                  />
                 </div>
               }
             </div>

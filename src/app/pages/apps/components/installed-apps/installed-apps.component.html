@@ -12,7 +12,7 @@
       >
         <ix-icon class="has-updates-icon" name="mdi-alert-circle"></ix-icon>
         <span>
-          {{ 'Update All' | translate }}
+          {{ "Update All" | translate }}
           @if (appsUpdateAvailable) {
             ({{ appsUpdateAvailable }})
           }
@@ -28,7 +28,8 @@
     ixTest="discover-apps"
     class="discover-apps-button"
     [routerLink]="['/apps', 'available']"
-  >{{ 'Discover Apps' | translate }}</a>
+    >{{ "Discover Apps" | translate }}</a
+  >
 </ix-page-header>
 
 <ix-master-detail-view
@@ -45,7 +46,7 @@
 
   @if (masterDetailView.isMobileView()) {
     <ng-container detail-header>
-      {{ 'Details for' | translate }}
+      {{ "Details for" | translate }}
       {{ selectedApp?.name }}
     </ng-container>
   }
