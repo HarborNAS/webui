@@ -1,4 +1,4 @@
-import { NgClass } from '@angular/common';
+import { AsyncPipe, NgClass } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -26,6 +26,7 @@ import { exploreNasEnterpriseLink } from 'app/constants/explore-nas-enterprise-l
 import { productTypeLabels } from 'app/enums/product-type.enum';
 import { hashMessage } from 'app/helpers/hash-message';
 import { SubMenuItem } from 'app/interfaces/menu-item.interface';
+import { AlertsPanelComponent } from 'app/modules/alerts/components/alerts-panel/alerts-panel.component';
 import { alertPanelClosed } from 'app/modules/alerts/store/alert.actions';
 import { selectIsAlertPanelOpen } from 'app/modules/alerts/store/alert.selectors';
 import { iconMarker } from 'app/modules/ix-icon/icon-marker.util';
@@ -61,6 +62,9 @@ import {
     MatButtonModule,
     AppBarComponent,
     TopbarComponent,
+    MatSidenav,
+    AlertsPanelComponent,
+    AsyncPipe,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {

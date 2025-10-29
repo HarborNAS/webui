@@ -19,4 +19,14 @@
       <router-outlet></router-outlet>
     </div>
   </main>
+
+  <!-- Alert bar -->
+  <mat-sidenav
+    class="alert-sidenav"
+    position="end"
+    [opened]="isAlertPanelOpen$ | async"
+    (closed)="onAlertsPanelClosed()"
+  >
+    <ix-alerts-panel></ix-alerts-panel>
+  </mat-sidenav>
 </mat-sidenav-container>
