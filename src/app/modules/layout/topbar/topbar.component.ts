@@ -5,7 +5,7 @@ import {
 import { MatBadge } from '@angular/material/badge';
 import { MatIconButton, MatButtonModule } from '@angular/material/button';
 import { MatDialog, MatDialogRef } from '@angular/material/dialog';
-import { MatIconRegistry } from '@angular/material/icon';
+// import { MatIconRegistry } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbar, MatToolbarRow } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
@@ -90,7 +90,7 @@ export class TopbarComponent implements OnInit {
   private translate = inject(TranslateService);
   private tnc = inject(TruenasConnectService);
   private apiService = inject<ApiService>(ApiService);
-  private matIconRegistry = inject(MatIconRegistry);
+  // private matIconRegistry = inject(MatIconRegistry);
   private domSanitizer = inject(DomSanitizer);
 
   updateIsDone: Subscription;
@@ -154,10 +154,10 @@ export class TopbarComponent implements OnInit {
       this.cdr.markForCheck();
     });
 
-    this.matIconRegistry.addSvgIcon(
-      'truenas_logo',
-      this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/logo.svg'),
-    );
+    // this.matIconRegistry.addSvgIcon(
+    //   'truenas_logo',
+    //   this.domSanitizer.bypassSecurityTrustResourceUrl('assets/images/logo.svg'),
+    // );
 
     this.store$.select(selectUpdateJob).pipe(untilDestroyed(this)).subscribe((jobs) => {
       const job = jobs[0];
