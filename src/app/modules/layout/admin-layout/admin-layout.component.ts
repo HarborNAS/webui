@@ -90,6 +90,8 @@ export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   readonly productType = toSignal(this.store$.select(selectProductType));
   readonly isEnterprise = toSignal(this.store$.select(selectIsEnterprise));
 
+  isInit = false;
+
   router = inject(Router);
 
   protected currentMessageHref = computed(
@@ -150,6 +152,7 @@ export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {
   ngAfterViewInit(): void {
     this.sidenavService.setSidenav(this.sideNavs?.first);
     this.disableSidenavFocusTrap();
+    this.isInit = true;
   }
 
   private disableSidenavFocusTrap(): void {
