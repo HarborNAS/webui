@@ -10,13 +10,13 @@ import { MatMenuModule } from '@angular/material/menu';
 import { MatToolbar, MatToolbarRow } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { DomSanitizer } from '@angular/platform-browser';
-import { Router } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import { ɵɵRouterLink } from '@angular/router/testing';
 import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
-  filter, Observable, Subscription, switchMap, tap,
+  filter, map, Observable, Subscription, switchMap, tap,
 } from 'rxjs';
 import { UiSearchDirective } from 'app/directives/ui-search.directive';
 import { JobState } from 'app/enums/job-state.enum';
@@ -42,14 +42,13 @@ import { TruecommandButtonComponent } from 'app/modules/truecommand/truecommand-
 import { TruenasConnectService } from 'app/modules/truenas-connect/services/truenas-connect.service';
 import { TruenasConnectButtonComponent } from 'app/modules/truenas-connect/truenas-connect-button.component';
 import { ApiService } from 'app/modules/websocket/api.service';
+import { NavigationService } from 'app/services/navigation/navigation.service';
 import { SystemGeneralService } from 'app/services/system-general.service';
 import { AppState } from 'app/store';
 import { selectIsHaLicensed } from 'app/store/ha-info/ha-info.selectors';
 import { selectRebootInfo } from 'app/store/reboot-info/reboot-info.selectors';
 import { selectHasConsoleFooter } from 'app/store/system-config/system-config.selectors';
 import { alertIndicatorPressed, sidenavIndicatorPressed } from 'app/store/topbar/topbar.actions';
-import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
-
 
 @UntilDestroy()
 @Component({
@@ -76,7 +75,6 @@ import { TruenasLogoComponent } from './truenas-logo/truenas-logo.component';
     UiSearchDirective,
     TestDirective,
     TruecommandButtonComponent,
-    TruenasLogoComponent,
     TruenasConnectButtonComponent,
     MatButtonModule, MatMenuModule,
     ɵɵRouterLink,
@@ -105,6 +103,12 @@ export class TopbarComponent implements OnInit {
   tooltips = helptextTopbar.tooltips;
   protected searchableElements = toolBarElements;
 
+  private navService = inject(NavigationService);
+
+  menuItems = this.navService.menuItems;
+  pageTitle = '';
+
+
   readonly hasRebootRequiredReasons = signal(false);
   readonly shownDialog = signal(false);
   readonly hasTncConfig = computed(() => {
@@ -114,6 +118,7 @@ export class TopbarComponent implements OnInit {
 
   readonly alertBadgeCount$ = this.store$.select(selectImportantUnreadAlertsCount);
   readonly hasConsoleFooter$ = this.store$.select(selectHasConsoleFooter);
+
 
   updateText = computed(() => {
     if (this.isHaLicensed || !this.systemWillRestart) {
@@ -139,6 +144,15 @@ export class TopbarComponent implements OnInit {
         this.cdr.markForCheck();
       });
     }
+
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.url),
+      untilDestroyed(this),
+    ).subscribe((url) => {
+      this.pageTitle = this.menuItems.find((item) => url.startsWith('/' + item.state))?.name || '';
+      this.cdr.markForCheck();
+    });
 
     this.matIconRegistry.addSvgIcon(
       'truenas_logo',

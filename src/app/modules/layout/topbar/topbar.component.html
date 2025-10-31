@@ -4,36 +4,42 @@
   >
     <mat-toolbar-row>
       <!-- Sidenav toggle button -->
-      <button matIconButton class="mat-icon-button" [matMenuTriggerFor]="menu">
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 453.42 228.14"
-          class="!text-foreground"
+      <div class="flex justify-start gap-4 items-center">
+        <button
+          matIconButton
+          class="mat-icon-button"
+          [matMenuTriggerFor]="menu"
         >
-          <g>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 453.42 228.14"
+            class="!text-foreground"
+          >
             <g>
-              <path
-                fill="currentColor"
-                d="M145.57,0h82.57c0,125.8-102.34,228.14-228.14,228.14v-82.57c80.27,0,145.57-65.3,145.57-145.58Z"
-              />
-              <path
-                fill="currentColor"
-                d="M307.85,228.14h-82.57C225.28,102.34,327.62,0,453.42,0v82.57c-80.27,0-145.57,65.3-145.57,145.58Z"
-              />
+              <g>
+                <path
+                  fill="currentColor"
+                  d="M145.57,0h82.57c0,125.8-102.34,228.14-228.14,228.14v-82.57c80.27,0,145.57-65.3,145.57-145.58Z"
+                />
+                <path
+                  fill="currentColor"
+                  d="M307.85,228.14h-82.57C225.28,102.34,327.62,0,453.42,0v82.57c-80.27,0-145.57,65.3-145.57,145.58Z"
+                />
+              </g>
             </g>
-          </g>
-        </svg>
-      </button>
-      <mat-menu #menu="matMenu">
-        <button mat-menu-item (click)="showAboutNasDialog()">
-          About HarborNAS
+          </svg>
         </button>
-        <a mat-menu-item [routerLink]="['/system/general']">
-          System Settings...
-        </a>
-      </mat-menu>
+        <mat-menu #menu="matMenu">
+          <button mat-menu-item (click)="showAboutNasDialog()">
+            About HarborNAS
+          </button>
+          <a mat-menu-item [routerLink]="['/system/general']">
+            System Settings...
+          </a>
+        </mat-menu>
 
-      <ix-truenas-logo [fullSize]="true"></ix-truenas-logo>
+        <b class="text-base font-bold">{{ pageTitle }}</b>
+      </div>
 
       <div
         class="topbar-mobile-footer"
