@@ -40,6 +40,7 @@ export class RoutePartsService {
     }
 
     for (const child of children) {
+      if (!child.snapshot) continue;
       const routeUrl: string = child.snapshot.url.map((segment) => segment.path).join('/');
       if (routeUrl) {
         url += `/${routeUrl}`;
