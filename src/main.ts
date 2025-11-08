@@ -124,7 +124,7 @@ bootstrapApplication(AppComponent, {
     },
     {
       provide: APP_INITIALIZER,
-      useFactory: () => () => {},
+      useFactory: () => () => { },
       deps: [Sentry.TraceService],
       multi: true,
     },
