@@ -3,7 +3,7 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-    "truenas-scale-ui": {
+    "harbornas-scale-ui": {
       "root": "",
       "sourceRoot": "src",
       "projectType": "application",
@@ -59,7 +59,8 @@
                   "replace": "src/environments/environment.ts",
                   "with": "src/environments/environment.prod.ts"
                 }
-              ]
+              ],
+              "baseHref": "/ui/"
             }
           },
           "defaultConfiguration": ""
@@ -67,18 +68,18 @@
         "serve": {
           "builder": "@angular/build:dev-server",
           "options": {
-            "buildTarget": "truenas-scale-ui:build"
+            "buildTarget": "harbornas-scale-ui:build"
           },
           "configurations": {
             "production": {
-              "buildTarget": "truenas-scale-ui:build:production"
+              "buildTarget": "harbornas-scale-ui:build:production"
             }
           }
         },
         "extract-i18n": {
           "builder": "@angular/build:extract-i18n",
           "options": {
-            "buildTarget": "truenas-scale-ui:build"
+            "buildTarget": "harbornas-scale-ui:build"
           }
         }
       }
