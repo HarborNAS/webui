@@ -1,13 +1,15 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { MatButton } from '@angular/material/button';
 import { MatDialogRef, MatDialogContent, MatDialogTitle, MatDialogActions } from '@angular/material/dialog';
-import { UntilDestroy } from '@ngneat/until-destroy';
+import { UntilDestroy, untilDestroyed } from '@ngneat/until-destroy';
+import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { filter, map } from 'rxjs';
 import { GiB } from 'app/constants/bytes.constant';
 import { WithLoadingStateDirective } from 'app/modules/loader/directives/with-loading-state/with-loading-state.directive';
 import { WidgetResourcesService } from 'app/pages/dashboard/services/widget-resources.service';
+import { SystemInfoInSupport } from 'app/pages/system/general-settings/support/system-info-in-support.interface';
+import { AppState } from 'app/store';
+import { waitForSystemInfo } from 'app/store/system-info/system-info.selectors';
 
 @UntilDestroy()
 @Component({
@@ -24,23 +26,19 @@ import { WidgetResourcesService } from 'app/pages/dashboard/services/widget-reso
   ],
   providers: [WidgetResourcesService],
 })
-export class AboutNasDialog {
+export class AboutNasDialog implements OnInit {
   private dialogRef = inject<MatDialogRef<AboutNasDialog>>(MatDialogRef);
+  private store$ = inject<Store<AppState>>(Store);
   private resources = inject(WidgetResourcesService);
-
-  systemInfo = toSignal(this.resources.dashboardSystemInfo$.pipe(
-    map((state) => state.value),
-    filter((value) => !!value),
-  ));
-
   cpuModel$ = this.resources.cpuModel$;
 
-  protected memory = toSignal(this.resources.realtimeUpdates$.pipe(
-    map((update) => update.fields.memory),
-  ));
+  systemInfo: SystemInfoInSupport;
 
-  protected formatUnit(bytes: number): string {
-    return (bytes / GiB).toFixed(1);
+  ngOnInit(): void {
+    this.store$.pipe(waitForSystemInfo, untilDestroyed(this)).subscribe((systemInfo) => {
+      this.systemInfo = { ...systemInfo };
+      this.systemInfo.memory = (systemInfo.physmem / GiB).toFixed(0) + ' GiB';
+    });
   }
 
   close(): void {

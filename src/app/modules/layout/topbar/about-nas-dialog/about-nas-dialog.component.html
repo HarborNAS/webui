@@ -12,8 +12,7 @@
         Memory
       </div>
       <div>
-        {{ formatUnit(memory().physical_memory_total) }}
-        <span class="units">GiB</span>
+        {{ systemInfo.memory }}
       </div>
     </div>
 
@@ -21,7 +20,7 @@
       <div class="!text-card-foreground w-1/4 text-right font-medium">
         Version
       </div>
-      <div>{{ systemInfo().version }}</div>
+      <div>{{ systemInfo.version }}</div>
     </div>
 
     <div class="mt-4">
