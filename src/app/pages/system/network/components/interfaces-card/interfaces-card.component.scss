@@ -1,9 +1,9 @@
-@import 'scss-imports/variables';
+@import "scss-imports/variables";
 
 .interfaces-table {
   ::ng-deep tr td:first-child,
   ::ng-deep tr th:first-child {
-    width: 30px;
+    width: 56px;
   }
 
   ::ng-deep {
