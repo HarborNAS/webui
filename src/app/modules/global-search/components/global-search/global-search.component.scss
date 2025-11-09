@@ -1,11 +1,6 @@
-@import 'scss-imports/cssvars';
+@import "scss-imports/cssvars";
 
 .search-box-wrapper {
-  left: 50%;
-  position: absolute;
-  top: 10%;
-  transform: translateX(-50%);
-
   &.sidenav-collapsed {
     margin-left: 115px;
   }

@@ -134,6 +134,7 @@ export class GlobalSearchComponent implements OnInit, AfterViewInit, OnDestroy {
   }
 
   closeAllBackdrops(): void {
+    console.log('close', '------')
     this.slideIn.closeAll();
     this.sidenavService.closeSecondaryMenu();
     this.dialogService.closeAllDialogs();
