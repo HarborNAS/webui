@@ -145,13 +145,16 @@ export class TopbarComponent implements OnInit {
       });
     }
 
+    // 1. 先获取初始路由状态
+    this.updatePageTitle(this.router.url);
+
+    // 2. 然后监听路由变化
     this.router.events.pipe(
       filter((event) => event instanceof NavigationEnd),
       map(() => this.router.url),
       untilDestroyed(this),
     ).subscribe((url) => {
-      this.pageTitle = this.menuItems.find((item) => url.startsWith('/' + item.state))?.name || '';
-      this.cdr.markForCheck();
+      this.updatePageTitle(url);
     });
 
     // this.matIconRegistry.addSvgIcon(
@@ -201,6 +204,12 @@ export class TopbarComponent implements OnInit {
     });
 
     this.showRebootInfoDialog();
+  }
+
+  // 3. 提取更新标题的逻辑到单独方法
+  private updatePageTitle(url: string): void {
+    this.pageTitle = this.menuItems.find((item) => url.startsWith('/' + item.state))?.name || '';
+    this.cdr.markForCheck();
   }
 
   showAboutNasDialog(): void {
