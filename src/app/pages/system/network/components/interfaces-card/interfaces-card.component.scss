@@ -8,9 +8,15 @@
 
   ::ng-deep {
     .wider-column {
-      width: 30%;
       @media (max-width: $breakpoint-tablet) {
         width: 150px;
+      }
+
+      &.ip-addresses-column {
+        width: 40%;
+        @media (max-width: $breakpoint-tablet) {
+          width: auto;
+        }
       }
     }
   }

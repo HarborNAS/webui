@@ -114,7 +114,7 @@ export class InterfacesCardComponent implements OnInit {
     ipAddressesColumn({
       title: this.translate.instant('IP Addresses'),
       sortBy: (row) => row.aliases.map((alias) => alias.address).join(', '),
-      cssClass: 'wider-column',
+      cssClass: 'wider-column ip-addresses-column',
     }),
     textColumn({
       title: this.translate.instant('MAC Address'),
