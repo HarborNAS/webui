@@ -145,7 +145,7 @@ export class InterfacesCardComponent implements OnInit {
           hidden: () => this.isHaEnabled$.pipe(map((isHaEnabled) => !isHaEnabled)),
           disabled: () => of(true),
           tooltip: this.translate.instant(helptextInterfaces.haEnabledResetMessage),
-          onClick: (): void => {},
+          onClick: (): void => { },
         },
         {
           iconName: iconMarker('mdi-delete'),
