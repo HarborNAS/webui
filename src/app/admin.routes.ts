@@ -119,6 +119,11 @@ export const adminRoutes: Routes = [
         path: 'containers',
         loadChildren: () => import('app/pages/containers/containers.routes').then((module) => module.containersRoutes),
       },
+      {
+        path: 'multimodal-search',
+        loadChildren: () => import('app/pages/multimodal-search/multimodal-search.routes').then((module) => module.multimodalSearchRoutes),
+        data: { title: T('Multimodal Search'), breadcrumb: T('Multimodal Search') },
+      },
     ],
   },
 ];

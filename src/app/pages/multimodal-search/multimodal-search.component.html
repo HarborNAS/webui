@@ -1,0 +1,219 @@
+<div class="multimodal-search-container">
+  <!-- 左侧功能菜单栏 -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <h3>功能菜单</h3>
+    </div>
+    <div class="sidebar-menu">
+      <button 
+        class="menu-item" 
+        [class.active]="selectedTab === 0"
+        (click)="selectedTab = 0"
+      >
+        <mat-icon>image</mat-icon>
+        <span>图片搜索</span>
+      </button>
+      <button 
+        class="menu-item" 
+        [class.active]="selectedTab === 1"
+        (click)="selectedTab = 1"
+      >
+        <mat-icon>videocam</mat-icon>
+        <span>视频搜索</span>
+      </button>
+      <button 
+        class="menu-item" 
+        [class.active]="selectedTab === 2"
+        (click)="selectedTab = 2"
+      >
+        <mat-icon>description</mat-icon>
+        <span>文档搜索</span>
+      </button>
+      <button class="menu-item">
+        <mat-icon>cloud_upload</mat-icon>
+        <span>文件上传</span>
+      </button>
+      <button class="menu-item">
+        <mat-icon>settings</mat-icon>
+        <span>后台管理</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 中间搜索结果区域 -->
+  <div class="main-content">
+    <div class="content-header">
+      <h1>多模态知识检索系统</h1>
+      <div class="search-info" *ngIf="imageResults.length > 0 || videoResults.length > 0 || documentResults.length > 0">
+        <p>
+          共找到 {{ imageResults.length + videoResults.length + documentResults.length }} 个结果
+          <span *ngIf="selectedTab === 0">，当前显示图片搜索结果</span>
+          <span *ngIf="selectedTab === 1">，当前显示视频搜索结果</span>
+          <span *ngIf="selectedTab === 2">，当前显示文档搜索结果</span>
+        </p>
+      </div>
+    </div>
+
+    <div class="results-section">
+      <div class="results-tabs">
+        <div class="tab-buttons">
+          <button 
+            class="tab-button" 
+            [class.active]="selectedTab === 0"
+            (click)="selectedTab = 0"
+          >
+            图片搜索
+          </button>
+          <button 
+            class="tab-button" 
+            [class.active]="selectedTab === 1"
+            (click)="selectedTab = 1"
+          >
+            视频搜索
+          </button>
+          <button 
+            class="tab-button" 
+            [class.active]="selectedTab === 2"
+            (click)="selectedTab = 2"
+          >
+            文档搜索
+          </button>
+        </div>
+
+        <div class="tab-content">
+          <!-- 图片搜索结果 -->
+          <div *ngIf="selectedTab === 0" class="tab-pane">
+            <div class="results-grid" *ngIf="imageResults.length > 0">
+              <div *ngFor="let item of imageResults; let i = index" class="result-card" (click)="openPreview(item, i)">
+                <img [src]="item.path" [alt]="'相似度: ' + item.similarity + '%'" />
+                <div class="similarity-badge">{{ item.similarity }}%</div>
+                <div class="result-info">
+                  <div class="path">{{ item.path }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="no-results" *ngIf="imageResults.length === 0">
+              <mat-icon>image_not_supported</mat-icon>
+              <p>未找到图片</p>
+            </div>
+          </div>
+
+          <!-- 视频搜索结果 -->
+          <div *ngIf="selectedTab === 1" class="tab-pane">
+            <div class="results-grid" *ngIf="videoResults.length > 0">
+              <div *ngFor="let item of videoResults" class="result-card">
+                <video [src]="item.path" controls></video>
+                <div class="similarity-badge">{{ item.similarity }}%</div>
+                <div class="result-info">
+                  <div class="path">{{ item.path }}</div>
+                  <div class="timestamps" *ngIf="item.timestamps && item.timestamps.length > 0">
+                    <span *ngFor="let ts of item.timestamps" class="timestamp-chip">{{ ts }}s</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="no-results" *ngIf="videoResults.length === 0">
+              <mat-icon>videocam_off</mat-icon>
+              <p>未找到视频</p>
+            </div>
+          </div>
+
+          <!-- 文档搜索结果 -->
+          <div *ngIf="selectedTab === 2" class="tab-pane">
+            <div class="results-list" *ngIf="documentResults.length > 0">
+              <div *ngFor="let item of documentResults" class="result-card">
+                <div class="result-info">
+                  <div class="similarity-badge">{{ item.similarity }}%</div>
+                  <div class="path">{{ item.path }}</div>
+                </div>
+              </div>
+            </div>
+            <div class="no-results" *ngIf="documentResults.length === 0">
+              <mat-icon>description</mat-icon>
+              <p>未找到文档</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右侧智能助手对话框 -->
+  <div class="assistant-panel">
+    <div class="chat-card">
+      <div class="chat-header">
+        <h2>智能助手</h2>
+      </div>
+      <div class="chat-messages" *ngIf="chatMessages.length > 0">
+        <div
+          *ngFor="let message of chatMessages"
+          class="message"
+          [class.user-message]="message.role === 'user'"
+          [class.assistant-message]="message.role === 'assistant'"
+        >
+          <div class="message-content">{{ message.content }}</div>
+        </div>
+      </div>
+      <div class="chat-input">
+        <input
+          type="text"
+          [(ngModel)]="chatInput"
+          placeholder="请输入搜索内容，例如：'搜索红色的日落'"
+          (keyup.enter)="onChatSend()"
+          class="input-field"
+        />
+        <button
+          class="send-button"
+          (click)="onChatSend()"
+          [disabled]="loading"
+        >
+          <mat-icon>send</mat-icon>
+        </button>
+      </div>
+      <div class="search-history" *ngIf="chatMessages.length > 0">
+        <h3>搜索历史</h3>
+        <div class="history-items">
+          <div 
+            *ngFor="let message of getUserMessages()"
+            class="history-item"
+            (click)="query = message.content; onSearch()"
+          >
+            <mat-icon>history</mat-icon>
+            <span>{{ message.content }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" *ngIf="loading">
+    <mat-spinner diameter="50"></mat-spinner>
+    <p>正在搜索...</p>
+  </div>
+
+  <!-- 图片预览模态框 -->
+  <div class="preview-overlay" *ngIf="showPreview" (click)="closePreview()">
+    <div class="preview-container" (click)="$event.stopPropagation()">
+      <button class="close-button" (click)="closePreview()">
+        <mat-icon>close</mat-icon>
+      </button>
+      
+      <button class="nav-button prev-button" (click)="prevImage()">
+        <mat-icon>chevron_left</mat-icon>
+      </button>
+      
+      <div class="preview-image-container">
+        <img [src]="previewImage?.path" [alt]="'相似度: ' + previewImage?.similarity + '%'" class="preview-image" />
+        <div class="preview-info">
+          <div class="preview-similarity">相似度: {{ previewImage?.similarity }}%</div>
+          <div class="preview-path">{{ previewImage?.path }}</div>
+          <div class="preview-counter">{{ previewIndex + 1 }} / {{ imageResults.length }}</div>
+        </div>
+      </div>
+      
+      <button class="nav-button next-button" (click)="nextImage()">
+        <mat-icon>chevron_right</mat-icon>
+      </button>
+    </div>
+  </div>
+</div>

@@ -117,6 +117,14 @@ export class NavigationService {
       state: 'reportsdashboard/cpu',
     },
     {
+      name: T('Multimodal Search'),
+      type: MenuItemType.Link,
+      tooltip: T('Multimodal Search'),
+      icon: tnIconMarker('app-search', 'custom'),
+      iconActive: tnIconMarker('app-search', 'custom'),
+      state: 'multimodal-search',
+    },
+    {
       name: T('System'),
       type: MenuItemType.SlideOut,
       tooltip: T('System'),

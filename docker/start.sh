@@ -5,6 +5,20 @@ if [ -z "$TNIP" ] ; then
 	exit 1
 fi
 
+
+# Set APIURL default if not provided
+if [ -z "$APIURL" ] ; then
+  APIURL="localhost:50313"
+  echo "APIURL not provided, using default: $APIURL"
+fi
+
+
+# Create environment variables file for frontend
+cat > /var/www/webui/env.js << EOF
+window.APIURL = "$APIURL";
+EOF
+
+
 # Set proper hostname for passthrough to HarborOS Middleware
 sed -i'' "s|%%HOSTNAME%%|${TNIP}|g" /etc/nginx/tn-nginx.conf
 
