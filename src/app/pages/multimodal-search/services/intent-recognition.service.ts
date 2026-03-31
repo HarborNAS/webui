@@ -7,20 +7,16 @@ export interface IntentRecognitionResponse {
   intent: string;
 }
 
-// Extend window interface to include APIURL
-declare global {
-  interface Window {
-    APIURL?: string;
-  }
-}
+
 
 @Injectable({
   providedIn: 'root',
 })
 export class IntentRecognitionService {
   private get API_BASE_URL(): string {
-    const apiUrl = window.APIURL || 'localhost:50313';
-    return `http://${apiUrl}`;
+    // 生产环境使用 Nginx 反向代理路径 /api/search/
+    // 开发环境使用代理路径 /api
+    return '/api/search';
   }
 
   constructor(private http: HttpClient) {}
