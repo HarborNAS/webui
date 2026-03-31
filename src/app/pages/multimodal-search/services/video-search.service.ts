@@ -32,9 +32,8 @@ export interface PaginationInfo {
 })
 export class VideoSearchService {
   private get API_BASE_URL(): string {
-    // 生产环境使用 Nginx 反向代理路径 /api/search/
-    // 开发环境使用代理路径 /api
-    return '/api/search';
+    // 生产环境使用 Nginx 反向代理路径 /multiapi/multisearch/
+    return '/multiapi/multisearch';
   }
 
   constructor(private http: HttpClient) {}
