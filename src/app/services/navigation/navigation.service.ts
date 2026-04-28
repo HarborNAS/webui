@@ -109,6 +109,14 @@ export class NavigationService {
       isVisible$: this.license.hasApps$,
     },
     {
+      name: T('HarborDesk'),
+      type: MenuItemType.Link,
+      tooltip: T('HarborDesk'),
+      icon: tnIconMarker('app-desktop-system', 'custom'),
+      iconActive: tnIconMarker('app-desktop-system-active', 'custom'),
+      state: 'harbordesk',
+    },
+    {
       name: T('Featured Photos'),
       type: MenuItemType.Link,
       tooltip: T('Featured Photos'),
