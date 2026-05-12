@@ -6,7 +6,9 @@ import {
 } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
+import { TnIconComponent } from '@truenas/ui-components';
 import { switchMap } from 'rxjs/operators';
+import { adminUsername } from 'app/constants/admin-username.constant';
 import { LoginResult } from 'app/enums/login-result.enum';
 import { AuthService } from 'app/modules/auth/auth.service';
 import { IxInputComponent } from 'app/modules/forms/ix-forms/components/ix-input/ix-input.component';
@@ -17,14 +19,13 @@ import { TestDirective } from 'app/modules/test-id/test.directive';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { SigninStore } from 'app/pages/signin/store/signin.store';
 
-const adminUsername = 'harboros_admin';
-
 @Component({
   selector: 'ix-set-admin-password-form',
   templateUrl: './set-admin-password-form.component.html',
   styleUrls: ['./set-admin-password-form.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
+    TnIconComponent,
     FormsModule,
     ReactiveFormsModule,
     MatButton,

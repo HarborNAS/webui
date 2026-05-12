@@ -16,7 +16,7 @@
     ix-missing-access-wrapper {
       display: inline-block;
 
-      .role-missing a + .role-missing-icon {
+      .role-missing a+.role-missing-icon {
         right: -15px;
       }
     }
@@ -26,7 +26,7 @@
 .alert-icon {
   cursor: default;
   flex: 0 0 auto;
-  padding-right: 4px;
+  padding-right: 8px;
 
   &.warn {
     color: var(--orange);
@@ -43,6 +43,11 @@
   &.error {
     color: var(--red);
   }
+}
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
 }
 
 .alert-message {
@@ -148,7 +153,7 @@
   display: flex;
   gap: 18px;
 
-  > a {
+  >a {
     cursor: pointer;
     text-decoration: underline;
   }
@@ -160,6 +165,8 @@
   margin-bottom: 6px;
   margin-top: 4px;
   padding: 0;
+  position: relative;
+  z-index: 1;
 
   .context-help-toggle {
     align-items: center;
@@ -172,13 +179,12 @@
     height: inherit;
     min-height: auto;
     opacity: 0.9;
+    overflow: hidden;
     padding: 0;
     width: 100%;
 
     tn-icon {
       height: 14px;
-      position: relative;
-      top: -2px;
       width: 14px;
     }
 
@@ -206,8 +212,6 @@
 
       tn-icon {
         height: 12px;
-        position: relative;
-        top: -4px;
         width: 12px;
       }
     }
@@ -235,6 +239,7 @@
     justify-content: center;
     line-height: 1;
     min-width: fit-content;
+    overflow: hidden;
     padding: 0 8px;
     transition: all 0.2s ease;
     white-space: nowrap;

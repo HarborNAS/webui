@@ -1,3 +1,5 @@
+@import 'scss-imports/cssvars';
+
 :host {
   display: block;
   margin-bottom: 12px;
@@ -21,12 +23,14 @@
 .input-container {
   background: var(--bg1);
   border: solid 1.5px var(--lines);
-  border-radius: 2px;
+  border-radius: 20px;
   display: flex;
   flex-direction: row;
   font-size: 12px;
   position: relative;
   width: 100%;
+
+  @include prevent-ios-autozoom('textarea');
 
   textarea {
     max-height: 250px;

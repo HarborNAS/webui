@@ -7,7 +7,7 @@
   border-radius: 100px;
   color: var(--fg1);
   display: flex;
-  padding: 2px 8px;
+  padding: 5px 8px;
   position: relative;
 
   .prefix-icon {
@@ -68,10 +68,6 @@
   gap: 4px;
   user-select: none;
   white-space: nowrap;
-
-  tn-icon {
-    font-size: 16px;
-  }
 
   &:focus {
     box-shadow: 0 0 0 1.5px var(--focus-bg) inset;

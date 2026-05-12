@@ -4,20 +4,21 @@ import { signal } from '@angular/core';
 import { fakeAsync, tick } from '@angular/core/testing';
 import { ReactiveFormsModule } from '@angular/forms';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
-import { of } from 'rxjs';
+import { BehaviorSubject, map } from 'rxjs';
 import { allCommands } from 'app/constants/all-commands.constant';
+import { MockApiService } from 'app/core/testing/classes/mock-api.service';
 import { mockApi, mockCall } from 'app/core/testing/utils/mock-api.utils';
 import { mockAuth } from 'app/core/testing/utils/mock-auth.utils';
 import { Choices } from 'app/interfaces/choices.interface';
 import { FileSystemStat } from 'app/interfaces/filesystem-stat.interface';
 import { Group } from 'app/interfaces/group.interface';
 import { User } from 'app/interfaces/user.interface';
-import { DetailsItemHarness } from 'app/modules/details-table/details-item/details-item.harness';
 import { DetailsTableHarness } from 'app/modules/details-table/details-table.harness';
 import { EditableHarness } from 'app/modules/forms/editable/editable.harness';
 import { IxCheckboxHarness } from 'app/modules/forms/ix-forms/components/ix-checkbox/ix-checkbox.harness';
 import { IxExplorerHarness } from 'app/modules/forms/ix-forms/components/ix-explorer/ix-explorer.harness';
 import { IxPermissionsHarness } from 'app/modules/forms/ix-forms/components/ix-permissions/ix-permissions.harness';
+import { SnackbarService } from 'app/modules/snackbar/services/snackbar.service';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { AdditionalDetailsSectionComponent } from 'app/pages/credentials/users/user-form/additional-details-section/additional-details-section.component';
 import { UserFormStore } from 'app/pages/credentials/users/user-form/user.store';
@@ -28,6 +29,11 @@ describe('AdditionalDetailsSectionComponent', () => {
   let loader: HarnessLoader;
 
   const shellAccess = signal(false);
+  const shellAccess$ = new BehaviorSubject(false);
+  function setShellAccess(value: boolean): void {
+    shellAccess.set(value);
+    shellAccess$.next(value);
+  }
   const mockUser = {
     id: 69,
     uid: 1004,
@@ -68,14 +74,16 @@ describe('AdditionalDetailsSectionComponent', () => {
         userConfig: jest.fn(() => ({})),
         shellAccess: jest.fn(() => shellAccess()),
         role: jest.fn(),
-        state$: of({
+        state$: shellAccess$.pipe(map((sa) => ({
           setupDetails: {
             allowedAccess: {
-              shellAccess: shellAccess(),
+              shellAccess: sa,
             },
+            role: null as null,
           },
-        }),
+        }))),
       }),
+      mockProvider(SnackbarService),
       mockApi([
         mockCall('user.shell_choices', {
           '/usr/sbin/nologin': 'nologin',
@@ -107,6 +115,7 @@ describe('AdditionalDetailsSectionComponent', () => {
   beforeEach(() => {
     // Mock scrollIntoView since it's not available in test environment
     Element.prototype.scrollIntoView = jest.fn();
+    setShellAccess(false);
   });
 
   describe('sudo commands fields', () => {
@@ -115,7 +124,7 @@ describe('AdditionalDetailsSectionComponent', () => {
         props: { editingUser: mockUser },
       });
       loader = TestbedHarnessEnvironment.loader(spectator.fixture);
-      shellAccess.set(true);
+      setShellAccess(true);
     });
 
     it('displays initial sudo command values correctly', async () => {
@@ -145,7 +154,7 @@ describe('AdditionalDetailsSectionComponent', () => {
     beforeEach(() => {
       spectator = createComponent();
       loader = TestbedHarnessEnvironment.loader(spectator.fixture);
-      shellAccess.set(false);
+      setShellAccess(false);
     });
 
     it('checks initial value when creating a new user', () => {
@@ -158,7 +167,7 @@ describe('AdditionalDetailsSectionComponent', () => {
         group: null,
         home: '/var/empty',
         home_mode: '700',
-        home_create: false,
+        home_create: true,
         sudo_commands: [],
         sudo_commands_nopasswd: [],
         uid: null,
@@ -187,13 +196,104 @@ describe('AdditionalDetailsSectionComponent', () => {
         groups: [],
         home: '/var/empty',
         home_mode: '700',
-        home_create: false,
+        home_create: true,
         uid: 1234,
       });
     });
 
+    it('clears default path and adds required validator when home editable is opened', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      // Before opening, home should be defaultHomePath
+      expect(spectator.component.form.controls.home.value).toBe('/var/empty');
+
+      await homeEditable.open();
+
+      // After opening with home_create=true, defaultHomePath should be cleared
+      expect(spectator.component.form.controls.home.value).toBe('');
+
+      // Required validator should be active
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(true);
+    });
+
+    it('restores default path and removes required validator when home editable is closed with empty path', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      await homeEditable.open();
+
+      // Uncheck home_create to remove required validator, allowing close with empty path
+      spectator.component.form.controls.home_create.setValue(false);
+      spectator.detectChanges();
+
+      await homeEditable.tryToClose();
+
+      // Empty path should be restored to defaultHomePath
+      expect(spectator.component.form.controls.home.value).toBe('/var/empty');
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(false);
+    });
+
+    it('keeps user-set path and removes required validator when home editable is closed with a real path', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      await homeEditable.open();
+
+      // Set a real path so we can close
+      const explorer = await loader.getHarness(IxExplorerHarness.with({ label: 'Home Directory' }));
+      await explorer.setValue('/mnt/tank/user');
+      spectator.detectChanges();
+
+      await homeEditable.tryToClose();
+
+      // Required validator should be removed
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(false);
+      // User-set path should be preserved (not reset to defaultHomePath)
+      expect(spectator.component.form.controls.home.value).toBe('/mnt/tank/user');
+    });
+
+    it('removes required validator when home_create is unchecked while editable is open', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      await homeEditable.open();
+
+      // home_create is true by default, so required validator should be active
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(true);
+
+      // Uncheck home_create
+      const createCheckbox = await loader.getHarness(IxCheckboxHarness.with({ label: 'Create Home Directory' }));
+      await createCheckbox.setValue(false);
+
+      // Required validator should be removed and default path restored
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(false);
+      expect(spectator.component.form.controls.home.value).toBe('/var/empty');
+    });
+
+    it('preserves API validation error when home editable auto-opens', async () => {
+      const homeControl = spectator.component.form.controls.home;
+      homeControl.setValue('/var/empty/2');
+
+      // Simulate API validation error set by FormErrorHandlerService
+      homeControl.setErrors({
+        manualValidateError: true,
+        manualValidateErrorMsg: '"Home Directory" must begin with /mnt or set to /var/empty.',
+        ixManualValidateError: { message: '"Home Directory" must begin with /mnt or set to /var/empty.' },
+      });
+      homeControl.markAsTouched();
+
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+      await homeEditable.open();
+
+      // API error should be preserved, not cleared by syncHomeValidators
+      expect(homeControl.errors?.manualValidateError).toBe(true);
+      expect(homeControl.value).toBe('/var/empty/2');
+    });
+
     it('checks zsh shell is selected when shell access is enabled', fakeAsync(async () => {
-      shellAccess.set(true);
+      setShellAccess(true);
       spectator.detectChanges();
 
       tick();
@@ -203,6 +303,15 @@ describe('AdditionalDetailsSectionComponent', () => {
         Shell: '/usr/bin/zsh',
       }));
     }));
+
+    it('pre-populates home with SMB share path for new users when a home share exists', () => {
+      const mockApiService = spectator.inject(MockApiService);
+      mockApiService.mockCall('sharing.smb.query', [{ path: '/mnt/tank/homes', enabled: true }] as never);
+
+      spectator = createComponent();
+
+      expect(spectator.component.form.controls.home.value).toBe('/mnt/tank/homes');
+    });
   });
 
   describe('when editing a user', () => {
@@ -213,11 +322,11 @@ describe('AdditionalDetailsSectionComponent', () => {
         },
       });
       loader = TestbedHarnessEnvironment.loader(spectator.fixture);
-      shellAccess.set(false);
+      setShellAccess(false);
     });
 
     it('checks initial value when editing user', async () => {
-      shellAccess.set(true);
+      setShellAccess(true);
       const values = await (await loader.getHarness(DetailsTableHarness)).getValues();
 
       expect(values).toEqual({
@@ -240,10 +349,33 @@ describe('AdditionalDetailsSectionComponent', () => {
       expect(Object.keys(values)).not.toContain('UID');
     });
 
-    it('loads home share path and puts it in home field', async () => {
-      const homeInput = await loader.getHarness(DetailsItemHarness.with({ label: 'Home Directory' }));
-      expect(spectator.inject(ApiService).call).toHaveBeenCalledWith('sharing.smb.query', [[['enabled', '=', true], ['options.home', '=', true]]]);
-      expect(await homeInput.getValueText()).toBe('/home/test');
+    it('skips SMB home share query when editing a user to preserve existing home path', () => {
+      const smbCalls = (spectator.inject(ApiService).call as jest.Mock).mock.calls
+        .filter(([method]: [string]) => method === 'sharing.smb.query');
+      expect(smbCalls).toHaveLength(0);
+    });
+
+    it('does not modify home validators when home editable is opened for an existing user', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      await homeEditable.open();
+
+      // For editing users, onHomeEditableOpened early-returns — home value should be unchanged
+      expect(spectator.component.form.controls.home.value).toBe('/home/test');
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(false);
+    });
+
+    it('does not modify home validators when home editable is closed for an existing user', async () => {
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+
+      await homeEditable.open();
+      await homeEditable.tryToClose();
+
+      // For editing users, onHomeEditableClosed early-returns — home value should be unchanged
+      expect(spectator.component.form.controls.home.value).toBe('/home/test');
+      expect(spectator.component.form.controls.home.hasError('required')).toBe(false);
     });
   });
 
@@ -279,7 +411,7 @@ describe('AdditionalDetailsSectionComponent', () => {
       const createCheckbox = await loader.getHarness(IxCheckboxHarness.with({ label: 'Create Home Directory' }));
       await createCheckbox.setValue(true);
 
-      const explorer = await loader.getHarness(IxExplorerHarness.with({ label: 'Create Home Directory Under' }));
+      const explorer = await loader.getHarness(IxExplorerHarness.with({ label: 'Home Directory' }));
       await explorer.setValue('/mnt/tank/user');
       spectator.detectChanges();
 
@@ -290,6 +422,32 @@ describe('AdditionalDetailsSectionComponent', () => {
 
       const perms = await loader.getHarness(IxPermissionsHarness.with({ label: 'Home Directory Permissions' }));
       expect(await perms.isDisabled()).toBe(false);
+    });
+
+    it('switches explorer label to "Create Home Directory Under" after path is set', async () => {
+      spectator = createComponent({
+        props: { editingUser: { ...mockUser, home: '' } },
+      });
+      loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+
+      const table = await loader.getHarness(DetailsTableHarness);
+      const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
+      await homeEditable.open();
+
+      const createCheckbox = await loader.getHarness(IxCheckboxHarness.with({ label: 'Create Home Directory' }));
+      await createCheckbox.setValue(true);
+
+      // Before setting a path, label should be 'Home Directory'
+      const explorer = await loader.getHarness(IxExplorerHarness.with({ label: 'Home Directory' }));
+      expect(explorer).toBeTruthy();
+
+      // Set a real path
+      await explorer.setValue('/mnt/tank/user');
+      spectator.detectChanges();
+
+      // After setting a path, label should switch to 'Create Home Directory Under'
+      const explorerWithNewLabel = await loader.getHarnessOrNull(IxExplorerHarness.with({ label: 'Create Home Directory Under' }));
+      expect(explorerWithNewLabel).toBeTruthy();
     });
 
     it('resets permissions when create home directory is checked', async () => {
@@ -467,13 +625,8 @@ describe('AdditionalDetailsSectionComponent', () => {
       });
       loader = TestbedHarnessEnvironment.loader(spectator.fixture);
 
-      // Trigger the setupEditUserForm logic
       spectator.detectChanges();
 
-      // Should hide the entire permissions section for /var/empty users
-      expect(spectator.component.shouldShowPermissions()).toBe(false);
-
-      // The permissions components should not be present in DOM
       const table = await loader.getHarness(DetailsTableHarness);
       const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
       await homeEditable.open();
@@ -493,16 +646,55 @@ describe('AdditionalDetailsSectionComponent', () => {
 
       spectator.detectChanges();
 
-      // Should show permissions section for regular home directories
-      expect(spectator.component.shouldShowPermissions()).toBe(true);
-
-      // The permissions components should be present in DOM
       const table = await loader.getHarness(DetailsTableHarness);
       const homeEditable = await table.getHarnessForItem('Home Directory', EditableHarness);
       await homeEditable.open();
 
       const defaultPermsCheckbox = await loader.getHarnessOrNull(IxCheckboxHarness.with({ label: 'Default Permissions' }));
       expect(defaultPermsCheckbox).not.toBeNull();
+    });
+  });
+
+  describe('primary and auxiliary group mutual exclusion', () => {
+    beforeEach(() => {
+      spectator = createComponent({
+        props: {
+          editingUser: mockUser,
+        },
+      });
+      loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+    });
+
+    it('removes primary group from auxiliary groups when primary group changes', () => {
+      // Set auxiliary groups to include group 102 and 103
+      spectator.component.form.controls.groups.patchValue([102, 103]);
+
+      // Change primary group to 102 (which is in auxiliary groups)
+      spectator.component.form.controls.group.patchValue(102);
+
+      // Group 102 should be filtered out of auxiliary groups
+      expect(spectator.component.form.controls.groups.value).toEqual([103]);
+    });
+
+    it('shows snackbar when primary group is removed from auxiliary groups', () => {
+      spectator.component.form.controls.groups.patchValue([102, 103]);
+
+      spectator.component.form.controls.group.patchValue(102);
+
+      expect(spectator.inject(SnackbarService).open).toHaveBeenCalledWith({
+        message: 'test-group-2 was removed from auxiliary groups.',
+      });
+    });
+
+    it('clears primary group and shows snackbar when it is added to auxiliary groups', () => {
+      spectator.component.form.controls.group.patchValue(101);
+
+      spectator.component.form.controls.groups.patchValue([101, 103]);
+
+      expect(spectator.component.form.controls.group.value).toBeNull();
+      expect(spectator.inject(SnackbarService).open).toHaveBeenCalledWith({
+        message: 'test-group was removed as primary group.',
+      });
     });
   });
 });

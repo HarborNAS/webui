@@ -12,7 +12,7 @@
               <div class="line-chart-tools">
                 <div class="steps-group" aria-label="Steps">
                   <button
-                    mat-button
+                    matButton="outlined"
                     [disabled]="stepBackDisabled"
                     [matTooltip]="'Step Back' | translate"
                     [matTooltipShowDelay]="1000"
@@ -22,7 +22,7 @@
                     <tn-icon name="rewind" library="mdi"></tn-icon>
                   </button>
                   <button
-                    mat-button
+                    matButton="outlined"
                     [disabled]="stepForwardDisabled"
                     [matTooltip]="'Step Forward' | translate"
                     [matTooltipShowDelay]="1000"
@@ -35,7 +35,7 @@
 
                 <div class="zoom-group" aria-label="Zoom Level">
                   <button
-                    mat-button
+                   matButton="outlined"
                     [disabled]="zoomLevelIndex === zoomLevelMin"
                     [matTooltip]="'Zoom Out' | translate"
                     [ixTest]="['zoom', 'out']"
@@ -44,7 +44,7 @@
                   </button>
 
                   <button
-                    mat-button
+                    matButton="outlined"
                     [disabled]="zoomLevelIndex === zoomLevelMax && stepForwardDisabled && !customZoom"
                     [matTooltip]="'Reset Zoom' | translate"
                     [ixTest]="['zoom', 'reset']"
@@ -54,7 +54,7 @@
                   </button>
 
                   <button
-                    mat-button
+                    matButton="outlined"
                     [disabled]="zoomLevelIndex === zoomLevelMax"
                     [matTooltip]="'Zoom In' | translate"
                     [ixTest]="['zoom', 'in']"
@@ -106,21 +106,6 @@
           </div>
 
           <section #legendElement class="legend">
-            @if (report() && data?.legend) {
-              <div class="legend-timestamp">
-                @if (data && legendData.xHTML && shouldShowLegendValue) {
-                  <h4>
-                    <strong>{{ 'Time' | translate }}:</strong>
-                    @if (legendData.xHTML) {
-                      <span class="date">
-                        <ix-date [date]="getDateFromString(legendData.xHTML)"></ix-date>
-                      </span>
-                    }
-                  </h4>
-                }
-              </div>
-            }
-
             @if (report() && data?.legend) {
               <div class="legend-group-wrapper">
                 <table class="legend-table" [ixTest]="['reports-table', report().title]">
@@ -175,6 +160,20 @@
                 <strong>{{ 'Total' | translate }}:</strong>
                 <span>{{ legendData.stackedTotalHTML | translate }}</span>
               </h4>
+            }
+             @if (report() && data?.legend) {
+              <div class="legend-timestamp">
+                @if (data && legendData.xHTML && shouldShowLegendValue) {
+                  <h4>
+                    <strong>{{ 'Time' | translate }}:</strong>
+                    @if (legendData.xHTML) {
+                      <span class="date">
+                        <ix-date [date]="getDateFromString(legendData.xHTML)"></ix-date>
+                      </span>
+                    }
+                  </h4>
+                }
+              </div>
             }
           </section>
         </mat-card-content>

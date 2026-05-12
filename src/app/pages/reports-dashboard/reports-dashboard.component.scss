@@ -4,8 +4,7 @@
 
 :host {
   align-items: stretch;
-  display: flex;
-  flex-direction: column;
+  display: block;
   height: 100%;
   justify-items: stretch;
   position: relative;
@@ -47,27 +46,10 @@
 }
 
 .mat-button-toggle .tn-icon {
-  font-size: 24px;
   line-height: normal;
   margin-bottom: 4px;
 }
 
 .master-container {
-  flex-grow: 1;
-}
-
-cdk-virtual-scroll-viewport {
-  height: 100%;
   width: 100%;
-
-  @media(max-width: $breakpoint-sm) {
-    height: 100vh;
-
-    &::ng-deep {
-      .cdk-virtual-scroll-content-wrapper {
-        padding-bottom: 100px;
-        width: 100%;
-      }
-    }
-  }
 }

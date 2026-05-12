@@ -1,23 +1,21 @@
 @if ((loggedInUser$ | async); as user) {
-  <div class="user-menu-wrapper">
+  <div class="user-menu-wrapper gap-2 mx-2">
+    @if (user.pw_name) {
+      <div
+        class="bg-background! h-[50px]! w-[200px]! rounded-full! px-4 flex items-center justify-center !text-foreground"
+      >
+        {{ user.pw_name }}
+      </div>
+    }
     <button
       name="Settings"
       mat-icon-button
-      class="topbar-button-right bg-background! h-[50px]! rounded-full! px-4 flex items-center"
+      class="bg-background! h-[50px]! w-[50px]! rounded-full! flex items-center justify-center"
       ixTest="user-menu"
       [matTooltip]="tooltips.settings | translate"
       [ixUiSearch]="searchableElements.elements.userMenu"
       [matMenuTriggerFor]="userMenu"
     >
-      @if (user.pw_name) {
-        <span
-          class="username !text-foreground"
-          [matTooltip]="user.pw_name"
-          [matMenuTriggerFor]="userMenu"
-        >
-          {{ user.pw_name }}
-        </span>
-      }
       <tn-icon size="lg" name="app-account_circle" library="custom" class="!text-foreground"></tn-icon>
     </button>
 
@@ -30,7 +28,7 @@
           [ixUiSearch]="searchableElements.elements.changePassword"
           (click)="openChangePasswordDialog()"
         >
-          <tn-icon size="lg" name="dialpad" library="mdi"></tn-icon>
+          <tn-icon size="md" name="app-dialpad" library="custom"></tn-icon>
           {{ 'Change Password' | translate }}
         </button>
       }
@@ -42,10 +40,21 @@
           ixTest="2fa"
           (click)="onTwoFactorAuth()"
         >
-          <tn-icon size="lg" name="tn-two-factor-auth"></tn-icon>
+          <tn-icon size="md" name="tn-two-factor-auth"></tn-icon>
           {{ 'Two-Factor Authentication' | translate }}
         </button>
       }
+
+      <!-- <button
+        name="settings-preferences"
+        mat-menu-item
+        ixTest="preferences"
+        [ixUiSearch]="searchableElements.elements.preferences"
+        (click)="openPreferencesForm()"
+      >
+        <tn-icon size="lg" name="cog" library="mdi"></tn-icon>
+        {{ 'Preferences' | translate }}
+      </button> -->
 
       <a
         name="settings-api"
@@ -55,7 +64,7 @@
         [queryParams]="{ userName: user.pw_name }"
         [ixUiSearch]="searchableElements.elements.myApiKeys"
       >
-        <tn-icon size="lg" name="laptop" library="mdi"></tn-icon>
+        <tn-icon size="md" name="app-laptop" library="custom"></tn-icon>
         {{ 'My API Keys' | translate }}
       </a>
 
@@ -67,7 +76,7 @@
         ixTest="guide"
         [ixUiSearch]="searchableElements.elements.guide"
       >
-        <tn-icon size="lg" name="book-multiple" library="mdi"></tn-icon>
+        <tn-icon size="md" name="app-book-multiple" library="custom"></tn-icon>
         {{ 'Guide' | translate }}
       </a>
 
@@ -81,7 +90,7 @@
         [ixUiSearch]="searchableElements.elements.logOut"
         (click)="onSignOut()"
       >
-        <tn-icon size="lg" name="logout" library="mdi"></tn-icon>
+        <tn-icon size="md" name="app-logout" library="custom"></tn-icon>
         {{ 'Log Out' | translate }}
       </button>
     </mat-menu>

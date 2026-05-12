@@ -1,7 +1,7 @@
 <div class="mobile-reorder-buttons">
   <button
     mat-icon-button
-    [attr.aria-label]="'Move widget up' | translate"
+    [attr.aria-label]="'Move card up' | translate"
     [ixTest]="['move-up', 'widget' + index()]"
     [disabled]="!canMoveUp()"
     (click)="moveUp.emit()"
@@ -10,7 +10,7 @@
   </button>
   <button
     mat-icon-button
-    [attr.aria-label]="'Move widget down' | translate"
+    [attr.aria-label]="'Move card down' | translate"
     [ixTest]="['move-down', 'widget' + index()]"
     [disabled]="!canMoveDown()"
     (click)="moveDown.emit()"
@@ -28,7 +28,7 @@
     [ixTest]="['edit-group', 'widget' + index()]"
     (click)="edit.emit()"
   >
-    <tn-icon class="size-5!" name="pencil" library="mdi"></tn-icon>
+    <tn-icon class="size-5! text-foreground!" name="app-pencil" library="custom"></tn-icon>
   </button>
   <button
     mat-icon-button
@@ -36,9 +36,9 @@
     [ixTest]="['delete-group', 'widget' + index()]"
     (click)="delete.emit()"
   >
-    <tn-icon class="size-5!" name="delete" library="mdi"></tn-icon>
+    <tn-icon class="size-5! text-foreground!" name="app-delete" library="custom"></tn-icon>
   </button>
   <button cdkDragHandle mat-icon-button>
-    <tn-icon class="size-5!" name="drag-horizontal" library="mdi"></tn-icon>
+    <tn-icon class="size-5! text-foreground!" name="app-drag-horizontal" library="custom"></tn-icon>
   </button>
 </div>

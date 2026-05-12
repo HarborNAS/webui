@@ -109,7 +109,19 @@ export class FeedbackService {
         allowTaint: true,
         useCORS: true,
         imageTimeout: 0,
-        ignoreElements: (element) => element.classList.contains('cdk-overlay-container'),
+        ignoreElements: (element) => {
+          if (element.classList.contains('cdk-overlay-pane')) {
+            return !element.classList.contains('slide-in-panel');
+          }
+          if (element.classList.contains('cdk-overlay-backdrop')) {
+            return !element.classList.contains('custom-slide-in-backdrop')
+              && !element.classList.contains('custom-slide-in-nobackdrop');
+          }
+          return false;
+        },
+        onclone: (_doc, element) => {
+          this.sanitizeUnsupportedCssColors(element);
+        },
         ...options,
       }).then((canvas) => {
         canvas.toBlob((blob) => {
@@ -166,9 +178,23 @@ export class FeedbackService {
     return of(message);
   }
 
-  showTicketSuccessMessage(ticketUrl: string): void {
+  showTicketSuccessMessage(ticketUrl: string, debugAttachError?: string | null): void {
+    let message = this.translate.instant('Thank you. Ticket was submitted successfully.');
+    let isHtml = false;
+
+    if (debugAttachError) {
+      const escapedError = this.escapeHtml(debugAttachError);
+      const warningMessage = this.translate.instant(
+        'Debug information could not be attached to the ticket: {error}',
+        { error: escapedError },
+      );
+      message += `<br><br><strong>⚠️ ${warningMessage}</strong>`;
+      isHtml = true;
+    }
+
     this.dialogService.generalDialog({
-      message: this.translate.instant('Thank you. Ticket was submitted successfully.'),
+      message,
+      is_html: isHtml,
       icon: tnIconMarker('check', 'mdi'),
       title: this.translate.instant('Ticket Created'),
       cancelBtnMsg: this.translate.instant('Close'),
@@ -366,5 +392,24 @@ export class FeedbackService {
         return of(false);
       }),
     );
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  private sanitizeUnsupportedCssColors(element: HTMLElement): void {
+    const colorFnRegex = /color\([^)]+\)/g;
+
+    for (const el of Array.from(element.querySelectorAll<HTMLElement>('*'))) {
+      const style = el.getAttribute('style');
+      if (style?.match(colorFnRegex)) {
+        el.setAttribute('style', style.replace(colorFnRegex, 'transparent'));
+      }
+    }
   }
 }

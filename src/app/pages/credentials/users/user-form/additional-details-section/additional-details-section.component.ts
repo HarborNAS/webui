@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, input, OnInit, inject } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, computed, DestroyRef, effect, input, OnInit, inject, Signal, viewChild } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormBuilder } from '@ngneat/reactive-forms';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
@@ -41,6 +41,7 @@ import { IxInputComponent } from 'app/modules/forms/ix-forms/components/ix-input
 import { IxPermissionsComponent } from 'app/modules/forms/ix-forms/components/ix-permissions/ix-permissions.component';
 import { IxSelectComponent } from 'app/modules/forms/ix-forms/components/ix-select/ix-select.component';
 import { emailValidator } from 'app/modules/forms/ix-forms/validators/email-validation/email-validation';
+import { SnackbarService } from 'app/modules/snackbar/services/snackbar.service';
 import { TestDirective } from 'app/modules/test-id/test.directive';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { defaultHomePath, UserFormStore } from 'app/pages/credentials/users/user-form/user.store';
@@ -87,6 +88,7 @@ export class AdditionalDetailsSectionComponent implements OnInit {
   private translate = inject(TranslateService);
   private sudoCommandsValidator = inject(SudoCommandsValidatorService);
   private userService = inject(UserService);
+  private snackbar = inject(SnackbarService);
   private destroyRef = inject(DestroyRef);
 
   editingUser = input<User>();
@@ -99,6 +101,7 @@ export class AdditionalDetailsSectionComponent implements OnInit {
   });
 
   private groupNameCache = new Map<number, string>();
+
   protected homeDirectoryEmptyValue = computed(() => {
     if (this.editingUser()) {
       if (isEmptyHomeDirectory(this.editingUser()?.home)) {
@@ -110,26 +113,22 @@ export class AdditionalDetailsSectionComponent implements OnInit {
     return this.translate.instant('Not Set');
   });
 
-  protected homeDirectoryViewValue(): string {
-    const path = this.form.controls.home.value;
-    if (this.form.controls.home_create.value && path) {
-      return this.translate.instant('New directory under {path}', { path });
-    }
-    // Form value is always normalized to defaultHomePath if empty, so we can return it directly
-    return path;
-  }
+  protected homeDirectoryViewValue: Signal<string>;
 
   readonly groupOptions$ = this.api.call('group.query', [[
     ['local', '=', true],
     ['immutable', '=', false],
   ]]).pipe(
     map((groups) => groups.map((group) => ({ label: group.group, value: group.id }))),
+    tap((options) => {
+      options.forEach((option) => this.groupNameCache.set(option.value, option.label));
+    }),
     shareReplay({ bufferSize: 1, refCount: true }),
   );
 
-  groupComboboxProvider: GroupComboboxProvider = new GroupComboboxProvider(
+  protected groupComboboxProvider: GroupComboboxProvider = new GroupComboboxProvider(
     this.userService,
-    { valueField: 'id' },
+    { valueField: 'id', localOnly: true },
   );
 
   protected readonly roleGroupMap = new Map<Role, string>([
@@ -140,20 +139,54 @@ export class AdditionalDetailsSectionComponent implements OnInit {
 
   readonly treeNodeProvider = this.filesystemService.getFilesystemNodeProvider({ directoriesOnly: true });
 
-  shouldShowPermissions(): boolean {
-    const homeValue = this.form.controls.home.value;
-    return homeValue !== defaultHomePath;
+  protected shouldShowPermissions: Signal<boolean>;
+
+  protected hasRealHomePath: Signal<boolean>;
+
+  protected homeEditable = viewChild<EditableComponent>('homeEditable');
+
+  protected onHomeEditableOpened(): void {
+    if (this.editingUser()) return;
+
+    // Skip validator sync if opening due to API validation error to preserve the error message
+    if (this.form.controls.home.errors?.manualValidateError) return;
+
+    this.syncHomeValidators(this.form.controls.home_create.value, true);
   }
 
-  groupsProvider: ChipsProvider = (query: string) => {
-    return this.api.call('group.query', [[
-      ['name', '^', query],
-      ['local', '=', true],
-      ['immutable', '=', false],
-    ]]).pipe(
-      map((groups) => groups.map((group) => group.group)),
-    );
-  };
+  protected onHomeEditableClosed(): void {
+    if (this.editingUser()) return;
+
+    this.syncHomeValidators(this.form.controls.home_create.value, false);
+  }
+
+  /**
+   * Called from three places:
+   * - onHomeEditableOpened: isOpen=true, isCreating from form
+   * - onHomeEditableClosed: isOpen=false, isCreating from form
+   * - home_create.valueChanges: isOpen from homeEditable signal
+   */
+  private syncHomeValidators(isCreating: boolean, isOpen: boolean): void {
+    const homeControl = this.form.controls.home;
+
+    if (isCreating && isOpen) {
+      if (!homeControl.hasValidator(Validators.required)) {
+        homeControl.addValidators(Validators.required);
+      }
+      if (homeControl.value === defaultHomePath) {
+        homeControl.setValue('');
+      }
+    } else {
+      homeControl.removeValidators(Validators.required);
+      if (!homeControl.value) {
+        homeControl.setValue(defaultHomePath);
+      }
+    }
+
+    homeControl.updateValueAndValidity();
+  }
+
+  protected groupsProvider: ChipsProvider = this.createGroupsProvider();
 
   readonly form = this.fb.group({
     full_name: ['' as string],
@@ -163,7 +196,7 @@ export class AdditionalDetailsSectionComponent implements OnInit {
     email: [null as string, [emailValidator()]],
     home: [defaultHomePath],
     home_mode: ['700'],
-    home_create: [false],
+    home_create: [true],
     default_permissions: [true],
     uid: [null as number],
     shell: [null as string | null],
@@ -177,6 +210,30 @@ export class AdditionalDetailsSectionComponent implements OnInit {
   shellOptions$: Observable<Option[]>;
 
   constructor() {
+    const homeValue = toSignal(
+      this.form.controls.home.valueChanges.pipe(startWith(this.form.controls.home.value)),
+    );
+    const homeCreateValue = toSignal(
+      this.form.controls.home_create.valueChanges.pipe(startWith(this.form.controls.home_create.value)),
+    );
+    this.homeDirectoryViewValue = computed(() => {
+      const path = homeValue();
+      if (homeCreateValue()) {
+        if (path && path !== defaultHomePath && !isEmptyHomeDirectory(path)) {
+          return this.translate.instant('New directory under {path}', { path });
+        }
+        return defaultHomePath;
+      }
+      return path || defaultHomePath;
+    });
+
+    this.shouldShowPermissions = computed(() => homeValue() !== defaultHomePath);
+
+    this.hasRealHomePath = computed(() => {
+      const home = homeValue();
+      return !!home && home !== defaultHomePath && !isEmptyHomeDirectory(home);
+    });
+
     this.form.valueChanges
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
@@ -221,10 +278,6 @@ export class AdditionalDetailsSectionComponent implements OnInit {
 
           return;
         }
-
-        groupOptions.forEach((group) => {
-          this.groupNameCache.set(group.value, group.label);
-        });
 
         const groupLabel = this.roleGroupMap.get(selectedRole);
         const groupId = groupOptions.find((group) => group.label === groupLabel)?.value;
@@ -304,6 +357,20 @@ export class AdditionalDetailsSectionComponent implements OnInit {
     return this.form.controls.sudo_commands_nopasswd.value?.join(', ') || '';
   }
 
+  private createGroupsProvider(): ChipsProvider {
+    return (query: string) => {
+      return this.api.call('group.query', [[
+        ['name', '^', query],
+        ['local', '=', true],
+        ['immutable', '=', false],
+      ]]).pipe(
+        map((groups) => {
+          return groups.map((group) => group.group);
+        }),
+      );
+    };
+  }
+
   private resolveGroupNames(ids: number[]): void {
     const missingIds = ids.filter((groupId) => !this.groupNameCache.has(groupId));
     if (!missingIds.length) {
@@ -341,6 +408,7 @@ export class AdditionalDetailsSectionComponent implements OnInit {
       sudo_commands: allSudoCommands ? [] : user.sudo_commands,
       sudo_commands_nopasswd_all: allSudoCommandsNoPasswd,
       sudo_commands_nopasswd: allSudoCommandsNoPasswd ? [] : user.sudo_commands_nopasswd,
+      home_create: false,
     });
 
     this.form.controls.uid.disable();
@@ -417,13 +485,45 @@ export class AdditionalDetailsSectionComponent implements OnInit {
     this.form.controls.sudo_commands.disabledWhile(this.form.controls.sudo_commands_all.value$);
     this.form.controls.sudo_commands_nopasswd.disabledWhile(this.form.controls.sudo_commands_nopasswd_all.value$);
 
-    this.form.controls.home.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((home) => {
-      if (isEmptyHomeDirectory(home) || this.editingUser()?.immutable) {
-        this.form.controls.home_mode.disable();
-      } else {
-        this.form.controls.home_mode.enable();
-      }
-    });
+    this.form.controls.group.valueChanges
+      .pipe(distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
+      .subscribe((primaryGroupId) => {
+        this.groupsProvider = this.createGroupsProvider();
+        this.cdr.markForCheck();
+
+        if (primaryGroupId == null) return;
+        const auxGroups = this.form.controls.groups.value;
+        const filtered = auxGroups.filter((id) => id !== primaryGroupId);
+        if (filtered.length !== auxGroups.length) {
+          this.form.controls.groups.patchValue(filtered);
+          const groupName = this.groupNameCache.get(primaryGroupId) || String(primaryGroupId);
+          this.snackbar.open({
+            message: this.translate.instant('{groupName} was removed from auxiliary groups.', { groupName }),
+          });
+        }
+      });
+
+    this.form.controls.groups.valueChanges
+      .pipe(
+        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((auxGroupIds) => {
+        this.groupComboboxProvider = new GroupComboboxProvider(
+          this.userService,
+          { valueField: 'id', localOnly: true },
+        );
+        this.cdr.markForCheck();
+
+        const primaryGroupId = this.form.controls.group.value;
+        if (primaryGroupId != null && auxGroupIds.includes(primaryGroupId)) {
+          const groupName = this.groupNameCache.get(primaryGroupId) || String(primaryGroupId);
+          this.form.controls.group.patchValue(null);
+          this.snackbar.open({
+            message: this.translate.instant('{groupName} was removed as primary group.', { groupName }),
+          });
+        }
+      });
 
     this.form.controls.groups.valueChanges
       .pipe(debounceTime(300), takeUntilDestroyed(this.destroyRef))
@@ -525,13 +625,13 @@ export class AdditionalDetailsSectionComponent implements OnInit {
 
   private detectHomeDirectoryChanges(): void {
     this.form.controls.home.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((home) => {
-      // Normalize empty home directory values to default path
-      if (!home || home.trim() === '') {
+      // Normalize empty home directory values to default path when not creating a new home
+      if ((!home || home.trim() === '') && !this.form.controls.home_create.value) {
         this.form.controls.home.setValue(defaultHomePath, { emitEvent: false });
       }
 
       const normalizedHome = this.form.controls.home.value;
-      if (isEmptyHomeDirectory(normalizedHome) || this.editingUser()?.immutable) {
+      if (isEmptyHomeDirectory(normalizedHome) || normalizedHome === defaultHomePath || this.editingUser()?.immutable) {
         this.form.controls.home_mode.disable();
       } else {
         this.form.controls.home_mode.enable();
@@ -539,6 +639,7 @@ export class AdditionalDetailsSectionComponent implements OnInit {
     });
 
     this.form.controls.home_create.valueChanges.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((checked) => {
+      this.syncHomeValidators(checked, this.homeEditable()?.isOpen() ?? false);
       if (checked) {
         this.form.patchValue({
           home_mode: '700',
@@ -550,6 +651,8 @@ export class AdditionalDetailsSectionComponent implements OnInit {
   }
 
   private setHomeSharePath(): void {
+    if (this.editingUser()) return;
+
     this.api.call('sharing.smb.query', [[
       ['enabled', '=', true],
       ['options.home', '=', true],

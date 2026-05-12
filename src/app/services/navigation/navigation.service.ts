@@ -109,6 +109,22 @@ export class NavigationService {
       isVisible$: this.license.hasApps$,
     },
     {
+      name: T('Featured Photos'),
+      type: MenuItemType.Link,
+      tooltip: T('Featured Photos'),
+      icon: tnIconMarker('app-featured-photos', 'custom'),
+      iconActive: tnIconMarker('app-featured-photos-active', 'custom'),
+      state: 'featured-photos/admin',
+    },
+    {
+      name: T('Harbor Assistant'),
+      type: MenuItemType.Link,
+      tooltip: T('Harbor Assistant'),
+      icon: tnIconMarker('app-desktop-harbor-assistant', 'custom'),
+      iconActive: tnIconMarker('app-desktop-harbor-assistant-active', 'custom'),
+      state: 'harbor-assistant',
+    },
+    {
       name: T('Reporting'),
       type: MenuItemType.Link,
       tooltip: T('Reports'),

@@ -1,5 +1,4 @@
 // cspell:ignore zvol zvols volsize volblocksize snapdev Snapdev Vdev helptext ngneat rawvalue pbkdf
-import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, DestroyRef, OnInit, signal, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -16,6 +15,7 @@ import {
 } from 'app/constants/dataset.constants';
 import { RequiresRolesDirective } from 'app/directives/requires-roles/requires-roles.directive';
 import {
+  DatasetCaseSensitivity,
   DatasetRecordSize,
   DatasetSnapdev, datasetSnapdevLabels,
   datasetSyncLabels,
@@ -33,10 +33,7 @@ import { mapToOptions } from 'app/helpers/options.helper';
 import { helptextZvol } from 'app/helptext/storage/volumes/zvol-form';
 import { Dataset, DatasetCreate, DatasetUpdate } from 'app/interfaces/dataset.interface';
 import { Option } from 'app/interfaces/option.interface';
-import { DetailsItemComponent } from 'app/modules/details-table/details-item/details-item.component';
-import { DetailsTableComponent } from 'app/modules/details-table/details-table.component';
 import { DialogService } from 'app/modules/dialog/dialog.service';
-import { EditableComponent } from 'app/modules/forms/editable/editable.component';
 import { FormActionsComponent } from 'app/modules/forms/ix-forms/components/form-actions/form-actions.component';
 import {
   IxButtonGroupComponent,
@@ -53,11 +50,11 @@ import {
 } from 'app/modules/forms/ix-forms/validators/forbidden-values-validation/forbidden-values-validation';
 import { matchOthersFgValidator } from 'app/modules/forms/ix-forms/validators/password-validation/password-validation';
 import { exactLength } from 'app/modules/forms/ix-forms/validators/validators';
-import { FileSizePipe } from 'app/modules/pipes/file-size/file-size.pipe';
 import { ModalHeaderComponent } from 'app/modules/slide-ins/components/modal-header/modal-header.component';
 import { SlideInRef } from 'app/modules/slide-ins/slide-in-ref';
 import { TestDirective } from 'app/modules/test-id/test.directive';
 import { ApiService } from 'app/modules/websocket/api.service';
+import { datasetNameTooLong } from 'app/pages/datasets/components/dataset-form/utils/name-length-validation';
 import { ZvolFormData } from 'app/pages/datasets/components/zvol-form/zvol-form.interface';
 import { getUserProperty, transformSpecialSmallBlockSizeForPayload } from 'app/pages/datasets/utils/dataset.utils';
 import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
@@ -65,6 +62,7 @@ import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
 @Component({
   selector: 'ix-zvol-form',
   templateUrl: './zvol-form.component.html',
+  styleUrl: './zvol-form.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ModalHeaderComponent,
@@ -81,12 +79,7 @@ import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
     MatButton,
     TestDirective,
     TranslateModule,
-    EditableComponent,
-    DetailsTableComponent,
-    DetailsItemComponent,
-    AsyncPipe,
     IxButtonGroupComponent,
-    FileSizePipe,
   ],
 })
 export class ZvolFormComponent implements OnInit {
@@ -119,7 +112,6 @@ export class ZvolFormComponent implements OnInit {
   readonly helptext = helptextZvol;
   readonly OnOff = OnOff;
   inheritEncryptPlaceholder: string = helptextZvol.encryption.inheritLabel;
-  namesInUse: string[] = [];
   volBlockSizeWarning: string | null;
 
   protected isLoading = signal(false);
@@ -137,7 +129,7 @@ export class ZvolFormComponent implements OnInit {
   private originalVolsize: number | null = null;
 
   form = this.formBuilder.group({
-    name: ['', [Validators.required, forbiddenValues(this.namesInUse)]],
+    name: ['', [Validators.required]],
     comments: [''],
     volsize: ['', [Validators.required, Validators.min(1)]],
     force_size: [false],
@@ -273,9 +265,7 @@ export class ZvolFormComponent implements OnInit {
             this.form.controls.encryption.disable();
           }
 
-          this.namesInUse = parentOrZvol.children?.map((child) => {
-            return /[^/]*$/.exec(child.name)[0];
-          }) || [];
+          this.addNameValidator(parentOrZvol);
 
           this.inheritEncryptionProperties(parentOrZvol);
 
@@ -312,6 +302,18 @@ export class ZvolFormComponent implements OnInit {
           this.cdr.markForCheck();
         },
       });
+  }
+
+  private addNameValidator(parent: Dataset): void {
+    const isCaseInsensitive = parent.casesensitivity?.value !== DatasetCaseSensitivity.Sensitive;
+    const namesInUse = (parent.children?.map((child) => {
+      return /[^/]*$/.exec(child.name)?.[0];
+    }) || []).filter((name): name is string => name !== undefined);
+
+    this.form.controls.name.addValidators([
+      datasetNameTooLong(parent.name),
+      forbiddenValues(namesInUse, isCaseInsensitive),
+    ]);
   }
 
   private copyParentProperties(parent: Dataset): void {
@@ -817,10 +819,6 @@ export class ZvolFormComponent implements OnInit {
     } else {
       this.editSubmit();
     }
-  }
-
-  protected getOptionLabel(options: Option[], value: unknown): string {
-    return options.find((option) => option.value === value)?.label ?? String(value ?? '');
   }
 
   private loadRecommendedBlocksize(): Observable<unknown> {

@@ -26,12 +26,12 @@ import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     MatDialogTitle,
+    MatDialogClose,
     ReactiveFormsModule,
     IxCheckboxComponent,
     FormActionsComponent,
     MatButton,
     TestDirective,
-    MatDialogClose,
     RequiresRolesDirective,
     TranslateModule,
   ],

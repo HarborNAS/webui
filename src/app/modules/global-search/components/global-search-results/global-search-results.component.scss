@@ -30,9 +30,9 @@
 
     ix-empty {
       tn-icon {
-        font-size: 100px !important;
         height: 60px !important;
         margin: 10px 0 30px;
+        width: 60px !important;
       }
     }
   }
@@ -87,7 +87,6 @@
     padding: 13px 20px;
 
     tn-icon {
-      font-size: 20px;
       margin-left: 15px;
 
       &:focus,
@@ -98,15 +97,19 @@
     }
 
     &.highlighted-result {
-      background-color: var(--bg1);
+      background-color: var(--hover-bg) !important;
+      box-shadow: 0 0 0 1px var(--lines) inset;
     }
 
     &:hover {
-      background-color: var(--bg1);
+      background-color: var(--hover-bg) !important;
+      box-shadow: 0 0 0 1px var(--lines) inset;
     }
 
+    &:focus,
     &:focus-visible {
-      background-color: var(--bg1);
+      background-color: var(--hover-bg) !important;
+      box-shadow: 0 0 0 1px var(--lines) inset;
       outline: none;
     }
 

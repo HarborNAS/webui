@@ -9,7 +9,8 @@
 /*---- Globals -----*/
 html {
   font-size: 87.5%
-    /* 14px */;
+    /* 14px */
+  ;
 }
 
 html,
@@ -209,25 +210,25 @@ body .mat-mdc-select-trigger {
   margin-right: 16px;
 }
 
-.scrollbar {
-  --sb-track-color: #fff;
-  --sb-thumb-color: #6715ff;
-  --sb-size: 15px;
+// .scrollbar {
+//   --sb-track-color: #fff;
+//   --sb-thumb-color: #6715ff;
+//   --sb-size: 15px;
 
-  &::-webkit-scrollbar {
-    width: var(--sb-size);
-  }
+//   &::-webkit-scrollbar {
+//     width: var(--sb-size);
+//   }
 
-  &::-webkit-scrollbar-track {
-    background: var(--sb-track-color);
-    border-radius: 25px;
-  }
+//   &::-webkit-scrollbar-track {
+//     background: var(--sb-track-color);
+//     border-radius: 25px;
+//   }
 
-  &::-webkit-scrollbar-thumb {
-    background: var(--sb-thumb-color);
-    border-radius: 25px;
-  }
-}
+//   &::-webkit-scrollbar-thumb {
+//     background: var(--sb-thumb-color);
+//     border-radius: 25px;
+//   }
+// }
 
 /*-------- Chart js ---------*/
 .chart {
@@ -296,7 +297,7 @@ body .mat-mdc-select-trigger {
   line-height: 48px;
   margin-bottom: 2px;
   margin-left: 12px;
-  margin-right: 20px;
+  // margin-right: 20px;
   text-align: center;
   z-index: 1;
 }
@@ -370,6 +371,11 @@ body .mat-mdc-select-trigger {
       overflow: visible !important;
     }
 
+    .menu-text,
+    .menu-caret {
+      display: none;
+    }
+
     .icon-menu {
       padding: 0;
 
@@ -441,4 +447,32 @@ input:-webkit-autofill {
 
 .has-tooltip .tooltip .material-icons {
   vertical-align: middle;
+}
+
+
+* {
+  --sb-track-color: #ffffff;
+  --sb-thumb-color: #6715ff;
+  --sb-size: 12px;
+}
+
+*::-webkit-scrollbar {
+  width: var(--sb-size)
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--sb-track-color);
+  border-radius: 20px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--sb-thumb-color);
+  border-radius: 20px;
+
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-color: var(--sb-thumb-color) var(--sb-track-color);
+  }
 }
