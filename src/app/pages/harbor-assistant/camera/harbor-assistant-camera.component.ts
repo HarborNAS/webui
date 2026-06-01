@@ -1,5 +1,5 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
@@ -11,7 +11,9 @@ import { MatTab, MatTabGroup } from '@angular/material/tabs';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { forkJoin, of, timer } from 'rxjs';
 import { catchError, finalize } from 'rxjs/operators';
+import Hls from 'hls.js';
 import {
+  HarborAssistantCameraLiveSessionResponse,
   HarborAssistantSearchResultFilter,
   HarborAssistantSearchCameraDevice,
   HarborAssistantSearchDvrRecordingStatus,
@@ -72,13 +74,14 @@ interface HarborAssistantSearchMediaItem extends HarborAssistantSearchDvrTimelin
     MatTabGroup,
   ],
 })
-export class HarborAssistantCameraComponent implements OnInit {
+export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly api = inject(HarborAssistantContentApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly translate = inject(TranslateService);
   @ViewChild('liveImage') private liveImage?: ElementRef<HTMLImageElement>;
+  @ViewChild('liveVideo') private liveVideo?: ElementRef<HTMLVideoElement>;
   @ViewChild('mediaViewer') private mediaViewer?: ElementRef<HTMLElement>;
   @ViewChild('searchResults') private searchResults?: ElementRef<HTMLElement>;
 
@@ -137,6 +140,10 @@ export class HarborAssistantCameraComponent implements OnInit {
   protected readonly liveSnapshotErrorToken = signal<number | null>(null);
   protected readonly lastGoodLiveFrameUrl = signal<string | null>(null);
   protected readonly liveMjpegFailed = signal(false);
+  protected readonly hlsLiveUrl = signal<string | null>(null);
+  protected readonly hlsLiveSession = signal<HarborAssistantCameraLiveSessionResponse | null>(null);
+  protected readonly hlsLiveStatus = signal<'stopped' | 'starting' | 'live' | 'degraded'>('stopped');
+  protected readonly hlsLiveError = signal<string | null>(null);
   protected readonly actionBusy = signal<string | null>(null);
   protected readonly actionMessage = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
@@ -149,6 +156,7 @@ export class HarborAssistantCameraComponent implements OnInit {
   private cameraRefreshRetryQueued = false;
   private actionMessageToken = 0;
   private liveFeedbackToken = 0;
+  private hls: Hls | null = null;
 
   ngOnInit(): void {
     this.refreshCameraDvr();
@@ -257,6 +265,9 @@ export class HarborAssistantCameraComponent implements OnInit {
   }
 
   selectCamera(deviceId: string): void {
+    if (deviceId !== this.selectedCameraId()) {
+      this.stopLive(false);
+    }
     this.selectedCameraId.set(deviceId);
     this.liveMjpegFailed.set(false);
     this.liveSnapshotErrorToken.set(null);
@@ -513,6 +524,96 @@ export class HarborAssistantCameraComponent implements OnInit {
     });
   }
 
+  startLive(): void {
+    const deviceId = this.selectedCameraId();
+    if (!deviceId || this.actionBusy() === 'live' || this.hlsLiveStatus() === 'starting') {
+      return;
+    }
+    if (this.hlsLiveSession()?.device_id && this.hlsLiveSession()?.device_id !== deviceId) {
+      this.stopLive(false);
+    }
+    this.actionBusy.set('live');
+    this.hlsLiveStatus.set('starting');
+    this.hlsLiveError.set(null);
+    this.hlsLiveUrl.set(null);
+    this.stopHlsPlayback();
+    this.api.startCameraLiveSession(deviceId).pipe(
+      finalize(() => {
+        if (this.actionBusy() === 'live') {
+          this.actionBusy.set(null);
+        }
+      }),
+    ).subscribe({
+      next: (session) => {
+        this.hlsLiveSession.set(session);
+        if (session.playlist_url) {
+          this.hlsLiveUrl.set(harborAssistantSearchSameOriginAdminUrl(session.playlist_url));
+          this.hlsLiveStatus.set(session.status === 'running' ? 'live' : 'starting');
+          this.showLiveFeedback(session.status === 'running' ? 'Live started.' : 'Live is starting...', 1800);
+          window.setTimeout(() => this.attachHlsPlayback(), 0);
+        } else {
+          this.hlsLiveStatus.set('degraded');
+          this.hlsLiveError.set(session.message || 'Live view is unavailable.');
+          this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
+        }
+      },
+      error: (error: unknown) => {
+        this.hlsLiveStatus.set('degraded');
+        this.hlsLiveError.set(harborAssistantSearchErrorMessage(error));
+        this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
+      },
+    });
+  }
+
+  stopLive(showMessage = true): void {
+    const session = this.hlsLiveSession();
+    const deviceId = session?.device_id ?? this.selectedCameraId();
+    this.stopHlsPlayback();
+    this.hlsLiveUrl.set(null);
+    this.hlsLiveStatus.set('stopped');
+    this.hlsLiveError.set(null);
+    this.hlsLiveSession.set(null);
+    if (!deviceId || !session?.session_id) {
+      return;
+    }
+    this.api.stopCameraLiveSession(deviceId, session.session_id).subscribe({
+      next: () => {
+        if (showMessage) {
+          this.showLiveFeedback('Live stopped.', 1200);
+        }
+      },
+      error: () => {
+        if (showMessage) {
+          this.showLiveFeedback('Live stop was requested.', 1200);
+        }
+      },
+    });
+  }
+
+  liveModeLabel(): string {
+    if (this.hlsLiveStatus() === 'live') {
+      return 'Live H.264';
+    }
+    if (this.hlsLiveStatus() === 'starting') {
+      return 'Starting live';
+    }
+    if (this.hlsLiveStatus() === 'degraded') {
+      return 'Snapshot fallback';
+    }
+    return 'Stopped';
+  }
+
+  liveCanStart(): boolean {
+    return Boolean(this.selectedCameraId())
+      && this.actionBusy() !== 'live'
+      && this.hlsLiveStatus() !== 'starting'
+      && this.hlsLiveStatus() !== 'live';
+  }
+
+  liveCanStop(): boolean {
+    return this.hlsLiveStatus() === 'starting' || this.hlsLiveStatus() === 'live';
+  }
+
   ptzAction(direction: string): void {
     if (!this.canPtz()) {
       this.showActionMessage('The current camera does not support PTZ control.');
@@ -575,6 +676,9 @@ export class HarborAssistantCameraComponent implements OnInit {
   }
 
   selectedLiveUrl(): string | null {
+    if (this.hlsLiveUrl() && this.hlsLiveStatus() !== 'degraded') {
+      return null;
+    }
     const deviceId = this.selectedCameraId();
     if (!deviceId) {
       return null;
@@ -634,6 +738,11 @@ export class HarborAssistantCameraComponent implements OnInit {
       return this.withRefreshToken(cameraSnapshotUrl);
     }
     return this.withRefreshToken(harborAssistantBeaconApiUrl(`/cameras/${encodeURIComponent(deviceId)}/snapshot.jpg`));
+  }
+
+  ngOnDestroy(): void {
+    this.stopHlsPlayback();
+    this.stopLive(false);
   }
 
   handleLiveError(): void {
@@ -1239,6 +1348,65 @@ export class HarborAssistantCameraComponent implements OnInit {
         this.liveFeedback.set(null);
       }
     });
+  }
+
+  private attachHlsPlayback(): void {
+    const url = this.hlsLiveUrl();
+    const video = this.liveVideo?.nativeElement;
+    if (!url || !video) {
+      return;
+    }
+    this.stopHlsPlayback();
+    video.muted = true;
+    video.playsInline = true;
+    if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      void video.play().catch(() => {
+        this.hlsLiveStatus.set('degraded');
+        this.hlsLiveError.set('Browser blocked live autoplay. Press Play again.');
+      });
+      return;
+    }
+    if (!Hls.isSupported()) {
+      this.hlsLiveStatus.set('degraded');
+      this.hlsLiveError.set('This browser cannot play local HLS live video.');
+      return;
+    }
+    const hls = new Hls({
+      backBufferLength: 30,
+      lowLatencyMode: true,
+    });
+    this.hls = hls;
+    hls.on(Hls.Events.ERROR, (_event, data) => {
+      if (!data.fatal) {
+        return;
+      }
+      this.hlsLiveStatus.set('degraded');
+      this.hlsLiveError.set('Live HLS playback failed. Snapshot fallback is still available.');
+      this.stopHlsPlayback();
+    });
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      this.hlsLiveStatus.set('live');
+      void video.play().catch(() => {
+        this.hlsLiveStatus.set('degraded');
+        this.hlsLiveError.set('Browser blocked live autoplay. Press Play again.');
+      });
+    });
+    hls.loadSource(url);
+    hls.attachMedia(video);
+  }
+
+  private stopHlsPlayback(): void {
+    if (this.hls) {
+      this.hls.destroy();
+      this.hls = null;
+    }
+    const video = this.liveVideo?.nativeElement;
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
   }
 
   private scrollToSearchResults(): void {

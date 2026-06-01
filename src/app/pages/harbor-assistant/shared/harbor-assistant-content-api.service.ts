@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import {
+  HarborAssistantCameraLiveSessionResponse,
   HarborAssistantSearchCameraStateResponse,
   HarborAssistantSearchDvrStatusResponse,
   HarborAssistantSearchDvrTimelineResponse,
@@ -58,6 +59,27 @@ export class HarborAssistantContentApiService {
     return this.http.post<HarborAssistantSearchDvrStatusResponse>(
       this.apiUrl(`/cameras/${encodeURIComponent(deviceId)}/recordings/stop`),
       {},
+    );
+  }
+
+  startCameraLiveSession(deviceId: string): Observable<HarborAssistantCameraLiveSessionResponse> {
+    return this.http.post<HarborAssistantCameraLiveSessionResponse>(
+      this.apiUrl(`/cameras/${encodeURIComponent(deviceId)}/live/start`),
+      {},
+    );
+  }
+
+  stopCameraLiveSession(deviceId: string, sessionId?: string | null): Observable<HarborAssistantCameraLiveSessionResponse> {
+    return this.http.post<HarborAssistantCameraLiveSessionResponse>(
+      this.apiUrl(`/cameras/${encodeURIComponent(deviceId)}/live/stop`),
+      sessionId ? { session_id: sessionId } : {},
+    );
+  }
+
+  cameraLiveStatus(deviceId: string, sessionId?: string | null): Observable<HarborAssistantCameraLiveSessionResponse> {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return this.http.get<HarborAssistantCameraLiveSessionResponse>(
+      this.apiUrl(`/cameras/${encodeURIComponent(deviceId)}/live/status${query}`),
     );
   }
 
