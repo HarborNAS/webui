@@ -546,11 +546,9 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
     ).subscribe({
       next: (session) => {
         this.hlsLiveSession.set(session);
-        if (session.playlist_url) {
-          this.hlsLiveUrl.set(harborAssistantSearchSameOriginAdminUrl(session.playlist_url));
-          this.hlsLiveStatus.set(session.status === 'running' ? 'live' : 'starting');
-          this.showLiveFeedback(session.status === 'running' ? 'Live started.' : 'Live is starting...', 1800);
-          window.setTimeout(() => this.attachHlsPlayback(), 0);
+        if (session.session_id) {
+          this.showLiveFeedback('Live is starting...', 1800);
+          this.waitForHlsPlaylist(session);
         } else {
           this.hlsLiveStatus.set('degraded');
           this.hlsLiveError.set(session.message || 'Live view is unavailable.');
@@ -558,6 +556,56 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
         }
       },
       error: (error: unknown) => {
+        this.hlsLiveStatus.set('degraded');
+        this.hlsLiveError.set(harborAssistantSearchErrorMessage(error));
+        this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
+      },
+    });
+  }
+
+  private waitForHlsPlaylist(session: HarborAssistantCameraLiveSessionResponse, attempt = 0): void {
+    const sessionId = session.session_id;
+    const deviceId = session.device_id;
+    if (!sessionId || !deviceId || this.hlsLiveSession()?.session_id !== sessionId) {
+      return;
+    }
+    this.api.cameraLiveStatus(deviceId, sessionId).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (status) => {
+        if (this.hlsLiveSession()?.session_id !== sessionId) {
+          return;
+        }
+        this.hlsLiveSession.set(status);
+        if (status.playlist_ready && status.playlist_url) {
+          this.hlsLiveUrl.set(harborAssistantSearchSameOriginAdminUrl(status.playlist_url));
+          this.hlsLiveStatus.set('live');
+          this.showLiveFeedback('Live started.', 1800);
+          window.setTimeout(() => this.attachHlsPlayback(), 0);
+          return;
+        }
+        if (status.status === 'failed' || status.status === 'degraded' || status.status === 'stopped') {
+          this.hlsLiveStatus.set('degraded');
+          this.hlsLiveError.set(status.message || 'Live view is unavailable.');
+          this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
+          return;
+        }
+        if (attempt >= 15) {
+          this.hlsLiveStatus.set('degraded');
+          this.hlsLiveError.set(status.message || 'Live playlist is not ready yet.');
+          this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
+          return;
+        }
+        window.setTimeout(() => this.waitForHlsPlaylist(status, attempt + 1), 1000);
+      },
+      error: (error: unknown) => {
+        if (this.hlsLiveSession()?.session_id !== sessionId) {
+          return;
+        }
+        if (attempt < 15) {
+          window.setTimeout(() => this.waitForHlsPlaylist(session, attempt + 1), 1000);
+          return;
+        }
         this.hlsLiveStatus.set('degraded');
         this.hlsLiveError.set(harborAssistantSearchErrorMessage(error));
         this.showLiveFeedback('Live unavailable. Falling back to snapshots.', 2200);
