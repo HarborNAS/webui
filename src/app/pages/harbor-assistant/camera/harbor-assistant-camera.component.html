@@ -197,6 +197,9 @@
             <div class="empty-state">{{ 'No available cameras yet.' | translate }}</div>
           }
         </section>
+        <div class="live-secondary-slot">
+          <ng-content select="[camera-live-secondary]"></ng-content>
+        </div>
       </section>
     </mat-tab>
 

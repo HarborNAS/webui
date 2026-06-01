@@ -37,6 +37,13 @@
   scrollbar-gutter: stable;
 }
 
+.live-secondary-slot {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  min-width: 0;
+}
+
 .playback-tab {
   align-items: start;
   display: grid;

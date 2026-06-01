@@ -177,7 +177,12 @@ $hd-space-5: 20px;
 }
 
 .event-intelligence-panel {
-  margin: 0 $hd-space-5 $hd-space-5;
+  margin: 0;
+}
+
+.camera-live-event-intelligence {
+  display: block;
+  min-width: 0;
 }
 
 .event-intelligence-status-grid {
