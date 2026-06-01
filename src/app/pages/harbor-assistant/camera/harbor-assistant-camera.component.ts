@@ -29,6 +29,7 @@ import {
   harborAssistantSearchHasNoResults,
   harborAssistantSearchSameOriginAdminUrl,
 } from 'app/pages/harbor-assistant/shared/harbor-assistant-results';
+import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 import {
   HarborTimeRangeDialogComponent,
   HarborTimeRangeValue,
@@ -632,7 +633,7 @@ export class HarborAssistantCameraComponent implements OnInit {
     if (cameraSnapshotUrl?.startsWith('/ui/assets/')) {
       return this.withRefreshToken(cameraSnapshotUrl);
     }
-    return this.withRefreshToken(`/api/harbor-beacon/cameras/${encodeURIComponent(deviceId)}/snapshot.jpg`);
+    return this.withRefreshToken(harborAssistantBeaconApiUrl(`/cameras/${encodeURIComponent(deviceId)}/snapshot.jpg`));
   }
 
   handleLiveError(): void {
