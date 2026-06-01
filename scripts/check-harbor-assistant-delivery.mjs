@@ -59,6 +59,23 @@ if (!includes('src/app/pages/harbor-assistant/services/harbor-assistant-api-pref
   fail('HarborNavi API prefix must use /api/beacon.');
 }
 
+const assistantComponent = read('src/app/pages/harbor-assistant/harbor-assistant.component.ts');
+const assistantTemplate = read('src/app/pages/harbor-assistant/harbor-assistant.component.html');
+for (const required of [
+  "id: 'search'",
+  "id: 'camera'",
+  "id: 'messages'",
+  "id: 'home-assistant'",
+  "id: 'settings'",
+  'Event intelligence',
+  'Message connections',
+  'Home Assistant',
+]) {
+  if (!assistantComponent.includes(required) && !assistantTemplate.includes(required)) {
+    fail(`HarborNavi K3 Assistant must keep full product surface: ${required}`);
+  }
+}
+
 const packaging = read('scripts/harbornavi-k3/build-deb.sh');
 for (const required of [
   'Package: $package_name',
@@ -66,6 +83,8 @@ for (const required of [
   '/etc/nginx/conf.d/harbornavi-webui.conf',
   'location /api/beacon/',
   'proxy_pass http://127.0.0.1:4174',
+  'location /api/harbor-gate/',
+  'proxy_pass http://127.0.0.1:8787',
 ]) {
   if (!packaging.includes(required)) {
     fail(`HarborNavi package script missing: ${required}`);
