@@ -29,6 +29,8 @@ import {
   HomeAssistantInstallResponse,
   HomeAssistantInstallStatusResponse,
   HomeAssistantServicesResponse,
+  HomeAssistantServiceSmokePayload,
+  HomeAssistantServiceSmokeResponse,
   HomeAssistantStatusResponse,
   HomeAssistantSyncResponse,
   HomeAssistantTestResponse,
@@ -53,6 +55,7 @@ import {
   ModelPoliciesResponse,
   NotificationTargetsResponse,
   RagReadinessResponse,
+  RedactedDiagnosticsBundleResponse,
   RtspCheckPayload,
   RtspCheckResult,
   ShareLinkSummary,
@@ -124,6 +127,10 @@ export class HarborAssistantApiService {
     return this.http.get<RagReadinessResponse>(this.apiUrl('/rag/readiness'));
   }
 
+  getRedactedDiagnosticsBundle(): Observable<RedactedDiagnosticsBundleResponse> {
+    return this.http.get<RedactedDiagnosticsBundleResponse>(this.apiUrl('/diagnostics/redacted-bundle'));
+  }
+
   getKnowledgeSettings(): Observable<KnowledgeSettings> {
     return this.http.get<KnowledgeSettings>(this.apiUrl('/knowledge/settings'));
   }
@@ -175,6 +182,10 @@ export class HarborAssistantApiService {
 
   getHomeAssistantServices(): Observable<HomeAssistantServicesResponse> {
     return this.http.get<HomeAssistantServicesResponse>(this.apiUrl('/home-assistant/services'));
+  }
+
+  runHomeAssistantServiceSmoke(payload: HomeAssistantServiceSmokePayload): Observable<HomeAssistantServiceSmokeResponse> {
+    return this.http.post<HomeAssistantServiceSmokeResponse>(this.apiUrl('/home-assistant/service-smoke'), payload);
   }
 
   getHomeAssistantInstallStatus(): Observable<HomeAssistantInstallStatusResponse> {

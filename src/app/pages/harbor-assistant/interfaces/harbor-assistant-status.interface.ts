@@ -105,6 +105,27 @@ export interface HomeAssistantServicesResponse {
   services: HomeAssistantServiceDomain[];
 }
 
+export interface HomeAssistantServiceSmokePayload {
+  entity_id: string;
+  domain: string;
+  service: string;
+}
+
+export interface HomeAssistantServiceSmokeResponse {
+  status: 'succeeded' | 'blocked' | 'failed' | string;
+  allowed: boolean;
+  executed: boolean;
+  domain: string;
+  service: string;
+  entity_id: string;
+  message: string;
+  result?: {
+    ok?: boolean;
+    changed_entity_count?: number;
+  } | null;
+  audit_record?: Record<string, unknown>;
+}
+
 export interface HomeAssistantSyncResponse {
   status: HomeAssistantStatusResponse;
   entities: HomeAssistantEntity[];
@@ -392,6 +413,19 @@ export interface InferenceHealthResponse {
   backend_kind?: string;
   backend?: Record<string, unknown> | null;
   error?: string | null;
+}
+
+export interface RedactedDiagnosticsBundleResponse {
+  generated_at: string;
+  host?: Record<string, unknown>;
+  services?: Array<Record<string, unknown>>;
+  memory?: Record<string, unknown>;
+  cameras?: Record<string, unknown>;
+  events?: Record<string, unknown>;
+  home_assistant?: HomeAssistantStatusResponse;
+  models?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  audit_record?: Record<string, unknown>;
 }
 
 export interface AdminDefaults {

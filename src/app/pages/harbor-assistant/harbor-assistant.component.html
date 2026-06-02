@@ -1487,6 +1487,76 @@
       </details>
     </section>
       }
+
+      @if (isSettingsSection('diagnostics')) {
+    <section class="settings-section-panel diagnostics-tab">
+      @if (endpointError('diagnostics')) {
+        <div class="notice error">{{ endpointError('diagnostics') | translate }}</div>
+      }
+
+      <mat-card class="settings-card native-panel diagnostics-card">
+        <mat-card-header>
+          <mat-card-title>{{ 'Diagnostics' | translate }}</mat-card-title>
+        </mat-card-header>
+        <mat-card-content>
+          <section class="diagnostics-toolbar">
+            <div>
+              <span class="field-label">{{ 'Redacted health bundle' | translate }}</span>
+              @if (diagnosticsBundle(); as bundle) {
+                <strong>{{ bundle.generated_at }}</strong>
+              } @else {
+                <strong>{{ 'Not generated' | translate }}</strong>
+              }
+            </div>
+            <button mat-button color="primary" type="button" [disabled]="actionBusy('diagnostics')" (click)="generateDiagnosticsBundle()">
+              {{ actionBusy('diagnostics') ? ('Generating' | translate) : ('Generate' | translate) }}
+            </button>
+          </section>
+
+          @if (diagnosticsBundle()) {
+            <div class="status-block-grid diagnostics-summary-grid">
+              <article class="status-block">
+                <span>{{ 'Memory pressure' | translate }}</span>
+                <strong>{{ diagnosticsMemoryPressure() }}</strong>
+                <p>{{ 'Direct16' | translate }}: {{ diagnosticsMemoryEnvelope('direct16Passed') | translate }} / {{ 'Plus24' | translate }}: {{ diagnosticsMemoryEnvelope('plus24Passed') | translate }}</p>
+              </article>
+              <article class="status-block">
+                <span>{{ 'Cameras' | translate }}</span>
+                <strong>{{ diagnosticsCameraSummary() }}</strong>
+                <p>{{ 'RTSP URLs and credentials are redacted.' | translate }}</p>
+              </article>
+              <article class="status-block">
+                <span>{{ 'Events' | translate }}</span>
+                <strong>{{ diagnosticsEventSummary() }}</strong>
+                <p>{{ 'Only metadata is included.' | translate }}</p>
+              </article>
+              <article class="status-block">
+                <span>{{ 'Models' | translate }}</span>
+                <strong>{{ diagnosticsModelSummary() }}</strong>
+                <p>{{ 'API keys and model paths are redacted.' | translate }}</p>
+              </article>
+            </div>
+
+            <div class="table-list diagnostics-service-list">
+              @for (service of diagnosticsServiceRows(); track service.service) {
+                <article class="table-row">
+                  <div>
+                    <h2>{{ service.service }}</h2>
+                    <p class="muted">{{ 'K3 local service' | translate }}</p>
+                  </div>
+                  <span class="pill" [ngClass]="toneClass(service.tone)">{{ service.status | translate }}</span>
+                </article>
+              }
+            </div>
+
+            <textarea class="diagnostics-json" readonly [value]="diagnosticsJson()"></textarea>
+          } @else {
+            <div class="empty-state">{{ 'Generate a redacted diagnostics bundle when you need operator evidence from this K3.' | translate }}</div>
+          }
+        </mat-card-content>
+      </mat-card>
+    </section>
+      }
     </section>
   }
 </section>

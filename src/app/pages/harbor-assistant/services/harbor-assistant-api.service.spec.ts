@@ -174,6 +174,12 @@ describe('Harbor Assistant API service', () => {
     inferenceReq.flush({ status: 'ready', ready: true, backend: { kind: 'openai_proxy' } });
     expect((await inferencePromise).ready).toBe(true);
 
+    const diagnosticsPromise = firstValueFrom(spectator.service.getRedactedDiagnosticsBundle());
+    const diagnosticsReq = httpMock.expectOne('/api/harbor-beacon/diagnostics/redacted-bundle');
+    expect(diagnosticsReq.request.method).toBe('GET');
+    diagnosticsReq.flush({ generated_at: 'epoch_ms:1', security: { secret_scan: 'clean' } });
+    await diagnosticsPromise;
+
     const targetsPromise = firstValueFrom(spectator.service.getNotificationTargets());
     const targetsReq = httpMock.expectOne('/api/harbor-beacon/admin/notification-targets');
     expect(targetsReq.request.method).toBe('GET');
@@ -271,6 +277,29 @@ describe('Harbor Assistant API service', () => {
     expect(servicesReq.request.method).toBe('GET');
     servicesReq.flush({ services: [] });
     await servicesPromise;
+
+    const serviceSmokePromise = firstValueFrom(spectator.service.runHomeAssistantServiceSmoke({
+      entity_id: 'light.kitchen',
+      domain: 'light',
+      service: 'turn_on',
+    }));
+    const serviceSmokeReq = httpMock.expectOne('/api/harbor-beacon/home-assistant/service-smoke');
+    expect(serviceSmokeReq.request.method).toBe('POST');
+    expect(serviceSmokeReq.request.body).toEqual({
+      entity_id: 'light.kitchen',
+      domain: 'light',
+      service: 'turn_on',
+    });
+    serviceSmokeReq.flush({
+      status: 'succeeded',
+      allowed: true,
+      executed: true,
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+      message: 'ok',
+    });
+    await serviceSmokePromise;
 
     const installStatusPromise = firstValueFrom(spectator.service.getHomeAssistantInstallStatus());
     const installStatusReq = httpMock.expectOne('/api/harbor-beacon/harboros/apps/home-assistant/status');

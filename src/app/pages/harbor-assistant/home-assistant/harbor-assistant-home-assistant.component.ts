@@ -20,6 +20,7 @@ import {
   HomeAssistantInstallPlanResponse,
   HomeAssistantInstallStatusResponse,
   HomeAssistantServiceDomain,
+  HomeAssistantServiceSmokeResponse,
   HomeAssistantStatusResponse,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
@@ -82,6 +83,7 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
   protected readonly installPlan = signal<HomeAssistantInstallPlanResponse | null>(null);
   protected readonly entities = signal<HomeAssistantEntity[]>([]);
   protected readonly serviceDomains = signal<HomeAssistantServiceDomain[]>([]);
+  protected readonly serviceSmokeResult = signal<HomeAssistantServiceSmokeResponse | null>(null);
 
   protected readonly configForm = this.fb.group({
     enabled: [true],
@@ -94,12 +96,21 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
     domain: ['all'],
     readiness: ['all'],
   });
+  protected readonly serviceSmokeForm = this.fb.group({
+    entityId: [''],
+    service: ['turn_on'],
+  });
   protected readonly entityFilters = signal({ query: '', domain: 'all', readiness: 'all' });
   protected readonly readinessOptions = [
     { label: T('All readiness'), value: 'all' },
     { label: T('Safe control'), value: 'safe_control' },
     { label: T('Read only'), value: 'read_only' },
     { label: T('Unsupported'), value: 'unsupported' },
+  ];
+  protected readonly serviceSmokeOptions = [
+    { label: T('Turn on'), value: 'turn_on' },
+    { label: T('Turn off'), value: 'turn_off' },
+    { label: T('Toggle'), value: 'toggle' },
   ];
 
   protected readonly statusTone = computed<HarborAssistantStatusTone>(() => {
@@ -203,6 +214,10 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
   });
   protected readonly syncScopeDomains = computed(() => this.status()?.exposed_domains ?? []);
   protected readonly visibleServiceDomains = computed(() => this.serviceDomains().slice(0, 12));
+  protected readonly safeControlEntities = computed(() => this.entities()
+    .filter((entity) => entity.readiness === 'safe_control' || entity.safe_control === true)
+    .filter((entity) => ['light', 'switch', 'input_boolean', 'scene'].includes(entity.domain))
+    .slice(0, 50));
 
   ngOnInit(): void {
     this.entityFilterForm.valueChanges
@@ -239,6 +254,7 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
       } else {
         this.entities.set([]);
         this.serviceDomains.set([]);
+        this.serviceSmokeResult.set(null);
       }
     });
   }
@@ -293,6 +309,46 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
         this.serviceDomains.set(response.service_domains);
         this.patchConfigForm(response.status);
         this.message.set(T('Home Assistant entities synced.'));
+      },
+    );
+  }
+
+  protected runAllowedServiceSmoke(): void {
+    const value = this.serviceSmokeForm.getRawValue();
+    const entity = this.safeControlEntities().find((candidate) => candidate.entity_id === value.entityId)
+      ?? this.safeControlEntities()[0];
+    if (!entity) {
+      this.error.set(T('No allowlisted Home Assistant entity is available for service smoke.'));
+      return;
+    }
+    const service = entity.domain === 'scene' ? 'turn_on' : value.service;
+    this.runAction(
+      'home-assistant-service-smoke',
+      this.harborAssistantApi.runHomeAssistantServiceSmoke({
+        entity_id: entity.entity_id,
+        domain: entity.domain,
+        service,
+      }),
+      (response) => {
+        this.serviceSmokeResult.set(response);
+        this.message.set(response.message || T('Home Assistant service smoke finished.'));
+      },
+    );
+  }
+
+  protected runDeniedServiceSmoke(): void {
+    this.runAction(
+      'home-assistant-denied-smoke',
+      this.harborAssistantApi.runHomeAssistantServiceSmoke({
+        entity_id: 'homeassistant.restart',
+        domain: 'homeassistant',
+        service: 'restart',
+      }),
+      (response) => {
+        this.serviceSmokeResult.set(response);
+        this.message.set(response.allowed
+          ? T('Denied smoke did not block as expected.')
+          : T('Denied Home Assistant smoke was safely blocked.'));
       },
     );
   }
@@ -375,6 +431,19 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
     }
   }
 
+  protected serviceSmokeTone(result: HomeAssistantServiceSmokeResponse | null): HarborAssistantStatusTone {
+    if (!result) {
+      return 'neutral';
+    }
+    if (result.status === 'succeeded' && result.allowed && result.executed) {
+      return 'good';
+    }
+    if (result.status === 'blocked' && !result.allowed) {
+      return 'warn';
+    }
+    return 'danger';
+  }
+
   protected formatTimestamp(value?: string | null): string {
     if (!value) {
       return T('Never');
@@ -389,6 +458,10 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
     }).subscribe(({ entities, services }) => {
       this.entities.set(entities.data?.entities ?? []);
       this.serviceDomains.set(services.data?.services ?? []);
+      const firstSafe = this.safeControlEntities()[0]?.entity_id ?? '';
+      if (firstSafe && !this.serviceSmokeForm.controls.entityId.value) {
+        this.serviceSmokeForm.patchValue({ entityId: firstSafe });
+      }
       this.error.set(entities.error ?? services.error ?? this.error());
     });
   }
