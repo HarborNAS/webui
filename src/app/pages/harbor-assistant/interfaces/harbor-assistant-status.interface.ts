@@ -105,6 +105,32 @@ export interface HomeAssistantServicesResponse {
   services: HomeAssistantServiceDomain[];
 }
 
+export interface HomeAssistantServiceSmokePayload {
+  entity_id: string;
+  domain: string;
+  service: string;
+  fields?: Record<string, unknown>;
+}
+
+export interface HomeAssistantServiceSmokeResponse {
+  status: 'succeeded' | 'blocked' | 'failed' | string;
+  allowed: boolean;
+  executed: boolean;
+  domain: string;
+  service: string;
+  entity_id: string;
+  message: string;
+  result?: {
+    ok?: boolean;
+    changed_entity_count?: number;
+  } | null;
+  audit_record?: Record<string, unknown>;
+}
+
+export interface HomeAssistantServiceActionResponse extends HomeAssistantServiceSmokeResponse {
+  action_id: string;
+}
+
 export interface HomeAssistantSyncResponse {
   status: HomeAssistantStatusResponse;
   entities: HomeAssistantEntity[];
@@ -394,6 +420,20 @@ export interface InferenceHealthResponse {
   error?: string | null;
 }
 
+export interface RedactedDiagnosticsBundleResponse {
+  generated_at: string;
+  host?: Record<string, unknown>;
+  services?: Array<Record<string, unknown>>;
+  memory?: Record<string, unknown>;
+  cameras?: Record<string, unknown>;
+  events?: Record<string, unknown>;
+  workflow?: Record<string, unknown>;
+  home_assistant?: HomeAssistantStatusResponse;
+  models?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  audit_record?: Record<string, unknown>;
+}
+
 export interface AdminDefaults {
   cidr?: string;
   discovery?: string;
@@ -665,6 +705,18 @@ export interface LocalVisionEventsResponse {
   generated_at: string;
   limit: number;
   events: StoredLocalVisionEvent[];
+}
+
+export interface LocalVisionEventNotificationResponse {
+  event_id: string;
+  status: 'delivered' | 'blocked' | 'failed' | string;
+  notification_id?: string | null;
+  delivery_id?: string | null;
+  target_label?: string | null;
+  platform_hint?: string | null;
+  message: string;
+  delivery_record?: Record<string, unknown> | null;
+  audit_record?: Record<string, unknown>;
 }
 
 export interface ModelEndpointRecord {

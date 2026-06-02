@@ -1651,6 +1651,39 @@ $hd-space-5: 20px;
   margin-top: 16px;
 }
 
+.diagnostics-toolbar {
+  align-items: center;
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  display: flex;
+  gap: $hd-space-4;
+  justify-content: space-between;
+  padding: $hd-space-4;
+}
+
+.diagnostics-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.diagnostics-service-list {
+  margin-top: $hd-space-3;
+}
+
+.diagnostics-json {
+  background: #0f172a;
+  border: 0;
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 280px;
+  overflow: auto;
+  padding: $hd-space-4;
+  resize: vertical;
+  width: 100%;
+}
+
 .status-block {
   span {
     color: var(--fg2);
@@ -1891,6 +1924,7 @@ $hd-space-5: 20px;
   }
 
   .ai-status-toolbar,
+  .diagnostics-toolbar,
   .app-status-line,
   .empty-state.inline-empty-action {
     flex-direction: column;

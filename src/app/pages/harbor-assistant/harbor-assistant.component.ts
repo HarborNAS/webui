@@ -86,6 +86,7 @@ import {
   NotificationTargetsResponse,
   RagReadinessComponent,
   RagReadinessResponse,
+  RedactedDiagnosticsBundleResponse,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
@@ -218,7 +219,7 @@ interface RagSourceRootSummary {
 }
 
 type AiSettingsTabId = 'sources' | 'models' | 'cloud-api';
-type AssistantSettingsSectionId = 'ai' | 'camera';
+type AssistantSettingsSectionId = 'ai' | 'camera' | 'diagnostics';
 type CloudUsageMode = 'local_only' | 'local_first_cloud' | 'selected_capabilities';
 type CloudCapabilityId = 'semantic_router' | 'retrieval_answer';
 
@@ -417,6 +418,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly settingsSections: AssistantSettingsSection[] = [
     { id: 'ai', label: T('AI settings'), detail: '' },
     { id: 'camera', label: T('Camera settings'), detail: '' },
+    { id: 'diagnostics', label: T('Diagnostics'), detail: '' },
   ];
 
   protected readonly activeTab = signal<HarborAssistantTabId>('search');
@@ -458,6 +460,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly shareLinks = signal<ShareLinkSummary[]>([]);
   protected readonly automationReviews = signal<AutomationRuleReview[]>([]);
   protected readonly localVisionEvents = signal<StoredLocalVisionEvent[]>([]);
+  protected readonly diagnosticsBundle = signal<RedactedDiagnosticsBundleResponse | null>(null);
   protected readonly rulesDrawerOpen = signal(false);
   protected readonly evidenceByDevice = signal<Record<string, DeviceEvidenceResponse>>({});
   protected readonly selectedDeviceId = signal<string>('');
@@ -2339,6 +2342,82 @@ export class HarborAssistantComponent implements OnInit {
   protected actionBusyPrefix(prefix: string): boolean {
     const action = this.actionInProgress();
     return action === prefix || Boolean(action?.startsWith(`${prefix}:`));
+  }
+
+  protected generateDiagnosticsBundle(): void {
+    this.actionInProgress.set('diagnostics');
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+    this.harborAssistantApi.getRedactedDiagnosticsBundle().pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (bundle) => {
+        this.diagnosticsBundle.set(bundle);
+        this.actionMessage.set(T('Diagnostics bundle was generated.'));
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  protected diagnosticsServiceRows(): Array<{ service: string; status: string; tone: HarborAssistantStatusTone }> {
+    return (this.diagnosticsBundle()?.services ?? []).map((service) => {
+      const status = this.readDiagnosticString(service, 'status') || T('Unknown');
+      return {
+        service: this.readDiagnosticString(service, 'service') || T('Unknown service'),
+        status,
+        tone: status === 'active' ? 'good' : status === 'unavailable' ? 'neutral' : 'warn',
+      };
+    });
+  }
+
+  protected diagnosticsMemoryPressure(): string {
+    const memory = this.diagnosticsBundle()?.memory;
+    const pressure = this.readDiagnosticNumber(memory, 'memoryPressureMiB');
+    if (pressure === null) {
+      return T('Unavailable');
+    }
+    return `${pressure} MiB`;
+  }
+
+  protected diagnosticsMemoryEnvelope(label: 'direct16Passed' | 'plus24Passed'): string {
+    const value = this.diagnosticsBundle()?.memory?.[label];
+    if (value === true) {
+      return T('Pass');
+    }
+    if (value === false) {
+      return T('Fail');
+    }
+    return T('Unknown');
+  }
+
+  protected diagnosticsCameraSummary(): string {
+    const cameras = this.diagnosticsBundle()?.cameras;
+    const count = this.readDiagnosticNumber(cameras, 'count');
+    const selected = this.readDiagnosticString(cameras, 'selected_camera_device_id');
+    return `${count ?? 0} / ${selected || T('No default camera')}`;
+  }
+
+  protected diagnosticsEventSummary(): string {
+    const events = this.diagnosticsBundle()?.events;
+    const count = this.readDiagnosticNumber(events, 'latest_count');
+    const latest = this.readNestedDiagnosticString(events, 'latest_event', 'event_type');
+    return `${count ?? 0} / ${latest || T('No recent event')}`;
+  }
+
+  protected diagnosticsModelSummary(): string {
+    const inference = this.diagnosticsBundle()?.models?.['inference'];
+    if (!this.isRecord(inference)) {
+      return T('Unavailable');
+    }
+    const status = this.readDiagnosticString(inference, 'status') || T('Unknown');
+    const backend = this.readDiagnosticString(inference, 'backend_kind');
+    return backend ? `${status} / ${backend}` : status;
+  }
+
+  protected diagnosticsJson(): string {
+    const bundle = this.diagnosticsBundle();
+    return bundle ? JSON.stringify(bundle, null, 2) : '';
   }
 
   protected isDefaultCamera(device: CameraDevice): boolean {
@@ -4854,7 +4933,7 @@ export class HarborAssistantComponent implements OnInit {
       case 'diagnostics':
       case 'system':
       case 'harboros':
-        return 'ai';
+        return 'diagnostics';
       default:
         return null;
     }
@@ -4923,6 +5002,33 @@ export class HarborAssistantComponent implements OnInit {
       return false;
     }
     return null;
+  }
+
+  private readDiagnosticString(value: unknown, key: string): string | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const raw = value[key];
+    return typeof raw === 'string' && raw.trim() ? raw : null;
+  }
+
+  private readNestedDiagnosticString(value: unknown, key: string, nestedKey: string): string | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    return this.readDiagnosticString(value[key], nestedKey);
+  }
+
+  private readDiagnosticNumber(value: unknown, key: string): number | null {
+    if (!this.isRecord(value)) {
+      return null;
+    }
+    const raw = value[key];
+    return typeof raw === 'number' && Number.isFinite(raw) ? raw : null;
+  }
+
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
   }
 
   private parseLines(value: string): string[] {

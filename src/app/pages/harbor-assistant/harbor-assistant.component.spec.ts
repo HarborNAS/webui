@@ -107,7 +107,8 @@ describe('Harbor Assistant component', () => {
 
     const component = spectator.component as unknown as {
       selectTab: (tab: 'messages' | 'home-assistant' | 'settings') => void;
-      selectSettingsSection: (section: 'ai' | 'camera') => void;
+      selectSettingsSection: (section: 'ai' | 'camera' | 'diagnostics') => void;
+      generateDiagnosticsBundle: () => void;
     };
 
     expect(spectator.query('.tab-strip')).toHaveText('Search');
@@ -137,6 +138,13 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.simple-dvr-form')).toExist();
     expect(spectator.query('.device-edit-grid')).toExist();
     expect(spectator.query('.system-tab')).not.toExist();
+
+    component.selectSettingsSection('diagnostics');
+    spectator.detectChanges();
+    expect(spectator.query('.diagnostics-tab')).toExist();
+    component.generateDiagnosticsBundle();
+    spectator.detectChanges();
+    expect(api.getRedactedDiagnosticsBundle).toHaveBeenCalled();
   });
 
   it('shows read-only local vision events in the camera tab', () => {
@@ -1150,6 +1158,15 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     getDeviceEvidence: jest.fn(() => of({ results: [] })),
     getGatewayStatus: jest.fn(() => of({ status: 'ready', channels: [] })),
     getInferenceHealth: jest.fn(() => of({ status: 'ready', ready: true })),
+    getRedactedDiagnosticsBundle: jest.fn(() => of({
+      generated_at: 'epoch_ms:1',
+      services: [{ service: 'harboros-beacon.service', status: 'active' }],
+      memory: { memoryPressureMiB: 2048, direct16Passed: true, plus24Passed: true },
+      cameras: { count: 1, selected_camera_device_id: 'cam-real-231' },
+      events: { latest_count: 1, latest_event: { event_type: 'person_detected' } },
+      models: { inference: { status: 'ready', backend_kind: 'smt' } },
+      security: { secret_scan: 'clean' },
+    })),
     getNotificationTargets: jest.fn(() => of({ targets: [] })),
     setDefaultNotificationTarget: jest.fn(() => of({ ok: true })),
     deleteNotificationTarget: jest.fn(() => of({ ok: true })),
@@ -1394,6 +1411,15 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     })),
     getHomeAssistantServices: jest.fn(() => of({
       services: [{ domain: 'light', services: [{ service: 'turn_on' }] }],
+    })),
+    runHomeAssistantServiceSmoke: jest.fn((payload) => of({
+      status: payload.domain === 'homeassistant' ? 'blocked' : 'succeeded',
+      allowed: payload.domain !== 'homeassistant',
+      executed: payload.domain !== 'homeassistant',
+      domain: payload.domain,
+      service: payload.service,
+      entity_id: payload.entity_id,
+      message: payload.domain === 'homeassistant' ? 'blocked' : 'ok',
     })),
     getHomeAssistantInstallStatus: jest.fn(() => of({
       app_id: 'home-assistant',

@@ -134,6 +134,18 @@ describe('Harbor Assistant API service', () => {
     const response = await eventsPromise;
     expect(response.limit).toBe(3);
     expect(response.events).toEqual([]);
+
+    const notifyPromise = firstValueFrom(spectator.service.notifyLocalVisionEvent('event:1'));
+    const notifyReq = httpMock.expectOne('/api/harbor-beacon/vision/events/event%3A1/notify');
+    expect(notifyReq.request.method).toBe('POST');
+    expect(notifyReq.request.body).toEqual({});
+    notifyReq.flush({
+      event_id: 'event:1',
+      status: 'delivered',
+      message: 'ok',
+      target_label: 'Family',
+    });
+    expect((await notifyPromise).status).toBe('delivered');
   });
 
   it('does not send credential reads or secrets to HarborGate paths', async () => {
@@ -173,6 +185,12 @@ describe('Harbor Assistant API service', () => {
     expect(inferenceReq.request.url).not.toContain(':4176');
     inferenceReq.flush({ status: 'ready', ready: true, backend: { kind: 'openai_proxy' } });
     expect((await inferencePromise).ready).toBe(true);
+
+    const diagnosticsPromise = firstValueFrom(spectator.service.getRedactedDiagnosticsBundle());
+    const diagnosticsReq = httpMock.expectOne('/api/harbor-beacon/diagnostics/redacted-bundle');
+    expect(diagnosticsReq.request.method).toBe('GET');
+    diagnosticsReq.flush({ generated_at: 'epoch_ms:1', security: { secret_scan: 'clean' } });
+    await diagnosticsPromise;
 
     const targetsPromise = firstValueFrom(spectator.service.getNotificationTargets());
     const targetsReq = httpMock.expectOne('/api/harbor-beacon/admin/notification-targets');
@@ -271,6 +289,53 @@ describe('Harbor Assistant API service', () => {
     expect(servicesReq.request.method).toBe('GET');
     servicesReq.flush({ services: [] });
     await servicesPromise;
+
+    const serviceSmokePromise = firstValueFrom(spectator.service.runHomeAssistantServiceSmoke({
+      entity_id: 'light.kitchen',
+      domain: 'light',
+      service: 'turn_on',
+    }));
+    const serviceSmokeReq = httpMock.expectOne('/api/harbor-beacon/home-assistant/service-smoke');
+    expect(serviceSmokeReq.request.method).toBe('POST');
+    expect(serviceSmokeReq.request.body).toEqual({
+      entity_id: 'light.kitchen',
+      domain: 'light',
+      service: 'turn_on',
+    });
+    serviceSmokeReq.flush({
+      status: 'succeeded',
+      allowed: true,
+      executed: true,
+      domain: 'light',
+      service: 'turn_on',
+      entity_id: 'light.kitchen',
+      message: 'ok',
+    });
+    await serviceSmokePromise;
+
+    const serviceActionPromise = firstValueFrom(spectator.service.runHomeAssistantServiceAction({
+      entity_id: 'switch.porch',
+      domain: 'switch',
+      service: 'toggle',
+    }));
+    const serviceActionReq = httpMock.expectOne('/api/harbor-beacon/home-assistant/service-action');
+    expect(serviceActionReq.request.method).toBe('POST');
+    expect(serviceActionReq.request.body).toEqual({
+      entity_id: 'switch.porch',
+      domain: 'switch',
+      service: 'toggle',
+    });
+    serviceActionReq.flush({
+      action_id: 'ha_action_1',
+      status: 'succeeded',
+      allowed: true,
+      executed: true,
+      domain: 'switch',
+      service: 'toggle',
+      entity_id: 'switch.porch',
+      message: 'ok',
+    });
+    expect((await serviceActionPromise).action_id).toBe('ha_action_1');
 
     const installStatusPromise = firstValueFrom(spectator.service.getHomeAssistantInstallStatus());
     const installStatusReq = httpMock.expectOne('/api/harbor-beacon/harboros/apps/home-assistant/status');

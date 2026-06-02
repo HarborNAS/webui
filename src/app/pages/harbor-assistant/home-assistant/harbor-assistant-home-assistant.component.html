@@ -148,6 +148,70 @@
       <mat-card-title>{{ 'HA inventory' | translate }}</mat-card-title>
     </mat-card-header>
     <mat-card-content>
+      <section class="ha-service-smoke-panel">
+        <div>
+          <span class="field-label">{{ 'Service smoke' | translate }}</span>
+          @if (serviceSmokeResult(); as result) {
+            <strong>{{ result.status | translate }}</strong>
+            <p>{{ result.message | translate }}</p>
+          } @else {
+            <strong>{{ 'Not run' | translate }}</strong>
+            <p>{{ 'Safe service calls are checked through HarborBeacon before Home Assistant receives them.' | translate }}</p>
+          }
+        </div>
+        <form class="ha-service-smoke-form" [formGroup]="serviceSmokeForm">
+          <mat-form-field>
+            <mat-label>{{ 'Allowlisted entity' | translate }}</mat-label>
+            <mat-select formControlName="entityId">
+              @for (entity of safeControlEntities(); track entity.entity_id) {
+                <mat-option [value]="entity.entity_id">{{ entity.display_name }} / {{ entity.entity_id }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <mat-form-field>
+            <mat-label>{{ 'Service' | translate }}</mat-label>
+            <mat-select formControlName="service">
+              @for (option of serviceSmokeOptions; track option.value) {
+                <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+              }
+            </mat-select>
+          </mat-form-field>
+          <div class="button-row">
+            <button
+              mat-button
+              color="primary"
+              type="button"
+              [disabled]="isBusy() || safeControlEntities().length === 0"
+              (click)="runAllowedServiceSmoke()"
+            >
+              {{ actionBusy('home-assistant-service-smoke') ? ('Running' | translate) : ('Run allowed smoke' | translate) }}
+            </button>
+            <button
+              mat-button
+              type="button"
+              [disabled]="isBusy()"
+              (click)="runDeniedServiceSmoke()"
+            >
+              {{ actionBusy('home-assistant-denied-smoke') ? ('Checking' | translate) : ('Run denied smoke' | translate) }}
+            </button>
+          </div>
+        </form>
+        @if (serviceSmokeResult(); as result) {
+          <div class="status-block service-smoke-result" [ngClass]="toneClass(serviceSmokeTone(result))">
+            <span>{{ result.domain }}.{{ result.service }}</span>
+            <strong>{{ result.entity_id }}</strong>
+            <p>{{ result.allowed ? ('Allowed' | translate) : ('Blocked' | translate) }} / {{ result.executed ? ('Executed' | translate) : ('Not executed' | translate) }}</p>
+          </div>
+        }
+        @if (serviceActionResult(); as result) {
+          <div class="status-block service-smoke-result" [ngClass]="toneClass(serviceSmokeTone(result))">
+            <span>{{ 'Last action' | translate }}</span>
+            <strong>{{ result.entity_id }}</strong>
+            <p>{{ result.status | translate }} / {{ result.domain }}.{{ result.service }}</p>
+          </div>
+        }
+      </section>
+
       <form class="ha-entity-filters" [formGroup]="entityFilterForm">
         <mat-form-field>
           <mat-label>{{ 'Search entities' | translate }}</mat-label>
@@ -194,6 +258,20 @@
                 <span class="pill">{{ automationRoleLabel(entity) | translate }}</span>
                 @if (entity.device_class) {
                   <span class="pill">{{ entity.device_class }}</span>
+                }
+                @if (canRunEntityAction(entity)) {
+                  <span class="entity-actions">
+                    @for (option of entityActionOptions(entity); track option.value) {
+                      <button
+                        mat-button
+                        type="button"
+                        [disabled]="isBusy()"
+                        (click)="runEntityServiceAction(entity, option.value)"
+                      >
+                        {{ entityActionBusy(entity, option.value) ? ('Running' | translate) : (option.label | translate) }}
+                      </button>
+                    }
+                  </span>
                 }
               </div>
             </article>

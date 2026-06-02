@@ -83,6 +83,34 @@
   }
 }
 
+.ha-service-smoke-panel {
+  border: 1px solid var(--lines);
+  border-radius: 8px;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(320px, 1.2fr) minmax(220px, 0.8fr);
+  padding: 12px;
+
+  p {
+    color: var(--fg2);
+    margin: 4px 0 0;
+  }
+}
+
+.ha-service-smoke-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 160px;
+
+  .button-row {
+    grid-column: 1 / -1;
+  }
+}
+
+.service-smoke-result {
+  min-width: 0;
+}
+
 .field-label {
   color: var(--fg2);
   display: block;
@@ -94,12 +122,18 @@
 
 .button-row,
 .row-actions,
+.entity-actions,
 .ha-service-domain-list,
 .ha-sync-scope {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.entity-actions {
+  border-left: 1px solid var(--lines);
+  padding-left: 8px;
 }
 
 .status-block {
@@ -203,7 +237,9 @@
   .ha-config-form,
   .ha-metric-grid,
   .ha-install-plan,
-  .ha-entity-filters {
+  .ha-entity-filters,
+  .ha-service-smoke-panel,
+  .ha-service-smoke-form {
     grid-template-columns: 1fr;
   }
 

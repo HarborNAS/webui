@@ -164,6 +164,118 @@
   min-width: 0;
 }
 
+.event-intelligence-panel {
+  border-top: 1px solid var(--lines);
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding-top: 12px;
+}
+
+.event-panel-header,
+.event-detail-topline,
+.event-panel-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.event-panel-header h3,
+.event-detail h3 {
+  color: var(--fg1);
+  font-size: 16px;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.event-panel-header p {
+  color: var(--fg2);
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.event-intelligence-grid {
+  align-items: start;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
+  min-width: 0;
+}
+
+.event-list {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.event-list-item {
+  background: var(--bg1);
+  border: 1px solid var(--lines);
+  border-radius: 8px;
+  color: var(--fg2);
+  cursor: pointer;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  text-align: left;
+}
+
+.event-list-item.selected {
+  border-color: var(--primary);
+  color: var(--fg1);
+}
+
+.event-list-item span,
+.event-list-item strong,
+.event-list-item small {
+  overflow-wrap: anywhere;
+}
+
+.event-detail {
+  background: var(--bg1);
+  border: 1px solid var(--lines);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.event-detail dl {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.event-detail dt {
+  color: var(--fg2);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.event-detail dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.pill {
+  border: 1px solid var(--lines);
+  border-radius: 999px;
+  color: var(--fg2);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 4px 9px;
+}
+
 .live-stack {
   display: grid;
   gap: 10px;
@@ -714,6 +826,22 @@
   color: #7a5313;
 }
 
+.notice.tone-good {
+  border-color: var(--green);
+}
+
+.notice.tone-warn {
+  border-color: var(--orange);
+}
+
+.notice.tone-danger {
+  border-color: var(--red);
+}
+
+.notice.tone-neutral {
+  border-color: var(--primary);
+}
+
 .embedding-action {
   align-items: start;
 }
@@ -1040,6 +1168,8 @@ p {
   }
 
   .dvr-preview-row,
+  .event-intelligence-grid,
+  .event-detail dl,
   .scope-fields {
     grid-template-columns: 1fr;
   }
