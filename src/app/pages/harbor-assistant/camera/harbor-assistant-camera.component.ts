@@ -32,6 +32,13 @@ import {
   harborAssistantSearchSameOriginAdminUrl,
 } from 'app/pages/harbor-assistant/shared/harbor-assistant-results';
 import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
+import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
+import {
+  GatewayStatusResponse,
+  LocalVisionEventNotificationResponse,
+  NotificationTargetRecord,
+  StoredLocalVisionEvent,
+} from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import {
   HarborTimeRangeDialogComponent,
   HarborTimeRangeValue,
@@ -77,6 +84,7 @@ interface HarborAssistantSearchMediaItem extends HarborAssistantSearchDvrTimelin
 export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly api = inject(HarborAssistantContentApiService);
+  private readonly harborAssistantApi = inject(HarborAssistantApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly dialog = inject(MatDialog);
   private readonly translate = inject(TranslateService);
@@ -152,7 +160,31 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
   protected readonly selectedTabIndex = signal(0);
   protected readonly liveFeedback = signal<string | null>(null);
   protected readonly recordIntent = signal<HarborAssistantSearchRecordIntent | null>(null);
+  protected readonly localVisionEvents = signal<StoredLocalVisionEvent[]>([]);
+  protected readonly selectedLocalVisionEventId = signal<string | null>(null);
+  protected readonly eventNotifyBusy = signal(false);
+  protected readonly eventNotifyResult = signal<LocalVisionEventNotificationResponse | null>(null);
+  protected readonly notificationTargets = signal<NotificationTargetRecord[]>([]);
+  protected readonly gatewayStatus = signal<GatewayStatusResponse | null>(null);
   protected readonly liveCameras = computed(() => this.cameras().filter((camera) => !this.isFixtureCamera(camera)));
+  protected readonly visibleLocalVisionEvents = computed(() => {
+    const selectedCameraId = this.selectedCameraId();
+    const events = this.localVisionEvents();
+    const cameraEvents = selectedCameraId
+      ? events.filter((stored) => stored.event.camera_id === selectedCameraId)
+      : [];
+    return (cameraEvents.length > 0 ? cameraEvents : events).slice(0, 8);
+  });
+  protected readonly selectedLocalVisionEvent = computed(() => {
+    const selectedId = this.selectedLocalVisionEventId();
+    return this.visibleLocalVisionEvents().find((stored) => stored.event.event_id === selectedId)
+      ?? this.visibleLocalVisionEvents()[0]
+      ?? null;
+  });
+  protected readonly defaultNotificationTarget = computed(() => this.notificationTargets()
+    .find((target) => target.is_default && target.route_key)
+    ?? this.notificationTargets().find((target) => target.route_key)
+    ?? null);
   private cameraRefreshRetryQueued = false;
   private actionMessageToken = 0;
   private liveFeedbackToken = 0;
@@ -236,8 +268,26 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
           return of({ generated_at: '', statuses: this.dvrStatuses() });
         }),
       ),
+      events: this.harborAssistantApi.getLocalVisionEvents(8).pipe(
+        catchError((error: unknown) => {
+          refreshErrors.push(harborAssistantSearchErrorMessage(error));
+          return of({ generated_at: '', limit: 8, events: this.localVisionEvents() });
+        }),
+      ),
+      notificationTargets: this.harborAssistantApi.getNotificationTargets().pipe(
+        catchError((error: unknown) => {
+          refreshErrors.push(harborAssistantSearchErrorMessage(error));
+          return of({ targets: this.notificationTargets() });
+        }),
+      ),
+      gatewayStatus: this.harborAssistantApi.getGatewayStatus().pipe(
+        catchError((error: unknown) => {
+          refreshErrors.push(harborAssistantSearchErrorMessage(error));
+          return of(this.gatewayStatus() ?? {});
+        }),
+      ),
     }).subscribe({
-      next: ({ state, dvr }) => {
+      next: ({ state, dvr, events, notificationTargets, gatewayStatus }) => {
         const devices = state.devices ?? [];
         const liveDevices = devices.filter((device) => !this.isFixtureCamera(device));
         const currentSelection = this.selectedCameraId();
@@ -255,6 +305,10 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
         this.cameras.set(devices);
         this.selectedCameraId.set(selected);
         this.dvrStatuses.set(dvr.statuses ?? []);
+        this.localVisionEvents.set(events.events ?? []);
+        this.notificationTargets.set(notificationTargets.targets ?? []);
+        this.gatewayStatus.set(gatewayStatus);
+        this.ensureSelectedLocalVisionEvent();
         this.loadDvrTimeline(selected, refreshErrors);
       },
       error: (error: unknown) => {
@@ -274,6 +328,145 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
     this.lastGoodLiveFrameUrl.set(null);
     this.selectedMediaItem.set(null);
     this.refreshCameraDvr();
+  }
+
+  refreshLocalVisionEvents(): void {
+    this.cameraError.set(null);
+    this.harborAssistantApi.getLocalVisionEvents(8).subscribe({
+      next: (response) => {
+        this.localVisionEvents.set(response.events ?? []);
+        this.ensureSelectedLocalVisionEvent();
+      },
+      error: (error: unknown) => this.cameraError.set(harborAssistantSearchErrorMessage(error)),
+    });
+  }
+
+  selectLocalVisionEvent(eventId: string): void {
+    this.selectedLocalVisionEventId.set(eventId);
+    this.eventNotifyResult.set(null);
+  }
+
+  notifySelectedLocalVisionEvent(): void {
+    const stored = this.selectedLocalVisionEvent();
+    if (!stored || !this.canNotifySelectedEvent()) {
+      return;
+    }
+    this.eventNotifyBusy.set(true);
+    this.eventNotifyResult.set(null);
+    this.actionError.set(null);
+    this.harborAssistantApi.notifyLocalVisionEvent(stored.event.event_id).pipe(
+      finalize(() => this.eventNotifyBusy.set(false)),
+    ).subscribe({
+      next: (response) => {
+        this.eventNotifyResult.set(response);
+        this.showActionMessage(response.message || 'Event notification finished.');
+      },
+      error: (error: unknown) => this.actionError.set(harborAssistantSearchErrorMessage(error)),
+    });
+  }
+
+  canNotifySelectedEvent(): boolean {
+    return Boolean(this.selectedLocalVisionEvent())
+      && Boolean(this.defaultNotificationTarget())
+      && this.gatewayNotificationReady()
+      && !this.eventNotifyBusy();
+  }
+
+  notificationBlocker(): string | null {
+    if (!this.defaultNotificationTarget()) {
+      return 'No default notification target is configured.';
+    }
+    if (!this.gatewayNotificationReady()) {
+      return 'HarborGate is not connected for proactive delivery.';
+    }
+    return null;
+  }
+
+  gatewayNotificationReady(): boolean {
+    const gateway = this.gatewayStatus();
+    return Boolean(gateway?.connected || gateway?.bridge_provider?.connected);
+  }
+
+  notificationTargetLabel(): string {
+    const target = this.defaultNotificationTarget();
+    if (!target) {
+      return 'No default target';
+    }
+    return target.platform_hint ? `${target.label} / ${target.platform_hint}` : target.label;
+  }
+
+  eventStatusTone(status?: string | null): string {
+    switch (status) {
+      case 'delivered':
+      case 'succeeded':
+        return 'good';
+      case 'blocked':
+        return 'warn';
+      case 'failed':
+        return 'danger';
+      default:
+        return 'neutral';
+    }
+  }
+
+  eventTypeLabel(stored: StoredLocalVisionEvent): string {
+    switch (stored.event.event_type) {
+      case 'person_detected':
+        return 'Person detected';
+      case 'pet_detected':
+        return 'Pet detected';
+      case 'vehicle_detected':
+        return 'Vehicle detected';
+      case 'motion_like_scene':
+        return 'Motion-like scene';
+      default:
+        return stored.event.event_type || 'Local vision event';
+    }
+  }
+
+  eventConfidenceLabel(stored: StoredLocalVisionEvent): string {
+    const confidence = Number(stored.event.confidence ?? 0);
+    if (!Number.isFinite(confidence)) {
+      return 'n/a';
+    }
+    return `${Math.round(Math.max(0, Math.min(confidence, 1)) * 100)}%`;
+  }
+
+  eventLatencyLabel(stored: StoredLocalVisionEvent): string {
+    const latency = Number(stored.event.latency_ms ?? 0);
+    if (!Number.isFinite(latency) || latency <= 0) {
+      return 'n/a';
+    }
+    return `${Math.round(latency)}ms`;
+  }
+
+  eventVlmStatus(stored: StoredLocalVisionEvent): string {
+    return stored.event.vlm?.status || 'not_sampled';
+  }
+
+  eventLabelPreview(stored: StoredLocalVisionEvent): string {
+    return (stored.event.labels ?? []).slice(0, 5).join(', ') || 'No labels';
+  }
+
+  eventArtifactSummary(stored: StoredLocalVisionEvent): string {
+    const artifact = stored.event.snapshot_artifact;
+    if (!artifact?.artifact_id && !artifact?.mime_type && !artifact?.byte_size) {
+      return 'No artifact metadata';
+    }
+    return [
+      artifact.artifact_id,
+      artifact.mime_type,
+      artifact.byte_size ? this.bytesLabel(artifact.byte_size) : null,
+    ].filter(Boolean).join(' / ');
+  }
+
+  eventTimeLabel(stored: StoredLocalVisionEvent): string {
+    const value = stored.event.started_at || stored.received_at;
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return this.formatUnix(numeric > 100000000000 ? Math.round(numeric / 1000) : numeric);
+    }
+    return value || 'n/a';
   }
 
   usePromptSuggestion(suggestion: HarborAssistantSearchPromptSuggestion): void {
@@ -827,6 +1020,17 @@ export class HarborAssistantCameraComponent implements OnInit, OnDestroy {
       return 'No media yet';
     }
     return this.displayMediaTime(latest);
+  }
+
+  private ensureSelectedLocalVisionEvent(): void {
+    const events = this.visibleLocalVisionEvents();
+    if (events.length === 0) {
+      this.selectedLocalVisionEventId.set(null);
+      return;
+    }
+    if (!events.some((stored) => stored.event.event_id === this.selectedLocalVisionEventId())) {
+      this.selectedLocalVisionEventId.set(events[0].event.event_id);
+    }
   }
 
   toggleMediaLibrary(): void {

@@ -193,6 +193,93 @@
                 }
               </aside>
             </div>
+
+            <section class="event-intelligence-panel" data-testid="harbor-assistant-camera-event-intelligence">
+              <div class="event-panel-header">
+                <div>
+                  <h3>{{ 'Event intelligence' | translate }}</h3>
+                  <p>{{ notificationTargetLabel() }}</p>
+                </div>
+                <div class="event-panel-actions">
+                  <button mat-stroked-button type="button" (click)="refreshLocalVisionEvents()">
+                    {{ 'Refresh events' | translate }}
+                  </button>
+                  <button
+                    mat-flat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="!canNotifySelectedEvent()"
+                    (click)="notifySelectedLocalVisionEvent()"
+                  >
+                    {{ eventNotifyBusy() ? ('Notifying' | translate) : ('Notify default target' | translate) }}
+                  </button>
+                </div>
+              </div>
+
+              @if (notificationBlocker(); as blocker) {
+                <div class="notice warning compact">{{ blocker | translate }}</div>
+              }
+
+              @if (visibleLocalVisionEvents().length > 0) {
+                <div class="event-intelligence-grid">
+                  <div class="event-list">
+                    @for (stored of visibleLocalVisionEvents(); track stored.event.event_id) {
+                      <button
+                        type="button"
+                        class="event-list-item"
+                        [class.selected]="stored.event.event_id === selectedLocalVisionEvent()?.event.event_id"
+                        (click)="selectLocalVisionEvent(stored.event.event_id)"
+                      >
+                        <span>{{ eventTypeLabel(stored) | translate }}</span>
+                        <strong>{{ stored.event.camera_id }}</strong>
+                        <small>{{ eventTimeLabel(stored) }}</small>
+                      </button>
+                    }
+                  </div>
+
+                  @if (selectedLocalVisionEvent(); as stored) {
+                    <article class="event-detail">
+                      <div class="event-detail-topline">
+                        <span class="pill">{{ eventTypeLabel(stored) | translate }}</span>
+                        <span class="pill">{{ eventConfidenceLabel(stored) }}</span>
+                        <span class="pill">{{ eventLatencyLabel(stored) }}</span>
+                      </div>
+                      <h3>{{ stored.event.summary }}</h3>
+                      <dl>
+                        <div>
+                          <dt>{{ 'Camera' | translate }}</dt>
+                          <dd>{{ stored.event.camera_id }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ 'Labels' | translate }}</dt>
+                          <dd>{{ eventLabelPreview(stored) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ 'VLM' | translate }}</dt>
+                          <dd>{{ eventVlmStatus(stored) }}</dd>
+                        </div>
+                        <div>
+                          <dt>{{ 'Artifact' | translate }}</dt>
+                          <dd>{{ eventArtifactSummary(stored) }}</dd>
+                        </div>
+                      </dl>
+                    </article>
+                  }
+                </div>
+              } @else {
+                <div class="empty-state">{{ 'No local vision events yet.' | translate }}</div>
+              }
+
+              @if (eventNotifyResult(); as result) {
+                <div class="notice compact" [ngClass]="'tone-' + eventStatusTone(result.status)">
+                  <strong>{{ result.status | translate }}</strong>
+                  <span>{{ result.message }}</span>
+                  @if (result.target_label) {
+                    <span>{{ result.target_label }} / {{ result.delivery_id || ('No delivery id' | translate) }}</span>
+                  }
+                </div>
+              }
+            </section>
           } @else {
             <div class="empty-state">{{ 'No available cameras yet.' | translate }}</div>
           }

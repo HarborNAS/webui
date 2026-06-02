@@ -19,6 +19,7 @@ import {
   HomeAssistantEntity,
   HomeAssistantInstallPlanResponse,
   HomeAssistantInstallStatusResponse,
+  HomeAssistantServiceActionResponse,
   HomeAssistantServiceDomain,
   HomeAssistantServiceSmokeResponse,
   HomeAssistantStatusResponse,
@@ -84,6 +85,7 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
   protected readonly entities = signal<HomeAssistantEntity[]>([]);
   protected readonly serviceDomains = signal<HomeAssistantServiceDomain[]>([]);
   protected readonly serviceSmokeResult = signal<HomeAssistantServiceSmokeResponse | null>(null);
+  protected readonly serviceActionResult = signal<HomeAssistantServiceActionResponse | null>(null);
 
   protected readonly configForm = this.fb.group({
     enabled: [true],
@@ -255,6 +257,7 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
         this.entities.set([]);
         this.serviceDomains.set([]);
         this.serviceSmokeResult.set(null);
+        this.serviceActionResult.set(null);
       }
     });
   }
@@ -351,6 +354,44 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
           : T('Denied Home Assistant smoke was safely blocked.'));
       },
     );
+  }
+
+  protected entityActionOptions(entity: HomeAssistantEntity): Array<{ label: string; value: string }> {
+    if (entity.domain === 'scene') {
+      return [{ label: T('Turn on'), value: 'turn_on' }];
+    }
+    if (['light', 'switch', 'input_boolean'].includes(entity.domain)) {
+      return this.serviceSmokeOptions;
+    }
+    return [];
+  }
+
+  protected canRunEntityAction(entity: HomeAssistantEntity): boolean {
+    return (entity.readiness === 'safe_control' || entity.safe_control === true)
+      && this.entityActionOptions(entity).length > 0;
+  }
+
+  protected runEntityServiceAction(entity: HomeAssistantEntity, service: string): void {
+    if (!this.canRunEntityAction(entity)) {
+      this.error.set(T('This Home Assistant entity is read-only in Harbor Assistant.'));
+      return;
+    }
+    this.runAction(
+      `home-assistant-action:${entity.entity_id}:${service}`,
+      this.harborAssistantApi.runHomeAssistantServiceAction({
+        entity_id: entity.entity_id,
+        domain: entity.domain,
+        service,
+      }),
+      (response) => {
+        this.serviceActionResult.set(response);
+        this.message.set(response.message || T('Home Assistant service action finished.'));
+      },
+    );
+  }
+
+  protected entityActionBusy(entity: HomeAssistantEntity, service: string): boolean {
+    return this.actionInProgress() === `home-assistant-action:${entity.entity_id}:${service}`;
   }
 
   protected loadInstallPlan(): void {

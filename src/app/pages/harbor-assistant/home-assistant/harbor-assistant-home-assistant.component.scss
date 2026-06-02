@@ -122,12 +122,18 @@
 
 .button-row,
 .row-actions,
+.entity-actions,
 .ha-service-domain-list,
 .ha-sync-scope {
   align-items: center;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.entity-actions {
+  border-left: 1px solid var(--lines);
+  padding-left: 8px;
 }
 
 .status-block {

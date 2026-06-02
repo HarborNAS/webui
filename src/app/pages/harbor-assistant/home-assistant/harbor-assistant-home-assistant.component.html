@@ -203,6 +203,13 @@
             <p>{{ result.allowed ? ('Allowed' | translate) : ('Blocked' | translate) }} / {{ result.executed ? ('Executed' | translate) : ('Not executed' | translate) }}</p>
           </div>
         }
+        @if (serviceActionResult(); as result) {
+          <div class="status-block service-smoke-result" [ngClass]="toneClass(serviceSmokeTone(result))">
+            <span>{{ 'Last action' | translate }}</span>
+            <strong>{{ result.entity_id }}</strong>
+            <p>{{ result.status | translate }} / {{ result.domain }}.{{ result.service }}</p>
+          </div>
+        }
       </section>
 
       <form class="ha-entity-filters" [formGroup]="entityFilterForm">
@@ -251,6 +258,20 @@
                 <span class="pill">{{ automationRoleLabel(entity) | translate }}</span>
                 @if (entity.device_class) {
                   <span class="pill">{{ entity.device_class }}</span>
+                }
+                @if (canRunEntityAction(entity)) {
+                  <span class="entity-actions">
+                    @for (option of entityActionOptions(entity); track option.value) {
+                      <button
+                        mat-button
+                        type="button"
+                        [disabled]="isBusy()"
+                        (click)="runEntityServiceAction(entity, option.value)"
+                      >
+                        {{ entityActionBusy(entity, option.value) ? ('Running' | translate) : (option.label | translate) }}
+                      </button>
+                    }
+                  </span>
                 }
               </div>
             </article>

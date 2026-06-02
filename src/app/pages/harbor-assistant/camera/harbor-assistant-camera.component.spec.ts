@@ -4,6 +4,7 @@ import { MockComponent } from 'ng-mocks';
 import { of, Subject, throwError } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
+import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 import {
   HarborAssistantCameraLiveSessionResponse,
   HarborAssistantSearchCameraStateResponse,
@@ -19,6 +20,7 @@ describe('Harbor Assistant camera component', () => {
   let snapshotSubject: Subject<HarborAssistantSearchSnapshotTaskResponse>;
   let scrollIntoViewSpy: jest.Mock;
   let api: Partial<Record<keyof HarborAssistantContentApiService, jest.Mock>>;
+  let assistantApi: Partial<Record<keyof HarborAssistantApiService, jest.Mock>>;
 
   const createComponent = createComponentFactory({
     component: HarborAssistantCameraComponent,
@@ -29,6 +31,10 @@ describe('Harbor Assistant camera component', () => {
       {
         provide: HarborAssistantContentApiService,
         useFactory: (): Partial<Record<keyof HarborAssistantContentApiService, jest.Mock>> => api,
+      },
+      {
+        provide: HarborAssistantApiService,
+        useFactory: (): Partial<Record<keyof HarborAssistantApiService, jest.Mock>> => assistantApi,
       },
     ],
   });
@@ -49,6 +55,34 @@ describe('Harbor Assistant camera component', () => {
       stopDvrRecording: jest.fn(() => of(dvrStatus('stopped'))),
       search: jest.fn(() => of(searchResponse())),
       previewUrl: jest.fn((path: string) => `/api/harbor-beacon/knowledge/preview?path=${encodeURIComponent(path)}`),
+    };
+    assistantApi = {
+      getLocalVisionEvents: jest.fn(() => of({
+        generated_at: 'epoch_ms:1',
+        limit: 8,
+        events: [storedVisionEvent()],
+      })),
+      getNotificationTargets: jest.fn(() => of({
+        targets: [{
+          target_id: 'target-1',
+          label: 'Family',
+          route_key: 'gw_route_family',
+          platform_hint: 'weixin',
+          is_default: true,
+        }],
+      })),
+      getGatewayStatus: jest.fn(() => of({
+        configured: true,
+        connected: true,
+        bridge_provider: { configured: true, connected: true },
+      })),
+      notifyLocalVisionEvent: jest.fn(() => of({
+        event_id: 'event-1',
+        status: 'delivered',
+        target_label: 'Family',
+        delivery_id: 'delivery-1',
+        message: 'ok',
+      })),
     };
   });
 
@@ -251,6 +285,21 @@ describe('Harbor Assistant camera component', () => {
     expect(spectator.fixture.nativeElement.textContent).toContain('Live');
     expect(spectator.fixture.nativeElement.textContent).toContain('Playback');
     expect(spectator.fixture.nativeElement.textContent).not.toContain('Harbor Assistant Camera');
+    discardPeriodicTasks();
+  }));
+
+  it('notifies the selected local vision event through the default target', fakeAsync(() => {
+    spectator = createComponent();
+    spectator.detectChanges();
+    tick();
+    spectator.detectChanges();
+
+    expect(spectator.query('[data-testid="harbor-assistant-camera-event-intelligence"]')).toExist();
+    spectator.component.notifySelectedLocalVisionEvent();
+    spectator.detectChanges();
+
+    expect(assistantApi.notifyLocalVisionEvent).toHaveBeenCalledWith('event-1');
+    expect(spectator.fixture.nativeElement.textContent).toContain('delivered');
     discardPeriodicTasks();
   }));
 
@@ -465,6 +514,32 @@ function liveSession(options: Partial<HarborAssistantCameraLiveSessionResponse> 
     updated_at: '1714600001',
     message: 'H.264 live remux is running',
     ...options,
+  };
+}
+
+function storedVisionEvent() {
+  return {
+    received_at: '1714600001',
+    event: {
+      event_id: 'event-1',
+      camera_id: 'cam-1',
+      event_type: 'person_detected',
+      confidence: 0.91,
+      labels: ['person'],
+      summary: 'Person at the front door.',
+      snapshot_artifact: {
+        artifact_id: 'artifact-1',
+        mime_type: 'image/jpeg',
+        byte_size: 2048,
+      },
+      started_at: '1714600000',
+      analyzer: 'yolo',
+      latency_ms: 320,
+      vlm: {
+        status: 'not_sampled',
+        summary: '',
+      },
+    },
   };
 }
 

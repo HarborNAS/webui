@@ -29,6 +29,7 @@ import {
   HomeAssistantInstallResponse,
   HomeAssistantInstallStatusResponse,
   HomeAssistantServicesResponse,
+  HomeAssistantServiceActionResponse,
   HomeAssistantServiceSmokePayload,
   HomeAssistantServiceSmokeResponse,
   HomeAssistantStatusResponse,
@@ -42,6 +43,7 @@ import {
   KnowledgeIndexStatusResponse,
   KnowledgeSettings,
   LocalVisionEventsResponse,
+  LocalVisionEventNotificationResponse,
   LocalModelCatalogResponse,
   LocalModelDownloadJobResponse,
   LocalModelDownloadsResponse,
@@ -186,6 +188,10 @@ export class HarborAssistantApiService {
 
   runHomeAssistantServiceSmoke(payload: HomeAssistantServiceSmokePayload): Observable<HomeAssistantServiceSmokeResponse> {
     return this.http.post<HomeAssistantServiceSmokeResponse>(this.apiUrl('/home-assistant/service-smoke'), payload);
+  }
+
+  runHomeAssistantServiceAction(payload: HomeAssistantServiceSmokePayload): Observable<HomeAssistantServiceActionResponse> {
+    return this.http.post<HomeAssistantServiceActionResponse>(this.apiUrl('/home-assistant/service-action'), payload);
   }
 
   getHomeAssistantInstallStatus(): Observable<HomeAssistantInstallStatusResponse> {
@@ -406,6 +412,13 @@ export class HarborAssistantApiService {
   getLocalVisionEvents(limit = 5): Observable<LocalVisionEventsResponse> {
     return this.http.get<LocalVisionEventsResponse>(
       this.apiUrl(`/vision/events?limit=${encodeURIComponent(String(limit))}`),
+    );
+  }
+
+  notifyLocalVisionEvent(eventId: string): Observable<LocalVisionEventNotificationResponse> {
+    return this.http.post<LocalVisionEventNotificationResponse>(
+      this.apiUrl(`/vision/events/${encodeURIComponent(eventId)}/notify`),
+      {},
     );
   }
 
