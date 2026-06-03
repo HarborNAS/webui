@@ -50,6 +50,10 @@ import {
   DvrTimelineResponse,
   DvrTimelineSegment,
   EndpointResult,
+  EvtEvidenceBundleResponse,
+  EvtPreflightResponse,
+  EvtReadinessResponse,
+  EvtServiceStatus,
   FilesBrowseResponse,
   GatewayPlatformStatus,
   GatewayStatusResponse,
@@ -117,6 +121,8 @@ interface HarborAssistantPageData {
   shareLinks: EndpointResult<ShareLinkSummary[]>;
   automationReviews: EndpointResult<AutomationReviewsResponse>;
   localVisionEvents: EndpointResult<LocalVisionEventsResponse>;
+  evtReadiness: EndpointResult<EvtReadinessResponse>;
+  evtPreflightLatest: EndpointResult<EvtPreflightResponse>;
   evidenceByDevice: Record<string, DeviceEvidenceResponse>;
   evidenceErrors: Record<string, string>;
 }
@@ -226,7 +232,7 @@ interface RagSourceRootSummary {
 }
 
 type AiSettingsTabId = 'sources' | 'models' | 'cloud-api';
-type AssistantSettingsSectionId = 'ai' | 'camera';
+type AssistantSettingsSectionId = 'ai' | 'camera' | 'diagnostics';
 type CloudUsageMode = 'local_only' | 'local_first_cloud' | 'selected_capabilities';
 type CloudCapabilityId = 'semantic_router' | 'retrieval_answer';
 
@@ -245,6 +251,14 @@ interface AssistantSettingsSection {
 
 interface AiWorkflowSummary {
   label: string;
+  detail: string;
+  tone: HarborAssistantStatusTone;
+}
+
+interface EvtReadinessMetric {
+  id: string;
+  label: string;
+  value: string;
   detail: string;
   tone: HarborAssistantStatusTone;
 }
@@ -429,6 +443,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly settingsSections: AssistantSettingsSection[] = [
     { id: 'ai', label: T('AI settings'), detail: '' },
     { id: 'camera', label: T('Camera settings'), detail: '' },
+    { id: 'diagnostics', label: T('Diagnostics'), detail: '' },
   ];
 
   protected readonly activeTab = signal<HarborAssistantTabId>('search');
@@ -471,6 +486,9 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly shareLinks = signal<ShareLinkSummary[]>([]);
   protected readonly automationReviews = signal<AutomationRuleReview[]>([]);
   protected readonly localVisionEvents = signal<StoredLocalVisionEvent[]>([]);
+  protected readonly evtReadiness = signal<EvtReadinessResponse | null>(null);
+  protected readonly evtPreflightLatest = signal<EvtPreflightResponse | null>(null);
+  protected readonly evtEvidenceBundle = signal<EvtEvidenceBundleResponse | null>(null);
   protected readonly rulesDrawerOpen = signal(false);
   protected readonly evidenceByDevice = signal<Record<string, DeviceEvidenceResponse>>({});
   protected readonly selectedDeviceId = signal<string>('');
@@ -761,6 +779,14 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly pendingRuleCount = computed(() => this.pendingRuleReviews().length);
   protected readonly latestVisionEvent = computed(() => this.localVisionEvents()[0] ?? null);
   protected readonly eventIntelligenceStatusCards = computed<EventIntelligenceStatusCard[]>(() => this.buildEventIntelligenceStatusCards());
+  protected readonly evtReadinessMetrics = computed<EvtReadinessMetric[]>(() => this.buildEvtReadinessMetrics());
+  protected readonly evtServiceStatuses = computed<EvtServiceStatus[]>(() => this.evtReadiness()?.services ?? []);
+  protected readonly evtBlockers = computed(() => this.evtReadiness()?.blockers ?? []);
+  protected readonly evtWarnings = computed(() => this.evtReadiness()?.warnings ?? []);
+  protected readonly evtEvidenceJson = computed(() => {
+    const bundle = this.evtEvidenceBundle();
+    return bundle ? JSON.stringify(bundle, null, 2) : '';
+  });
 
   ngOnInit(): void {
     this.route.queryParamMap
@@ -799,6 +825,55 @@ export class HarborAssistantComponent implements OnInit {
 
   protected refresh(): void {
     this.loadData();
+  }
+
+  protected refreshEvtReadiness(): void {
+    this.actionInProgress.set('evt-readiness');
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+
+    forkJoin({
+      readiness: this.harborAssistantApi.getEvtReadiness(),
+      latestPreflight: this.harborAssistantApi.getEvtPreflightLatest(),
+    }).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: ({ readiness, latestPreflight }) => {
+        this.evtReadiness.set(readiness);
+        this.evtPreflightLatest.set(latestPreflight);
+        this.mergeEndpointErrors({ evtReadiness: null, evtPreflightLatest: null });
+        this.actionMessage.set(T('EVT readiness refreshed.'));
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  protected runEvtPreflight(): void {
+    this.actionInProgress.set('evt-preflight');
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+
+    this.harborAssistantApi.runEvtPreflight().pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (preflight) => {
+        this.evtPreflightLatest.set(preflight);
+        this.evtReadiness.set(preflight.readiness ?? this.evtReadiness());
+        this.mergeEndpointErrors({ evtReadiness: null, evtPreflightLatest: null });
+        this.actionMessage.set(T('EVT preflight completed. No long stress run was started.'));
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  protected viewEvtEvidenceBundle(): void {
+    this.fetchEvtEvidenceBundle(false);
+  }
+
+  protected downloadEvtEvidenceBundle(): void {
+    this.fetchEvtEvidenceBundle(true);
   }
 
   protected selectTab(tabId: HarborAssistantTabId): void {
@@ -2578,6 +2653,42 @@ export class HarborAssistantComponent implements OnInit {
     return result.detail || result.error_message || result.action_path || result.endpoint || T('Evidence recorded.');
   }
 
+  protected evtGeneratedAtLabel(value: string | number | undefined | null): string {
+    return this.formatUnix(value);
+  }
+
+  protected evtPreflightCompletedAt(): string {
+    const preflight = this.evtPreflightLatest();
+    return this.formatUnix(preflight?.completed_at ?? preflight?.started_at ?? null);
+  }
+
+  protected evtDurationLabel(): string {
+    const duration = this.evtPreflightLatest()?.duration_ms;
+    return typeof duration === 'number' && Number.isFinite(duration) ? `${duration} ms` : T('n/a');
+  }
+
+  protected evtSecretScanSummary(): string {
+    const security = this.evtReadiness()?.security;
+    const secretScan = this.recordValue(security, 'secret_scan');
+    if (!this.isRecord(secretScan)) {
+      return T('No secret scan summary yet.');
+    }
+    const status = this.recordString(secretScan, 'status') ?? T('Unknown');
+    const total = this.recordNumber(secretScan, 'total_count') ?? 0;
+    return `${status}; ${total} ${T('matches')}`;
+  }
+
+  protected evtSecretScanCounts(): string[] {
+    const secretScan = this.recordValue(this.evtReadiness()?.security, 'secret_scan');
+    const counts = this.recordValue(this.isRecord(secretScan) ? secretScan : null, 'counts');
+    if (!this.isRecord(counts)) {
+      return [];
+    }
+    return Object.entries(counts)
+      .map(([key, value]) => `${key}: ${typeof value === 'number' ? value : 0}`)
+      .slice(0, 8);
+  }
+
   protected statusTone(status: string | null | undefined): HarborAssistantStatusTone {
     const normalized = String(status ?? '').trim().toLowerCase().replace(/_/g, '-');
     switch (normalized) {
@@ -2676,6 +2787,10 @@ export class HarborAssistantComponent implements OnInit {
         return T('The model list could not refresh. Try again later.');
       case 'localVisionEvents':
         return T('Event intelligence status could not refresh. Latest cached status is shown.');
+      case 'evtReadiness':
+      case 'evtPreflightLatest':
+      case 'evtEvidenceBundle':
+        return T('EVT readiness status could not refresh. Latest cached status is shown.');
       case 'knowledgeSettings':
         return T('Data source settings could not refresh. Try again later.');
       case 'knowledgeIndexStatus':
@@ -2772,6 +2887,75 @@ export class HarborAssistantComponent implements OnInit {
       return `${(value / 1024).toFixed(1)} KiB`;
     }
     return `${value} B`;
+  }
+
+  private buildEvtReadinessMetrics(): EvtReadinessMetric[] {
+    const readiness = this.evtReadiness();
+    const gateway = readiness?.gateway ?? readiness?.default_notification_target ?? null;
+    const ha = readiness?.home_assistant ?? null;
+    const camera = readiness?.camera ?? null;
+    const models = readiness?.models ?? null;
+    const semanticRouter = this.recordValue(models, 'semantic_router');
+    const resources = readiness?.resources ?? null;
+    const disk = this.recordValue(this.recordValue(resources, 'disk'), 'root');
+    const memory = this.recordValue(resources, 'memory');
+    const thermal = this.recordValue(resources, 'thermal');
+    const secretScan = this.recordValue(readiness?.security, 'secret_scan');
+
+    return [
+      {
+        id: 'gateway',
+        label: T('Gateway and target'),
+        value: this.recordString(gateway, 'status') ?? T('Unknown'),
+        detail: this.recordBool(gateway, 'default_target_ready')
+          ? T('Default notification target is ready.')
+          : T('Default notification target or Gate is not ready.'),
+        tone: this.statusTone(this.recordString(gateway, 'status')),
+      },
+      {
+        id: 'ha',
+        label: T('Home Assistant'),
+        value: this.recordString(ha, 'status') ?? T('Unknown'),
+        detail: `${this.recordNumber(ha, 'entity_count') ?? 0} ${T('entities')}`,
+        tone: this.statusTone(this.recordString(ha, 'status')),
+      },
+      {
+        id: 'camera',
+        label: T('Camera events'),
+        value: this.recordString(camera, 'status') ?? T('Unknown'),
+        detail: `${this.recordNumber(camera, 'configured_count') ?? 0} ${T('cameras')}; ${
+          this.recordBool(camera, 'latest_event_available') ? T('latest event available') : T('no recent event')
+        }`,
+        tone: this.statusTone(this.recordString(camera, 'status')),
+      },
+      {
+        id: 'nsp',
+        label: T('NSP router'),
+        value: this.recordString(semanticRouter, 'status') ?? T('Unknown'),
+        detail: this.recordBool(semanticRouter, 'local_only')
+          ? T('Local-only semantic router policy.')
+          : T('Semantic router policy needs review.'),
+        tone: this.recordBool(semanticRouter, 'local_only')
+          ? this.statusTone(this.recordString(semanticRouter, 'status'))
+          : 'danger',
+      },
+      {
+        id: 'resources',
+        label: T('Resources'),
+        value: `${this.recordNumber(memory, 'available_percent') ?? 0}% ${T('memory')}`,
+        detail: `${T('root disk')} ${this.recordNumber(disk, 'use_percent') ?? 0}% ; ${T('thermal')} ${
+          this.recordNumber(thermal, 'max_celsius') ?? T('unknown')
+        }`,
+        tone: this.statusTone(this.recordString(memory, 'status') ?? this.recordString(disk, 'status')),
+      },
+      {
+        id: 'secret-scan',
+        label: T('Secret scan'),
+        value: this.recordString(secretScan, 'status') ?? T('Unknown'),
+        detail: `${this.recordNumber(secretScan, 'total_count') ?? 0} ${T('matches')}`,
+        tone: this.statusTone(this.recordString(secretScan, 'status')),
+      },
+    ];
   }
 
   private buildEventIntelligenceStatusCards(): EventIntelligenceStatusCard[] {
@@ -3825,6 +4009,46 @@ export class HarborAssistantComponent implements OnInit {
     return null;
   }
 
+  private isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  private recordValue(source: Record<string, unknown> | unknown | null | undefined, key: string): unknown {
+    if (!this.isRecord(source)) {
+      return null;
+    }
+    return source[key];
+  }
+
+  private recordString(source: Record<string, unknown> | unknown | null | undefined, key: string): string | null {
+    const value = this.recordValue(source, key);
+    if (typeof value === 'string' && value.trim()) {
+      return value;
+    }
+    return null;
+  }
+
+  private recordNumber(source: Record<string, unknown> | unknown | null | undefined, key: string): number | null {
+    const value = this.recordValue(source, key);
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private recordBool(source: Record<string, unknown> | unknown | null | undefined, key: string): boolean {
+    return this.recordValue(source, key) === true;
+  }
+
+  private isEvtPreflightResponse(value: unknown): value is EvtPreflightResponse {
+    return this.isRecord(value)
+      && (this.recordString(value, 'kind') === 'evt_preflight_v1' || this.recordString(value, 'status') !== null);
+  }
+
   private pollModelDownloadsIfNeeded(): void {
     if (this.downloadPollInProgress() || !this.hasActiveDownloadJobs(this.downloadJobs())) {
       return;
@@ -3899,6 +4123,8 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: this.result('share-links', this.harborAssistantApi.getShareLinks()),
         automationReviews: this.result('automation-reviews', this.harborAssistantApi.getAutomationReviews()),
         localVisionEvents: this.result('local-vision-events', this.harborAssistantApi.getLocalVisionEvents(5)),
+        evtReadiness: this.result('evt-readiness', this.harborAssistantApi.getEvtReadiness()),
+        evtPreflightLatest: this.result('evt-preflight-latest', this.harborAssistantApi.getEvtPreflightLatest()),
         evidenceEntries: this.getDeviceEvidenceEntries(state.data?.devices ?? []),
       }).pipe(
         map((payload) => {
@@ -3936,6 +4162,8 @@ export class HarborAssistantComponent implements OnInit {
             shareLinks: payload.shareLinks,
             automationReviews: payload.automationReviews,
             localVisionEvents: payload.localVisionEvents,
+            evtReadiness: payload.evtReadiness,
+            evtPreflightLatest: payload.evtPreflightLatest,
             evidenceByDevice,
             evidenceErrors,
           };
@@ -4041,6 +4269,8 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set(pageData.shareLinks.data ?? []);
     this.automationReviews.set(pageData.automationReviews.data?.reviews ?? []);
     this.localVisionEvents.set(pageData.localVisionEvents.data?.events ?? []);
+    this.evtReadiness.set(pageData.evtReadiness.data);
+    this.evtPreflightLatest.set(pageData.evtPreflightLatest.data);
     this.evidenceByDevice.set(pageData.evidenceByDevice);
 
     const errors = Object.fromEntries(
@@ -4067,6 +4297,8 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: pageData.shareLinks.error,
         automationReviews: pageData.automationReviews.error,
         localVisionEvents: pageData.localVisionEvents.error,
+        evtReadiness: pageData.evtReadiness.error,
+        evtPreflightLatest: pageData.evtPreflightLatest.error,
         ...pageData.evidenceErrors,
       }).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0),
     );
@@ -4108,6 +4340,9 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set([]);
     this.automationReviews.set([]);
     this.localVisionEvents.set([]);
+    this.evtReadiness.set(null);
+    this.evtPreflightLatest.set(null);
+    this.evtEvidenceBundle.set(null);
     this.evidenceByDevice.set({});
     this.endpointErrors.set({});
   }
@@ -4404,6 +4639,42 @@ export class HarborAssistantComponent implements OnInit {
       },
       error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });
+  }
+
+  private fetchEvtEvidenceBundle(download: boolean): void {
+    const actionId = download ? 'evt-evidence-download' : 'evt-evidence-view';
+    this.actionInProgress.set(actionId);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+
+    this.harborAssistantApi.getEvtEvidenceBundle().pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (bundle) => {
+        this.evtEvidenceBundle.set(bundle);
+        this.evtReadiness.set(bundle.readiness ?? this.evtReadiness());
+        if (bundle.preflight && this.isEvtPreflightResponse(bundle.preflight)) {
+          this.evtPreflightLatest.set(bundle.preflight);
+        }
+        this.mergeEndpointErrors({ evtEvidenceBundle: null });
+        if (download) {
+          this.downloadJson(bundle, `harbornavi-k3-evt-evidence-${bundle.generated_at || Date.now()}.json`);
+        }
+        this.actionMessage.set(download ? T('EVT evidence bundle downloaded.') : T('EVT evidence bundle loaded.'));
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  private downloadJson(payload: unknown, filename: string): void {
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename.replace(/[^a-zA-Z0-9._-]/g, '-');
+    anchor.click();
+    URL.revokeObjectURL(url);
   }
 
   private runRuleReviewAction(
@@ -5099,7 +5370,7 @@ export class HarborAssistantComponent implements OnInit {
       case 'diagnostics':
       case 'system':
       case 'harboros':
-        return 'ai';
+        return 'diagnostics';
       default:
         return null;
     }

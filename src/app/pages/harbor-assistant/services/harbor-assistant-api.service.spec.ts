@@ -199,6 +199,30 @@ describe('Harbor Assistant API service', () => {
     hardwareReq.flush({ status: 'ready', cpu: {}, memory: {}, gpu: {}, npu: {}, recommended_model_profile: 'cpu' });
     await hardwarePromise;
 
+    const evtReadinessPromise = firstValueFrom(spectator.service.getEvtReadiness());
+    const evtReadinessReq = httpMock.expectOne('/api/harbor-beacon/evt/readiness');
+    expect(evtReadinessReq.request.method).toBe('GET');
+    evtReadinessReq.flush({ status: 'ready', profile: 'k3-direct-72h-readiness', blockers: [], warnings: [] });
+    await evtReadinessPromise;
+
+    const evtPreflightPromise = firstValueFrom(spectator.service.runEvtPreflight());
+    const evtPreflightReq = httpMock.expectOne('/api/harbor-beacon/evt/preflight');
+    expect(evtPreflightReq.request.method).toBe('POST');
+    evtPreflightReq.flush({ status: 'ready', long_run_started: false, short_run_started: false });
+    expect((await evtPreflightPromise).long_run_started).toBe(false);
+
+    const evtLatestPromise = firstValueFrom(spectator.service.getEvtPreflightLatest());
+    const evtLatestReq = httpMock.expectOne('/api/harbor-beacon/evt/preflight/latest');
+    expect(evtLatestReq.request.method).toBe('GET');
+    evtLatestReq.flush({ status: 'not_run', long_run_started: false, short_run_started: false });
+    await evtLatestPromise;
+
+    const evtEvidencePromise = firstValueFrom(spectator.service.getEvtEvidenceBundle());
+    const evtEvidenceReq = httpMock.expectOne('/api/harbor-beacon/evt/evidence-bundle');
+    expect(evtEvidenceReq.request.method).toBe('GET');
+    evtEvidenceReq.flush({ status: 'ready', redacted: true });
+    expect((await evtEvidencePromise).redacted).toBe(true);
+
     const harborOsPromise = firstValueFrom(spectator.service.getHarborOsImCapabilityMap());
     const harborOsReq = httpMock.expectOne('/api/harbor-beacon/harboros/im-capability-map');
     expect(harborOsReq.request.method).toBe('GET');

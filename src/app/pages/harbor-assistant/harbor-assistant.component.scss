@@ -415,6 +415,55 @@ $hd-space-5: 20px;
   }
 }
 
+.evt-readiness-panel {
+  .evt-heading {
+    align-items: flex-start;
+    gap: $hd-space-4;
+  }
+
+  .row-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+.evt-overview {
+  margin-top: $hd-space-4;
+}
+
+.evt-list {
+  margin-top: $hd-space-3;
+}
+
+.evt-metric-grid {
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: $hd-space-4;
+}
+
+.evt-service-list,
+.evt-secret-scan,
+.evt-evidence-preview {
+  border-top: 1px solid $hd-border-subtle;
+  margin-top: $hd-space-4;
+  padding-top: $hd-space-4;
+}
+
+.evt-evidence-preview pre {
+  background: $hd-bg-canvas;
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  color: var(--fg1);
+  font-size: 12px;
+  line-height: 1.45;
+  margin: $hd-space-3 0 0;
+  max-height: 360px;
+  overflow: auto;
+  padding: $hd-space-3;
+  white-space: pre-wrap;
+}
+
 .native-panel {
   background: $hd-bg-surface;
   color: var(--fg1);
