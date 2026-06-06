@@ -108,6 +108,7 @@ describe('Harbor Assistant component', () => {
     const component = spectator.component as unknown as {
       selectTab: (tab: 'messages' | 'home-assistant' | 'settings') => void;
       selectSettingsSection: (section: 'ai' | 'camera' | 'diagnostics') => void;
+      targetRoutePreview: (target: { target_id: string; label: string; route_key: string }) => string;
     };
 
     expect(spectator.query('.tab-strip')).toHaveText('Search');
@@ -124,6 +125,13 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('input[type="radio"]')).toExist();
     expect(spectator.element.textContent).not.toContain('Route key');
     expect(spectator.element.textContent).not.toContain('route_key');
+    const targetPreview = component.targetRoutePreview({
+      target_id: 'target-visible-id',
+      label: 'WeChat',
+      route_key: 'gw_route_should_not_render',
+    });
+    expect(targetPreview).toBe('...ble-id');
+    expect(targetPreview).not.toContain('render');
 
     component.selectTab('home-assistant');
     spectator.detectChanges();
@@ -286,6 +294,123 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('rtsp://');
     expect(spectator.element.textContent).not.toContain('/tmp/');
     expect(spectator.element.textContent).not.toContain('camera_credential');
+  });
+
+  it('renders family timeline and Home Guardian controls without IM routing details', () => {
+    api.getLocalVisionEvents = jest.fn(() => of({
+      generated_at: 'epoch_ms:1',
+      limit: 5,
+      events: [storedLocalVisionEvent('lve_guardian_1')],
+    }));
+    api.getFamilyTimeline = jest.fn(() => of({
+      generated_at: 'epoch_ms:2',
+      window_seconds: 86400,
+      event_count: 1,
+      metadata_only: true,
+      buckets: [{
+        bucket_id: 'family_timeline_front_door',
+        camera_id: 'front-door',
+        started_at: 'epoch_ms:1',
+        ended_at: 'epoch_ms:1',
+        event_count: 1,
+        event_types: ['person_detected'],
+        top_labels: ['person'],
+        event_ids: ['lve_guardian_1'],
+      }],
+      events: [],
+    }));
+    api.getFamilyTimelineDigest = jest.fn(() => of({
+      generated_at: 'epoch_ms:2',
+      status: 'available',
+      window_seconds: 86400,
+      event_count: 1,
+      headline: '最近 24 小时记录到 1 条家庭视觉事件。',
+      bullets: ['front-door: 1 条事件，主要标签 person。'],
+      top_labels: ['person'],
+      cameras: ['front-door'],
+      latest_event_id: 'lve_guardian_1',
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+    api.getAutomationReviews = jest.fn(() => of({
+      generated_at: 'epoch_ms:2',
+      pending_count: 1,
+      reviews: [homeGuardianReview('guardian_review_1', 'active')],
+    }));
+    api.getHomeGuardianActivity = jest.fn(() => of({
+      generated_at: 'epoch_ms:2',
+      rule_count: 1,
+      active_count: 1,
+      rules: [{
+        review_id: 'guardian_review_1',
+        status: 'active',
+        metadata_only: true,
+        route_key: 'gw_route_should_not_render',
+      }],
+      activity: [{
+        run_id: 'guardian_run_1',
+        event_id: 'lve_guardian_1',
+        status: 'skipped',
+        reason: 'idempotent duplicate event/action run',
+        metadata_only: true,
+        route_key: 'gw_route_should_not_render',
+      }],
+      counters: { skipped: 1 },
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+    api.getHomeAssistantEntities = jest.fn(() => of({
+      entities: [
+        { entity_id: 'light.entry', domain: 'light', state: 'off', display_name: 'Entry light' },
+        { entity_id: 'sensor.secret', domain: 'sensor', state: 'on', display_name: 'Sensor' },
+      ],
+    }));
+    api.evaluateAutomationReviewLatest = jest.fn(() => of({
+      evaluation_id: 'guardian_eval_1',
+      status: 'evaluated',
+      event_id: 'lve_guardian_1',
+      evaluated_at: 'epoch_ms:3',
+      results: [{
+        review_id: 'guardian_review_1',
+        status: 'skipped',
+        matched: true,
+        executed: false,
+      }],
+      counters: { skipped: 1 },
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+
+    spectator = createComponent({
+      providers: [
+        mockProvider(ActivatedRoute, {
+          queryParamMap: of(convertToParamMap({ tab: 'camera' })),
+        }),
+      ],
+    });
+    spectator.detectChanges();
+
+    const panel = spectator.query('.event-intelligence-panel');
+    expect(panel).toHaveText('Family Timeline');
+    expect(panel).toHaveText('最近 24 小时记录到 1 条家庭视觉事件。');
+    expect(panel).toHaveText('front-door');
+    expect(panel).toHaveText('Home Guardian');
+    expect(panel).toHaveText('1 rules');
+    expect(panel).toHaveText('Entry light');
+    expect(panel).not.toHaveText('sensor.secret');
+    expect(spectator.element.textContent).not.toContain('route_key');
+    expect(spectator.element.textContent).not.toContain('gw_route_should_not_render');
+    expect(spectator.element.textContent).not.toContain('rtsp://');
+    expect(spectator.element.textContent).not.toContain('/tmp/');
+    expect(spectator.element.textContent).not.toContain('token=secret');
+
+    const evaluateButton = spectator.queryAll('button')
+      .find((button) => button.textContent?.includes('Evaluate latest')) as HTMLButtonElement;
+    spectator.click(evaluateButton);
+    spectator.detectChanges();
+
+    expect(api.evaluateAutomationReviewLatest).toHaveBeenCalledWith('guardian_review_1');
+    expect(panel).toHaveText('idempotent duplicate event/action run');
   });
 
   it('ignores removed tab aliases even when an old focus parameter is present', () => {
@@ -1306,6 +1431,86 @@ describe('Harbor Assistant component', () => {
   });
 });
 
+function storedLocalVisionEvent(eventId: string): unknown {
+  return {
+    received_at: 'epoch_ms:1',
+    event: {
+      event_id: eventId,
+      camera_id: 'front-door',
+      event_type: 'person_detected',
+      confidence: 0.92,
+      labels: ['person', 'local_vision_event'],
+      summary: 'Front door has a person.',
+      snapshot_artifact: {
+        artifact_id: 'artifact_1',
+        path: null,
+        mime_type: 'image/jpeg',
+        byte_size: 12345,
+        sha256: 'sha256-redacted',
+        source: 'k3-local-snapshot',
+      },
+      started_at: 'epoch_ms:1',
+      analyzer: 'yolov8n-cpu',
+      latency_ms: 1370,
+      metrics: {
+        capture_read_ms: 80,
+        frame_age_ms: 450,
+        vlm_ms: 3200,
+      },
+      vlm: {
+        status: 'active',
+        summary: 'A person is standing near the front door.',
+        derived_text: 'A person is standing near the front door.',
+        tags: ['vlm'],
+        labels: ['person'],
+        artifacts: [],
+        ingest_metadata: { frame_path_redacted: true },
+        vlm_metrics: { elapsed_ms: 3200 },
+      },
+    },
+    audit_record: {
+      metadata_only: true,
+      route_key: 'gw_route_should_not_render',
+    },
+    ha_mqtt_payload: {
+      metadata_only: true,
+    },
+  };
+}
+
+function homeGuardianReview(reviewId: string, status: string): unknown {
+  return {
+    review_id: reviewId,
+    workspace_id: 'home-1',
+    source: 'home_guardian',
+    source_channel: 'HarborAssistant Camera',
+    source_conversation_id: null,
+    original_prompt: 'Notify me when the front door sees a person.',
+    status,
+    trigger_definition: {
+      camera_id: 'front-door',
+      event_type: 'person_detected',
+      labels: ['person'],
+      metadata_only: true,
+    },
+    action_plan: {
+      actions: [{ kind: 'notify_default_target' }],
+      metadata_only: true,
+    },
+    device_refs: [{ camera_id: 'front-door' }],
+    risk_level: 'low',
+    requires_approval: true,
+    rule_id: 'guardian_rule_1',
+    run_summaries: [],
+    metadata: {
+      feature: 'home_guardian',
+      home_guardian: true,
+      metadata_only: true,
+      route_key: 'gw_route_should_not_render',
+    },
+  };
+}
+
 function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiService, jest.Mock>> {
   const statusComponent = { status: 'ready', summary: 'ready', detail: 'ready', evidence: [] };
   return {
@@ -1608,6 +1813,47 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     })),
     getShareLinks: jest.fn(() => of([])),
     getLocalVisionEvents: jest.fn(() => of({ generated_at: 'epoch_ms:0', limit: 5, events: [] })),
+    getFamilyTimeline: jest.fn(() => of({
+      generated_at: 'epoch_ms:0',
+      window_seconds: 86400,
+      event_count: 0,
+      metadata_only: true,
+      buckets: [],
+      events: [],
+    })),
+    getFamilyTimelineDigest: jest.fn(() => of({
+      generated_at: 'epoch_ms:0',
+      status: 'quiet',
+      window_seconds: 86400,
+      event_count: 0,
+      headline: 'No family timeline digest yet.',
+      bullets: [],
+      top_labels: [],
+      cameras: [],
+      latest_event_id: null,
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    getHomeGuardianActivity: jest.fn(() => of({
+      generated_at: 'epoch_ms:0',
+      rule_count: 0,
+      active_count: 0,
+      rules: [],
+      activity: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    evaluateAutomationReviewLatest: jest.fn(() => of({
+      evaluation_id: 'guardian_eval_0',
+      status: 'evaluated',
+      event_id: '',
+      evaluated_at: 'epoch_ms:0',
+      results: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
     getEvtReadiness: jest.fn(() => of({
       status: 'ready',
       profile: 'k3-direct-72h-readiness',

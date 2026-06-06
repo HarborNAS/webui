@@ -667,6 +667,85 @@ export interface LocalVisionEventsResponse {
   events: StoredLocalVisionEvent[];
 }
 
+export interface FamilyTimelineArtifactMetadata {
+  artifact_id?: string | null;
+  mime_type?: string | null;
+  byte_size?: number | null;
+  sha256_present: boolean;
+  local_path_redacted: boolean;
+  raw_image_included: boolean;
+}
+
+export interface FamilyTimelineEvent {
+  event_id: string;
+  camera_id: string;
+  event_type: string;
+  summary: string;
+  confidence: number;
+  labels: string[];
+  started_at: string;
+  received_at: string;
+  latency_ms: number;
+  vlm_status: string;
+  artifact: FamilyTimelineArtifactMetadata;
+}
+
+export interface FamilyTimelineBucket {
+  bucket_id: string;
+  camera_id: string;
+  started_at: string;
+  ended_at: string;
+  event_count: number;
+  event_types: string[];
+  top_labels: string[];
+  event_ids: string[];
+}
+
+export interface FamilyTimelineResponse {
+  generated_at: string;
+  window_seconds: number;
+  event_count: number;
+  metadata_only: boolean;
+  buckets: FamilyTimelineBucket[];
+  events: FamilyTimelineEvent[];
+}
+
+export interface FamilyTimelineDigestResponse {
+  generated_at: string;
+  status: string;
+  window_seconds: number;
+  event_count: number;
+  headline: string;
+  bullets: string[];
+  top_labels: string[];
+  cameras: string[];
+  latest_event_id?: string | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface HomeGuardianActivityResponse {
+  generated_at: string;
+  rule_count: number;
+  active_count: number;
+  rules: Record<string, unknown>[];
+  activity: Record<string, unknown>[];
+  counters: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface HomeGuardianEvaluationResponse {
+  evaluation_id: string;
+  status: string;
+  event_id: string;
+  evaluated_at: string;
+  results: Record<string, unknown>[];
+  counters: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
 export interface ModelEndpointRecord {
   model_endpoint_id: string;
   workspace_id?: string | null;

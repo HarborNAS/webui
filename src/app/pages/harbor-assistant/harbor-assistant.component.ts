@@ -54,6 +54,8 @@ import {
   EvtPreflightResponse,
   EvtReadinessResponse,
   EvtServiceStatus,
+  FamilyTimelineDigestResponse,
+  FamilyTimelineResponse,
   FilesBrowseResponse,
   GatewayPlatformStatus,
   GatewayStatusResponse,
@@ -67,6 +69,10 @@ import {
   HarborOsStatusResponse,
   HardwareReadinessComponent,
   HardwareReadinessResponse,
+  HomeAssistantEntitiesResponse,
+  HomeAssistantEntity,
+  HomeGuardianActivityResponse,
+  HomeGuardianEvaluationResponse,
   InferenceHealthResponse,
   KnowledgeIndexRootStatus,
   KnowledgeIndexStatusResponse,
@@ -121,6 +127,10 @@ interface HarborAssistantPageData {
   shareLinks: EndpointResult<ShareLinkSummary[]>;
   automationReviews: EndpointResult<AutomationReviewsResponse>;
   localVisionEvents: EndpointResult<LocalVisionEventsResponse>;
+  familyTimeline: EndpointResult<FamilyTimelineResponse>;
+  familyTimelineDigest: EndpointResult<FamilyTimelineDigestResponse>;
+  homeGuardianActivity: EndpointResult<HomeGuardianActivityResponse>;
+  homeAssistantEntities: EndpointResult<HomeAssistantEntitiesResponse>;
   evtReadiness: EndpointResult<EvtReadinessResponse>;
   evtPreflightLatest: EndpointResult<EvtPreflightResponse>;
   evidenceByDevice: Record<string, DeviceEvidenceResponse>;
@@ -486,6 +496,12 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly shareLinks = signal<ShareLinkSummary[]>([]);
   protected readonly automationReviews = signal<AutomationRuleReview[]>([]);
   protected readonly localVisionEvents = signal<StoredLocalVisionEvent[]>([]);
+  protected readonly familyTimeline = signal<FamilyTimelineResponse | null>(null);
+  protected readonly familyTimelineDigest = signal<FamilyTimelineDigestResponse | null>(null);
+  protected readonly homeGuardianActivity = signal<HomeGuardianActivityResponse | null>(null);
+  protected readonly guardianEvaluation = signal<HomeGuardianEvaluationResponse | null>(null);
+  protected readonly guardianHaEntities = signal<HomeAssistantEntity[]>([]);
+  protected readonly selectedGuardianHaEntityId = signal('');
   protected readonly evtReadiness = signal<EvtReadinessResponse | null>(null);
   protected readonly evtPreflightLatest = signal<EvtPreflightResponse | null>(null);
   protected readonly evtEvidenceBundle = signal<EvtEvidenceBundleResponse | null>(null);
@@ -776,6 +792,19 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly archivedRuleReviews = computed(() => this.automationReviews().filter((review) => {
     return review.status === 'discarded' || review.status === 'expired';
   }));
+  protected readonly homeGuardianRules = computed(() => this.automationReviews().filter((review) => this.isHomeGuardianReview(review)));
+  protected readonly activeHomeGuardianRules = computed(() => this.homeGuardianRules().filter((review) => {
+    return review.status === 'active' || review.status === 'paused' || review.status === 'pending' || review.status === 'draft';
+  }));
+  protected readonly safeGuardianHaEntities = computed(() => this.guardianHaEntities().filter((entity) => {
+    return ['light', 'switch', 'input_boolean', 'scene'].includes(entity.domain);
+  }));
+  protected readonly selectedGuardianHaEntity = computed(() => {
+    const selectedId = this.selectedGuardianHaEntityId();
+    return this.safeGuardianHaEntities().find((entity) => entity.entity_id === selectedId)
+      ?? this.safeGuardianHaEntities()[0]
+      ?? null;
+  });
   protected readonly pendingRuleCount = computed(() => this.pendingRuleReviews().length);
   protected readonly latestVisionEvent = computed(() => this.localVisionEvents()[0] ?? null);
   protected readonly eventIntelligenceStatusCards = computed<EventIntelligenceStatusCard[]>(() => this.buildEventIntelligenceStatusCards());
@@ -959,6 +988,75 @@ export class HarborAssistantComponent implements OnInit {
     );
   }
 
+  protected createGuardianNotifyRule(stored: StoredLocalVisionEvent): void {
+    this.createGuardianRule(stored, {
+      actions: [{
+        kind: 'notify_default_target',
+        target: 'default_notification_target',
+      }],
+      metadata_only: true,
+    }, T('Home Guardian notification rule draft was created.'));
+  }
+
+  protected createGuardianHaRule(stored: StoredLocalVisionEvent): void {
+    const entity = this.selectedGuardianHaEntity();
+    if (!entity) {
+      this.actionError.set(T('Select a low-risk Home Assistant entity before creating an HA guardian rule.'));
+      return;
+    }
+    this.createGuardianRule(stored, {
+      actions: [{
+        kind: 'ha_service_action',
+        domain: entity.domain,
+        service: this.guardianHaService(entity),
+        entity_id: entity.entity_id,
+        fields: {},
+      }],
+      metadata_only: true,
+    }, T('Home Guardian Home Assistant rule draft was created.'));
+  }
+
+  protected evaluateGuardianLatest(review: AutomationRuleReview): void {
+    const actionId = `guardian-evaluate:${review.review_id}`;
+    this.actionInProgress.set(actionId);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+    this.harborAssistantApi.evaluateAutomationReviewLatest(review.review_id).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        this.guardianEvaluation.set(response);
+        this.actionMessage.set(T('Home Guardian rule was evaluated against the latest event.'));
+        this.refreshHomeGuardianActivity();
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  protected selectGuardianHaEntity(event: Event): void {
+    const target = event.target as HTMLSelectElement | null;
+    this.selectedGuardianHaEntityId.set(target?.value ?? '');
+  }
+
+  protected guardianHaService(entity: HomeAssistantEntity): string {
+    return entity.domain === 'scene' ? 'turn_on' : 'turn_on';
+  }
+
+  protected guardianActivityItems(): Record<string, unknown>[] {
+    return this.homeGuardianActivity()?.activity?.slice(0, 6) ?? [];
+  }
+
+  protected guardianActivityStatus(item: Record<string, unknown>): string {
+    return typeof item['status'] === 'string' ? item['status'] : T('unknown');
+  }
+
+  protected guardianActivitySummary(item: Record<string, unknown>): string {
+    const eventId = typeof item['event_id'] === 'string' ? item['event_id'] : T('event');
+    const reason = typeof item['reason'] === 'string' ? item['reason'] : '';
+    return reason ? `${eventId} · ${reason}` : eventId;
+  }
+
   protected ruleReviewSourceLabel(review: AutomationRuleReview): string {
     const source = (review.source_channel || review.source || '').trim();
     switch (source) {
@@ -971,6 +1069,9 @@ export class HarborAssistantComponent implements OnInit {
       case 'harbor_assistant_chat':
       case 'HarborAssistant Chat':
         return T('HarborAssistant Chat');
+      case 'home_guardian':
+      case 'harbornavi_home_guardian':
+        return T('Home Guardian');
       default:
         return source || T('Unknown source');
     }
@@ -1021,7 +1122,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected targetRoutePreview(target: NotificationTargetRecord): string {
-    const value = (target.route_key || target.target_id || '').trim();
+    const value = (target.target_id || '').trim();
     if (!value) {
       return T('redacted');
     }
@@ -2787,6 +2888,11 @@ export class HarborAssistantComponent implements OnInit {
         return T('The model list could not refresh. Try again later.');
       case 'localVisionEvents':
         return T('Event intelligence status could not refresh. Latest cached status is shown.');
+      case 'familyTimeline':
+      case 'familyTimelineDigest':
+        return T('Family Timeline could not refresh. Latest cached timeline is shown.');
+      case 'homeGuardianActivity':
+        return T('Home Guardian activity could not refresh. Latest cached activity is shown.');
       case 'evtReadiness':
       case 'evtPreflightLatest':
       case 'evtEvidenceBundle':
@@ -4123,6 +4229,10 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: this.result('share-links', this.harborAssistantApi.getShareLinks()),
         automationReviews: this.result('automation-reviews', this.harborAssistantApi.getAutomationReviews()),
         localVisionEvents: this.result('local-vision-events', this.harborAssistantApi.getLocalVisionEvents(5)),
+        familyTimeline: this.result('family-timeline', this.harborAssistantApi.getFamilyTimeline()),
+        familyTimelineDigest: this.result('family-timeline-digest', this.harborAssistantApi.getFamilyTimelineDigest()),
+        homeGuardianActivity: this.result('home-guardian-activity', this.harborAssistantApi.getHomeGuardianActivity()),
+        homeAssistantEntities: this.result('home-assistant-entities', this.harborAssistantApi.getHomeAssistantEntities()),
         evtReadiness: this.result('evt-readiness', this.harborAssistantApi.getEvtReadiness()),
         evtPreflightLatest: this.result('evt-preflight-latest', this.harborAssistantApi.getEvtPreflightLatest()),
         evidenceEntries: this.getDeviceEvidenceEntries(state.data?.devices ?? []),
@@ -4162,6 +4272,10 @@ export class HarborAssistantComponent implements OnInit {
             shareLinks: payload.shareLinks,
             automationReviews: payload.automationReviews,
             localVisionEvents: payload.localVisionEvents,
+            familyTimeline: payload.familyTimeline,
+            familyTimelineDigest: payload.familyTimelineDigest,
+            homeGuardianActivity: payload.homeGuardianActivity,
+            homeAssistantEntities: payload.homeAssistantEntities,
             evtReadiness: payload.evtReadiness,
             evtPreflightLatest: payload.evtPreflightLatest,
             evidenceByDevice,
@@ -4269,6 +4383,11 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set(pageData.shareLinks.data ?? []);
     this.automationReviews.set(pageData.automationReviews.data?.reviews ?? []);
     this.localVisionEvents.set(pageData.localVisionEvents.data?.events ?? []);
+    this.familyTimeline.set(pageData.familyTimeline.data);
+    this.familyTimelineDigest.set(pageData.familyTimelineDigest.data);
+    this.homeGuardianActivity.set(pageData.homeGuardianActivity.data);
+    this.guardianHaEntities.set(pageData.homeAssistantEntities.data?.entities ?? []);
+    this.ensureGuardianHaEntitySelection();
     this.evtReadiness.set(pageData.evtReadiness.data);
     this.evtPreflightLatest.set(pageData.evtPreflightLatest.data);
     this.evidenceByDevice.set(pageData.evidenceByDevice);
@@ -4297,6 +4416,10 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: pageData.shareLinks.error,
         automationReviews: pageData.automationReviews.error,
         localVisionEvents: pageData.localVisionEvents.error,
+        familyTimeline: pageData.familyTimeline.error,
+        familyTimelineDigest: pageData.familyTimelineDigest.error,
+        homeGuardianActivity: pageData.homeGuardianActivity.error,
+        homeAssistantEntities: pageData.homeAssistantEntities.error,
         evtReadiness: pageData.evtReadiness.error,
         evtPreflightLatest: pageData.evtPreflightLatest.error,
         ...pageData.evidenceErrors,
@@ -4340,6 +4463,12 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set([]);
     this.automationReviews.set([]);
     this.localVisionEvents.set([]);
+    this.familyTimeline.set(null);
+    this.familyTimelineDigest.set(null);
+    this.homeGuardianActivity.set(null);
+    this.guardianEvaluation.set(null);
+    this.guardianHaEntities.set([]);
+    this.selectedGuardianHaEntityId.set('');
     this.evtReadiness.set(null);
     this.evtPreflightLatest.set(null);
     this.evtEvidenceBundle.set(null);
@@ -4693,9 +4822,93 @@ export class HarborAssistantComponent implements OnInit {
       next: (response) => {
         this.automationReviews.set(response.reviews ?? []);
         this.actionMessage.set(successMessage);
+        this.refreshHomeGuardianActivity();
       },
       error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });
+  }
+
+  private createGuardianRule(
+    stored: StoredLocalVisionEvent,
+    actionPlan: Record<string, unknown>,
+    successMessage: string,
+  ): void {
+    const actionId = `guardian-rule-create:${stored.event.event_id}`;
+    this.actionInProgress.set(actionId);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+    this.harborAssistantApi.createAutomationReview({
+      source: 'home_guardian',
+      source_channel: 'HarborAssistant Camera',
+      original_prompt: `${T('Create guardian rule from event')} ${stored.event.event_id}`,
+      status: 'pending',
+      risk_level: 'low',
+      requires_approval: true,
+      trigger_definition: this.guardianTriggerForEvent(stored),
+      action_plan: actionPlan,
+      device_refs: [{ camera_id: stored.event.camera_id }],
+      metadata: {
+        feature: 'home_guardian',
+        home_guardian: true,
+        source_event_id: stored.event.event_id,
+        metadata_only: true,
+      },
+    }).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        this.automationReviews.set(response.reviews ?? []);
+        this.actionMessage.set(successMessage);
+        this.refreshHomeGuardianActivity();
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  private guardianTriggerForEvent(stored: StoredLocalVisionEvent): Record<string, unknown> {
+    return {
+      camera_id: stored.event.camera_id,
+      event_type: stored.event.event_type,
+      labels: stored.event.labels ?? [],
+      min_confidence: Math.max(0.5, Math.min(0.95, stored.event.confidence - 0.05)),
+      local_time_window: {
+        start: '00:00',
+        end: '23:59',
+      },
+      source_event_id: stored.event.event_id,
+      metadata_only: true,
+    };
+  }
+
+  private refreshHomeGuardianActivity(): void {
+    this.harborAssistantApi.getHomeGuardianActivity().pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (activity) => {
+        this.homeGuardianActivity.set(activity);
+        this.mergeEndpointErrors({ homeGuardianActivity: null });
+      },
+      error: (error: unknown) => {
+        this.mergeEndpointErrors({ homeGuardianActivity: `home-guardian-activity: ${this.getErrorMessage(error)}` });
+      },
+    });
+  }
+
+  private ensureGuardianHaEntitySelection(): void {
+    const selectedId = this.selectedGuardianHaEntityId();
+    if (selectedId && this.safeGuardianHaEntities().some((entity) => entity.entity_id === selectedId)) {
+      return;
+    }
+    this.selectedGuardianHaEntityId.set(this.safeGuardianHaEntities()[0]?.entity_id ?? '');
+  }
+
+  private isHomeGuardianReview(review: AutomationRuleReview): boolean {
+    const source = (review.source || '').trim().toLowerCase();
+    return source === 'home_guardian'
+      || source === 'harbornavi_home_guardian'
+      || review.metadata?.['home_guardian'] === true
+      || review.metadata?.['feature'] === 'home_guardian';
   }
 
   private handleScanResponse(response: DiscoveryScanResponse): void {

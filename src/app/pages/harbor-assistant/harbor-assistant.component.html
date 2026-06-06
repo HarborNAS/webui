@@ -195,10 +195,132 @@
                           {{ 'VLM' | translate }}
                         </span>
                       </div>
+                      <div class="row-actions">
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="createGuardianNotifyRule(stored)">
+                          {{ actionBusy('guardian-rule-create:' + stored.event.event_id) ? ('Creating rule' | translate) : ('Notify rule' | translate) }}
+                        </button>
+                        <button mat-button type="button" [disabled]="isBusy() || !selectedGuardianHaEntity()" (click)="createGuardianHaRule(stored)">
+                          {{ actionBusy('guardian-rule-create:' + stored.event.event_id) ? ('Creating rule' | translate) : ('HA action rule' | translate) }}
+                        </button>
+                      </div>
                     </article>
                   }
                 </div>
               }
+
+              <mat-divider></mat-divider>
+
+              <div class="family-timeline-panel">
+                <div class="section-heading-row">
+                  <div>
+                    <h2>{{ 'Family Timeline' | translate }}</h2>
+                    <p class="muted">
+                      {{ familyTimelineDigest()?.headline || ('No family timeline digest yet.' | translate) }}
+                    </p>
+                  </div>
+                  <span class="pill" [ngClass]="toneClass(familyTimelineDigest()?.status || 'unknown')">
+                    {{ familyTimelineDigest()?.status || ('unknown' | translate) }}
+                  </span>
+                </div>
+                @if (endpointError('familyTimeline') || endpointError('familyTimelineDigest')) {
+                  <div class="notice error compact">
+                    {{ endpointErrorNotice(endpointError('familyTimeline') ? 'familyTimeline' : 'familyTimelineDigest') | translate }}
+                  </div>
+                }
+                @if (familyTimelineDigest()?.bullets?.length) {
+                  <ul class="compact-list">
+                    @for (bullet of familyTimelineDigest()?.bullets ?? []; track bullet) {
+                      <li>{{ bullet }}</li>
+                    }
+                  </ul>
+                }
+                @if (familyTimeline()?.buckets?.length) {
+                  <div class="event-intelligence-list compact">
+                    @for (bucket of familyTimeline()?.buckets ?? []; track bucket.bucket_id) {
+                      <article class="event-intelligence-row">
+                        <div class="event-intelligence-main">
+                          <div class="event-intelligence-meta">
+                            <span class="pill">{{ bucket.camera_id }}</span>
+                            <span class="pill">{{ bucket.event_count }} {{ 'events' | translate }}</span>
+                          </div>
+                          <h2>{{ bucket.top_labels.join(', ') || ('No labels' | translate) }}</h2>
+                          <p class="muted">{{ bucket.event_types.join(', ') }}</p>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <div class="home-guardian-panel">
+                <div class="section-heading-row">
+                  <div>
+                    <h2>{{ 'Home Guardian' | translate }}</h2>
+                    <p class="muted">
+                      {{ homeGuardianActivity()?.rule_count ?? homeGuardianRules().length }} {{ 'rules' | translate }} ·
+                      {{ homeGuardianActivity()?.active_count ?? 0 }} {{ 'active' | translate }}
+                    </p>
+                  </div>
+                  <label class="compact-select">
+                    <span>{{ 'HA target' | translate }}</span>
+                    <select [value]="selectedGuardianHaEntity()?.entity_id || ''" (change)="selectGuardianHaEntity($event)">
+                      @for (entity of safeGuardianHaEntities(); track entity.entity_id) {
+                        <option [value]="entity.entity_id">{{ entity.display_name || entity.entity_id }} · {{ entity.domain }}</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+                @if (endpointError('homeGuardianActivity')) {
+                  <div class="notice error compact">{{ endpointErrorNotice('homeGuardianActivity') | translate }}</div>
+                }
+                @if (!safeGuardianHaEntities().length) {
+                  <p class="muted">{{ 'No low-risk Home Assistant entity is available for HA guardian presets.' | translate }}</p>
+                }
+                <div class="rule-review-list compact">
+                  @for (review of activeHomeGuardianRules().slice(0, 6); track review.review_id) {
+                    <article class="rule-review-card compact">
+                      <div>
+                        <div class="rule-review-meta">
+                          <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                          <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                        </div>
+                        <h2>{{ review.original_prompt }}</h2>
+                      </div>
+                      <div class="row-actions">
+                        @if (review.status !== 'active') {
+                          <button mat-button type="button" [disabled]="isBusy()" (click)="enableRuleReview(review)">
+                            {{ 'Enable' | translate }}
+                          </button>
+                        }
+                        @if (review.status === 'active') {
+                          <button mat-button type="button" [disabled]="isBusy()" (click)="pauseRuleReview(review)">
+                            {{ 'Pause' | translate }}
+                          </button>
+                        }
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="evaluateGuardianLatest(review)">
+                          {{ actionBusy('guardian-evaluate:' + review.review_id) ? ('Evaluating' | translate) : ('Evaluate latest' | translate) }}
+                        </button>
+                      </div>
+                    </article>
+                  }
+                </div>
+                @if (guardianActivityItems().length) {
+                  <div class="event-intelligence-list compact">
+                    @for (item of guardianActivityItems(); track item['run_id'] || item['event_id']) {
+                      <article class="event-intelligence-row">
+                        <div class="event-intelligence-main">
+                          <div class="event-intelligence-meta">
+                            <span class="pill" [ngClass]="toneClass(guardianActivityStatus(item))">{{ guardianActivityStatus(item) | translate }}</span>
+                          </div>
+                          <h2>{{ guardianActivitySummary(item) }}</h2>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </div>
             </mat-card-content>
           </mat-card>
         </section>

@@ -22,6 +22,8 @@ import {
   EvtEvidenceBundleResponse,
   EvtPreflightResponse,
   EvtReadinessResponse,
+  FamilyTimelineDigestResponse,
+  FamilyTimelineResponse,
   FilesBrowseResponse,
   GatewayStatusResponse,
   HarborAssistantBackendStatus,
@@ -35,6 +37,8 @@ import {
   HomeAssistantStatusResponse,
   HomeAssistantSyncResponse,
   HomeAssistantTestResponse,
+  HomeGuardianActivityResponse,
+  HomeGuardianEvaluationResponse,
   HarborOsImCapabilityMapResponse,
   HarborOsStatusResponse,
   HardwareReadinessResponse,
@@ -145,6 +149,18 @@ export class HarborAssistantApiService {
     return this.http.get<EvtEvidenceBundleResponse>(this.apiUrl('/evt/evidence-bundle'));
   }
 
+  getFamilyTimeline(): Observable<FamilyTimelineResponse> {
+    return this.http.get<FamilyTimelineResponse>(this.apiUrl('/family/timeline'));
+  }
+
+  getFamilyTimelineDigest(): Observable<FamilyTimelineDigestResponse> {
+    return this.http.get<FamilyTimelineDigestResponse>(this.apiUrl('/family/timeline/digest'));
+  }
+
+  getHomeGuardianActivity(): Observable<HomeGuardianActivityResponse> {
+    return this.http.get<HomeGuardianActivityResponse>(this.apiUrl('/home-guardian/activity'));
+  }
+
   getKnowledgeSettings(): Observable<KnowledgeSettings> {
     return this.http.get<KnowledgeSettings>(this.apiUrl('/knowledge/settings'));
   }
@@ -237,6 +253,13 @@ export class HarborAssistantApiService {
   discardAutomationReview(reviewId: string): Observable<AutomationReviewsResponse> {
     return this.http.post<AutomationReviewsResponse>(
       this.apiUrl(`/automation/reviews/${encodeURIComponent(reviewId)}/discard`),
+      {},
+    );
+  }
+
+  evaluateAutomationReviewLatest(reviewId: string): Observable<HomeGuardianEvaluationResponse> {
+    return this.http.post<HomeGuardianEvaluationResponse>(
+      this.apiUrl(`/automation/reviews/${encodeURIComponent(reviewId)}/evaluate-latest`),
       {},
     );
   }

@@ -134,6 +134,37 @@ describe('Harbor Assistant API service', () => {
     const response = await eventsPromise;
     expect(response.limit).toBe(3);
     expect(response.events).toEqual([]);
+
+    const timelinePromise = firstValueFrom(spectator.service.getFamilyTimeline());
+    const timelineReq = httpMock.expectOne('/api/harbor-beacon/family/timeline');
+    expect(timelineReq.request.method).toBe('GET');
+    expect(timelineReq.request.url).not.toContain('harborgate');
+    timelineReq.flush({
+      generated_at: 'epoch_ms:2',
+      window_seconds: 86400,
+      event_count: 0,
+      metadata_only: true,
+      buckets: [],
+      events: [],
+    });
+    expect((await timelinePromise).metadata_only).toBe(true);
+
+    const digestPromise = firstValueFrom(spectator.service.getFamilyTimelineDigest());
+    const digestReq = httpMock.expectOne('/api/harbor-beacon/family/timeline/digest');
+    expect(digestReq.request.method).toBe('GET');
+    digestReq.flush({
+      generated_at: 'epoch_ms:3',
+      status: 'quiet',
+      window_seconds: 86400,
+      event_count: 0,
+      headline: 'No events.',
+      bullets: [],
+      top_labels: [],
+      cameras: [],
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await digestPromise).secret_scan).toBe('clean');
   });
 
   it('does not send credential reads or secrets to HarborGate paths', async () => {
@@ -375,6 +406,37 @@ describe('Harbor Assistant API service', () => {
     expect(discardReq.request.method).toBe('POST');
     discardReq.flush({ ...response, pending_count: 0, reviews: [{ ...response.reviews[0], status: 'discarded' }] });
     await discardPromise;
+
+    const activityPromise = firstValueFrom(spectator.service.getHomeGuardianActivity());
+    const activityReq = httpMock.expectOne('/api/harbor-beacon/home-guardian/activity');
+    expect(activityReq.request.method).toBe('GET');
+    activityReq.flush({
+      generated_at: '1',
+      rule_count: 1,
+      active_count: 0,
+      rules: [],
+      activity: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await activityPromise).metadata_only).toBe(true);
+
+    const evaluatePromise = firstValueFrom(spectator.service.evaluateAutomationReviewLatest('review/1'));
+    const evaluateReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews/review%2F1/evaluate-latest');
+    expect(evaluateReq.request.method).toBe('POST');
+    expect(evaluateReq.request.url).not.toContain('harborgate');
+    evaluateReq.flush({
+      evaluation_id: 'guardian_eval_1',
+      status: 'evaluated',
+      event_id: 'event-1',
+      evaluated_at: '1',
+      results: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await evaluatePromise).secret_scan).toBe('clean');
   });
 
   it('keeps model management APIs under /api/harbor-beacon', async () => {
