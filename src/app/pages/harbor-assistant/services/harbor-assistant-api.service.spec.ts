@@ -439,6 +439,28 @@ describe('Harbor Assistant API service', () => {
     expect((await evaluatePromise).secret_scan).toBe('clean');
   });
 
+
+  it('keeps Routing API as a same-origin Beacon surface', async () => {
+    const routingPromise = firstValueFrom(spectator.service.getRoutingStatus());
+    const routingReq = httpMock.expectOne('/api/harbor-beacon/routing/status');
+    expect(routingReq.request.method).toBe('GET');
+    expect(routingReq.request.url).not.toContain('harborgate');
+    routingReq.flush({
+      kind: 'harborbeacon.routing_status.v1',
+      generated_at: 'epoch_ms:1',
+      metadata_only: true,
+      scope: 'beacon_internal_orchestration',
+      execution_routes: [],
+      model_route_policies: [],
+      capability_readiness: [],
+      runtimes: [],
+      boundaries: [],
+      fallback_blockers: [],
+      secret_scan: 'clean',
+    });
+    expect((await routingPromise).scope).toBe('beacon_internal_orchestration');
+  });
+
   it('keeps model management APIs under /api/harbor-beacon', async () => {
     const endpointId = 'llm/local';
 

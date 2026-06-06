@@ -62,6 +62,7 @@ import {
   ModelRuntimeManagerResponse,
   NotificationTargetsResponse,
   RagReadinessResponse,
+  RoutingStatusResponse,
   RtspCheckPayload,
   RtspCheckResult,
   ShareLinkSummary,
@@ -159,6 +160,10 @@ export class HarborAssistantApiService {
 
   getHomeGuardianActivity(): Observable<HomeGuardianActivityResponse> {
     return this.http.get<HomeGuardianActivityResponse>(this.apiUrl('/home-guardian/activity'));
+  }
+
+  getRoutingStatus(): Observable<RoutingStatusResponse> {
+    return this.http.get<RoutingStatusResponse>(this.apiUrl('/routing/status'));
   }
 
   getKnowledgeSettings(): Observable<KnowledgeSettings> {

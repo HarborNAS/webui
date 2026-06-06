@@ -147,6 +147,79 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.system-tab')).not.toExist();
   });
 
+  it('shows Routing as model orchestration without exposing gateway route internals', () => {
+    api.getRoutingStatus = jest.fn(() => of({
+      kind: 'harborbeacon.routing_status.v1',
+      generated_at: 'epoch_ms:1',
+      metadata_only: true,
+      scope: 'beacon_internal_orchestration',
+      execution_routes: [
+        {
+          domain_id: 'harboros_system',
+          display_name: 'HarborOS System Domain',
+          owner_lane: 'harbor-hos-control',
+          preferred_order: ['middleware_api', 'midcli'],
+          boundary: 'system control stays separate from AIoT device-native control',
+          status: 'active',
+        },
+      ],
+      model_route_policies: [
+        {
+          route_policy_id: 'semantic.router',
+          domain_scope: 'assistant',
+          modality: 'text',
+          privacy_level: 'strict_local',
+          local_preferred: true,
+          fallback_order: ['local', 'sidecar'],
+          status: 'active',
+          cloud_allowed: false,
+          cloud_fallback_allowed: false,
+          endpoint_counts: { local: 1, sidecar: 0, cloud: 0, disabled: 0 },
+          selected_endpoint_id: 'llm-local',
+          selected_endpoint_kind: 'local',
+          blockers: [],
+        },
+      ],
+      capability_readiness: [
+        {
+          capability_id: 'semantic_router',
+          route_policy_id: 'semantic.router',
+          readiness: 'ready',
+          local_only: true,
+          selected_endpoint_id: 'llm-local',
+          blockers: [],
+        },
+      ],
+      runtimes: [{ runtime_id: 'harbor-candle', status: 'ready', enabled: true, capabilities: ['llm'] }],
+      boundaries: [
+        {
+          boundary_id: 'im_gateway_route_registry',
+          owner_lane: 'harbor-im-gateway',
+          status: 'external',
+          note: 'route_key gw_route_should_not_render',
+        },
+      ],
+      fallback_blockers: [],
+      secret_scan: 'clean',
+    }));
+
+    spectator = createComponent({
+      providers: [
+        mockProvider(ActivatedRoute, {
+          queryParamMap: of(convertToParamMap({ tab: 'settings', section: 'ai', focus: 'models' })),
+        }),
+      ],
+    });
+    spectator.detectChanges();
+
+    expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toExist();
+    expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toHaveText('Routing status');
+    expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toHaveText('HarborOS System Domain');
+    expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toHaveText('semantic.router');
+    expect(spectator.element.textContent).not.toContain('route_key');
+    expect(spectator.element.textContent).not.toContain('gw_route_should_not_render');
+  });
+
   it('renders EVT readiness diagnostics and runs preflight without long stress controls', () => {
     spectator = createComponent({
       providers: [
@@ -1832,6 +1905,19 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       cameras: [],
       latest_event_id: null,
       metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    getRoutingStatus: jest.fn(() => of({
+      kind: 'harborbeacon.routing_status.v1',
+      generated_at: 'epoch_ms:0',
+      metadata_only: true,
+      scope: 'beacon_internal_orchestration',
+      execution_routes: [],
+      model_route_policies: [],
+      capability_readiness: [],
+      runtimes: [],
+      boundaries: [],
+      fallback_blockers: [],
       secret_scan: 'clean',
     })),
     getHomeGuardianActivity: jest.fn(() => of({

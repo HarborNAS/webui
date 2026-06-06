@@ -160,6 +160,65 @@ $hd-space-5: 20px;
   gap: $hd-space-2;
 }
 
+.routing-status-grid {
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  > div {
+    border: 1px solid $hd-border-subtle;
+    border-radius: 6px;
+    min-width: 0;
+    padding: $hd-space-3;
+  }
+
+  strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+}
+
+.routing-order,
+.routing-policy-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $hd-space-2;
+  min-width: 0;
+}
+
+.routing-domain-list,
+.routing-policy-list {
+  display: grid;
+  gap: $hd-space-3;
+}
+
+.routing-domain-row,
+.routing-policy-row {
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: $hd-space-3;
+
+  h2,
+  strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.35;
+    margin: $hd-space-2 0 0;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+}
+
 .tab-panel {
   display: flex;
   flex-direction: column;
@@ -1216,6 +1275,13 @@ $hd-space-5: 20px;
 }
 
 .runtime-manager-panel {
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  margin-bottom: $hd-space-4;
+  padding: $hd-space-4;
+}
+
+.routing-status-panel {
   border: 1px solid $hd-border-subtle;
   border-radius: 8px;
   margin-bottom: $hd-space-4;

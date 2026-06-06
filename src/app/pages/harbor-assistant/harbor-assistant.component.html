@@ -652,6 +652,104 @@
               </section>
             }
 
+            <section class="ai-settings-panel routing-status-panel" data-testid="harbor-assistant-routing-status">
+              <div class="section-heading">
+                <div>
+                  <span class="field-label">{{ 'Routing status' | translate }}</span>
+                  <h2>{{ 'Platform orchestration' | translate }}</h2>
+                  <p class="muted">{{ 'Planner, domain route, model policy, and runtime readiness stay in HarborBeacon.' | translate }}</p>
+                </div>
+                @if (routingStatus(); as routing) {
+                  <span class="pill" [ngClass]="routing.secret_scan === 'clean' ? 'tone-good' : 'tone-warn'">
+                    {{ routing.scope | translate }}
+                  </span>
+                }
+              </div>
+
+              @if (endpointError('routingStatus')) {
+                <div class="notice error compact">{{ endpointErrorNotice('routingStatus') | translate }}</div>
+              }
+
+              @if (routingStatus(); as routing) {
+                <div class="routing-status-grid">
+                  <div>
+                    <span class="field-label">{{ 'Generated' | translate }}</span>
+                    <strong>{{ routing.generated_at }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Policies' | translate }}</span>
+                    <strong>{{ routingPolicyRows().length }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Runtimes' | translate }}</span>
+                    <strong>{{ routingRuntimeRows().length }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Blockers' | translate }}</span>
+                    <strong>{{ routingFallbackBlockers().length }}</strong>
+                  </div>
+                </div>
+
+                <div class="routing-domain-list">
+                  @for (route of routingExecutionRoutes(); track route.domain_id) {
+                    <article class="routing-domain-row">
+                      <div>
+                        <strong>{{ route.display_name | translate }}</strong>
+                        <p class="muted">{{ route.boundary | translate }}</p>
+                      </div>
+                      <div class="routing-order">
+                        @for (step of route.preferred_order; track step) {
+                          <span class="pill">{{ step | translate }}</span>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+
+                @if (routingPolicyRows().length) {
+                  <div class="routing-policy-list">
+                    @for (policy of routingPolicyRows(); track policy.route_policy_id) {
+                      <article class="routing-policy-row">
+                        <div>
+                          <strong>{{ policy.route_policy_id }}</strong>
+                          <p class="muted">
+                            {{ policy.domain_scope }} · {{ policy.modality }} · {{ policy.privacy_level }}
+                          </p>
+                        </div>
+                        <div class="routing-policy-meta">
+                          <span class="pill" [ngClass]="policy.blockers.length ? 'tone-warn' : 'tone-good'">
+                            {{ policy.status | translate }}
+                          </span>
+                          <span class="pill">{{ policy.selected_endpoint_kind || ('none' | translate) }}</span>
+                          <span class="pill">{{ policy.selected_endpoint_id || ('No selected endpoint' | translate) }}</span>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+
+                @if (routingCapabilityRows().length) {
+                  <div class="audit-counts">
+                    @for (capability of routingCapabilityRows(); track capability.capability_id) {
+                      <span class="pill" [ngClass]="capability.blockers.length ? 'tone-warn' : 'tone-good'">
+                        {{ capability.capability_id }} · {{ capability.readiness | translate }}
+                      </span>
+                    }
+                  </div>
+                }
+
+                @if (routingFallbackBlockers().length) {
+                  <div class="notice warn compact">
+                    @for (blocker of routingFallbackBlockers(); track blocker) {
+                      <p>{{ blocker }}</p>
+                    }
+                  </div>
+                }
+              } @else {
+                <div class="empty-state">{{ 'Routing status is unavailable.' | translate }}</div>
+              }
+            </section>
+
             <section class="ai-settings-panel model-capability-list">
               <div class="model-capability-header">
                 <span>{{ 'Capability' | translate }}</span>

@@ -98,6 +98,7 @@ import {
   NotificationTargetsResponse,
   RagReadinessComponent,
   RagReadinessResponse,
+  RoutingStatusResponse,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
@@ -130,6 +131,7 @@ interface HarborAssistantPageData {
   familyTimeline: EndpointResult<FamilyTimelineResponse>;
   familyTimelineDigest: EndpointResult<FamilyTimelineDigestResponse>;
   homeGuardianActivity: EndpointResult<HomeGuardianActivityResponse>;
+  routingStatus: EndpointResult<RoutingStatusResponse>;
   homeAssistantEntities: EndpointResult<HomeAssistantEntitiesResponse>;
   evtReadiness: EndpointResult<EvtReadinessResponse>;
   evtPreflightLatest: EndpointResult<EvtPreflightResponse>;
@@ -499,6 +501,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly familyTimeline = signal<FamilyTimelineResponse | null>(null);
   protected readonly familyTimelineDigest = signal<FamilyTimelineDigestResponse | null>(null);
   protected readonly homeGuardianActivity = signal<HomeGuardianActivityResponse | null>(null);
+  protected readonly routingStatus = signal<RoutingStatusResponse | null>(null);
   protected readonly guardianEvaluation = signal<HomeGuardianEvaluationResponse | null>(null);
   protected readonly guardianHaEntities = signal<HomeAssistantEntity[]>([]);
   protected readonly selectedGuardianHaEntityId = signal('');
@@ -796,6 +799,11 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly activeHomeGuardianRules = computed(() => this.homeGuardianRules().filter((review) => {
     return review.status === 'active' || review.status === 'paused' || review.status === 'pending' || review.status === 'draft';
   }));
+  protected readonly routingExecutionRoutes = computed(() => this.routingStatus()?.execution_routes ?? []);
+  protected readonly routingPolicyRows = computed(() => this.routingStatus()?.model_route_policies ?? []);
+  protected readonly routingCapabilityRows = computed(() => this.routingStatus()?.capability_readiness ?? []);
+  protected readonly routingRuntimeRows = computed(() => this.routingStatus()?.runtimes ?? []);
+  protected readonly routingFallbackBlockers = computed(() => this.routingStatus()?.fallback_blockers ?? []);
   protected readonly safeGuardianHaEntities = computed(() => this.guardianHaEntities().filter((entity) => {
     return ['light', 'switch', 'input_boolean', 'scene'].includes(entity.domain);
   }));
@@ -4232,6 +4240,7 @@ export class HarborAssistantComponent implements OnInit {
         familyTimeline: this.result('family-timeline', this.harborAssistantApi.getFamilyTimeline()),
         familyTimelineDigest: this.result('family-timeline-digest', this.harborAssistantApi.getFamilyTimelineDigest()),
         homeGuardianActivity: this.result('home-guardian-activity', this.harborAssistantApi.getHomeGuardianActivity()),
+        routingStatus: this.result('routing-status', this.harborAssistantApi.getRoutingStatus()),
         homeAssistantEntities: this.result('home-assistant-entities', this.harborAssistantApi.getHomeAssistantEntities()),
         evtReadiness: this.result('evt-readiness', this.harborAssistantApi.getEvtReadiness()),
         evtPreflightLatest: this.result('evt-preflight-latest', this.harborAssistantApi.getEvtPreflightLatest()),
@@ -4275,6 +4284,7 @@ export class HarborAssistantComponent implements OnInit {
             familyTimeline: payload.familyTimeline,
             familyTimelineDigest: payload.familyTimelineDigest,
             homeGuardianActivity: payload.homeGuardianActivity,
+            routingStatus: payload.routingStatus,
             homeAssistantEntities: payload.homeAssistantEntities,
             evtReadiness: payload.evtReadiness,
             evtPreflightLatest: payload.evtPreflightLatest,
@@ -4386,6 +4396,7 @@ export class HarborAssistantComponent implements OnInit {
     this.familyTimeline.set(pageData.familyTimeline.data);
     this.familyTimelineDigest.set(pageData.familyTimelineDigest.data);
     this.homeGuardianActivity.set(pageData.homeGuardianActivity.data);
+    this.routingStatus.set(pageData.routingStatus.data);
     this.guardianHaEntities.set(pageData.homeAssistantEntities.data?.entities ?? []);
     this.ensureGuardianHaEntitySelection();
     this.evtReadiness.set(pageData.evtReadiness.data);
@@ -4419,6 +4430,7 @@ export class HarborAssistantComponent implements OnInit {
         familyTimeline: pageData.familyTimeline.error,
         familyTimelineDigest: pageData.familyTimelineDigest.error,
         homeGuardianActivity: pageData.homeGuardianActivity.error,
+        routingStatus: pageData.routingStatus.error,
         homeAssistantEntities: pageData.homeAssistantEntities.error,
         evtReadiness: pageData.evtReadiness.error,
         evtPreflightLatest: pageData.evtPreflightLatest.error,
@@ -4466,6 +4478,7 @@ export class HarborAssistantComponent implements OnInit {
     this.familyTimeline.set(null);
     this.familyTimelineDigest.set(null);
     this.homeGuardianActivity.set(null);
+    this.routingStatus.set(null);
     this.guardianEvaluation.set(null);
     this.guardianHaEntities.set([]);
     this.selectedGuardianHaEntityId.set('');

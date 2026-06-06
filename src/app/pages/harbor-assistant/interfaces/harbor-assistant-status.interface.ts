@@ -746,6 +746,75 @@ export interface HomeGuardianEvaluationResponse {
   secret_scan: string;
 }
 
+export interface RoutingEndpointKindCounts {
+  local: number;
+  sidecar: number;
+  cloud: number;
+  disabled: number;
+}
+
+export interface RoutingExecutionRoute {
+  domain_id: string;
+  display_name: string;
+  owner_lane: string;
+  preferred_order: string[];
+  boundary: string;
+  status: string;
+}
+
+export interface RoutingModelRoutePolicy {
+  route_policy_id: string;
+  domain_scope: string;
+  modality: string;
+  privacy_level: string;
+  local_preferred: boolean;
+  fallback_order: string[];
+  status: string;
+  cloud_allowed: boolean;
+  cloud_fallback_allowed: boolean;
+  endpoint_counts: RoutingEndpointKindCounts;
+  selected_endpoint_id?: string | null;
+  selected_endpoint_kind?: string | null;
+  blockers: string[];
+}
+
+export interface RoutingCapabilityReadiness {
+  capability_id: string;
+  route_policy_id: string;
+  readiness: string;
+  local_only: boolean;
+  selected_endpoint_id?: string | null;
+  blockers: string[];
+}
+
+export interface RoutingRuntimeProjection {
+  runtime_id: string;
+  status: string;
+  enabled: boolean;
+  capabilities: string[];
+}
+
+export interface RoutingBoundaryProjection {
+  boundary_id: string;
+  owner_lane: string;
+  status: string;
+  note: string;
+}
+
+export interface RoutingStatusResponse {
+  kind: string;
+  generated_at: string;
+  metadata_only: boolean;
+  scope: string;
+  execution_routes: RoutingExecutionRoute[];
+  model_route_policies: RoutingModelRoutePolicy[];
+  capability_readiness: RoutingCapabilityReadiness[];
+  runtimes: RoutingRuntimeProjection[];
+  boundaries: RoutingBoundaryProjection[];
+  fallback_blockers: string[];
+  secret_scan: string;
+}
+
 export interface ModelEndpointRecord {
   model_endpoint_id: string;
   workspace_id?: string | null;
