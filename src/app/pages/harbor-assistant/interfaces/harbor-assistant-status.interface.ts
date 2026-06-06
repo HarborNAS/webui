@@ -815,6 +815,39 @@ export interface RoutingStatusResponse {
   secret_scan: string;
 }
 
+export interface AuditRecord {
+  audit_id: string;
+  workspace_id: string;
+  entity_kind: string;
+  entity_id: string;
+  action: string;
+  actor_kind: string;
+  actor_id: string;
+  request_snapshot: Record<string, unknown>;
+  result_snapshot: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface AuditRecordsResponse {
+  records: AuditRecord[];
+  total: number;
+  limit: number;
+  cursor?: string | null;
+  next_cursor?: string | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface AuditSummaryResponse {
+  total: number;
+  window: string;
+  by_entity_kind: Record<string, number>;
+  by_action: Record<string, number>;
+  by_actor_kind: Record<string, number>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
 export interface ModelEndpointRecord {
   model_endpoint_id: string;
   workspace_id?: string | null;

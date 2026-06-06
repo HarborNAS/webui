@@ -220,6 +220,106 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('gw_route_should_not_render');
   });
 
+  it('shows Audit as governance metadata without rendering snapshots or secrets', () => {
+    api.getAuditSummary = jest.fn(() => of({
+      total: 1,
+      window: '24h',
+      by_entity_kind: { home_guardian: 1 },
+      by_action: { evaluate_latest: 1 },
+      by_actor_kind: { user: 1 },
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+    api.getAuditRecords = jest.fn((limit = 12, cursor: string | null = null, filters: Record<string, string> = {}) => of({
+      records: [
+        {
+          audit_id: cursor === '1' ? 'audit-page-2' : 'audit-1',
+          workspace_id: 'home-1',
+          entity_kind: filters.entity_kind || 'home_guardian',
+          entity_id: filters.entity_id || 'C:\\secret\\camera-frame.jpg',
+          action: filters.action || 'evaluate_latest',
+          actor_kind: 'user',
+          actor_id: 'local-admin',
+          request_snapshot: { route_key: 'gw_route_should_not_render', token: 'secret-token' },
+          result_snapshot: { raw_path: '/mnt/pool/private/frame.jpg', secret_scan: 'clean' },
+          created_at: cursor === '1' ? 'epoch_ms:3' : 'epoch_ms:2',
+        },
+      ],
+      total: 2,
+      limit,
+      cursor,
+      next_cursor: cursor === '1' ? null : '1',
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      auditFilterForm: { patchValue: (value: Record<string, string>) => void };
+      toggleRulesDrawer: () => void;
+      applyAuditFilters: () => void;
+      nextAuditPage: () => void;
+      previousAuditPage: () => void;
+      resetAuditFilters: () => void;
+    };
+    component.toggleRulesDrawer();
+    spectator.detectChanges();
+
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toExist();
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('Audit stream');
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('evaluate_latest');
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('metadata only');
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('Audit ID');
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('Workspace');
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('redacted');
+    expect(spectator.element.textContent).not.toContain('route_key');
+    expect(spectator.element.textContent).not.toContain('request_snapshot');
+    expect(spectator.element.textContent).not.toContain('result_snapshot');
+    expect(spectator.element.textContent).not.toContain('gw_route_should_not_render');
+    expect(spectator.element.textContent).not.toContain('secret-token');
+    expect(spectator.element.textContent).not.toContain('/mnt/pool/private');
+    expect(spectator.element.textContent).not.toContain('C:\\secret');
+
+    component.auditFilterForm.patchValue({
+      entityKind: 'home_guardian',
+      action: 'home_guardian.evaluate_latest',
+      entityId: 'rule-front',
+      limit: '25',
+    });
+    component.applyAuditFilters();
+    spectator.detectChanges();
+
+    expect(api.getAuditRecords).toHaveBeenLastCalledWith(25, null, {
+      entity_kind: 'home_guardian',
+      entity_id: 'rule-front',
+      action: 'home_guardian.evaluate_latest',
+    });
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('audit-1');
+
+    component.nextAuditPage();
+    spectator.detectChanges();
+    expect(api.getAuditRecords).toHaveBeenLastCalledWith(25, '1', {
+      entity_kind: 'home_guardian',
+      entity_id: 'rule-front',
+      action: 'home_guardian.evaluate_latest',
+    });
+    expect(spectator.query('[data-testid="harbor-assistant-audit-stream"]')).toHaveText('audit-page-2');
+
+    component.previousAuditPage();
+    spectator.detectChanges();
+    expect(api.getAuditRecords).toHaveBeenLastCalledWith(25, null, {
+      entity_kind: 'home_guardian',
+      entity_id: 'rule-front',
+      action: 'home_guardian.evaluate_latest',
+    });
+
+    component.resetAuditFilters();
+    spectator.detectChanges();
+    expect(api.getAuditRecords).toHaveBeenLastCalledWith(12, null, {});
+    expect(spectator.element.textContent).not.toContain('secret-token');
+    expect(spectator.element.textContent).not.toContain('/mnt/pool/private');
+  });
+
   it('renders EVT readiness diagnostics and runs preflight without long stress controls', () => {
     spectator = createComponent({
       providers: [
@@ -1918,6 +2018,23 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       runtimes: [],
       boundaries: [],
       fallback_blockers: [],
+      secret_scan: 'clean',
+    })),
+    getAuditRecords: jest.fn(() => of({
+      records: [],
+      total: 0,
+      limit: 12,
+      next_cursor: null,
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    getAuditSummary: jest.fn(() => of({
+      total: 0,
+      window: '24h',
+      by_entity_kind: {},
+      by_action: {},
+      by_actor_kind: {},
+      metadata_only: true,
       secret_scan: 'clean',
     })),
     getHomeGuardianActivity: jest.fn(() => of({

@@ -6,6 +6,8 @@ import { catchError, map } from 'rxjs/operators';
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
+  AuditRecordsResponse,
+  AuditSummaryResponse,
   AutomationReviewPayload,
   AutomationReviewsResponse,
   DeviceCredentialStatus,
@@ -164,6 +166,31 @@ export class HarborAssistantApiService {
 
   getRoutingStatus(): Observable<RoutingStatusResponse> {
     return this.http.get<RoutingStatusResponse>(this.apiUrl('/routing/status'));
+  }
+
+  getAuditRecords(
+    limit = 50,
+    cursor?: string | null,
+    filters: { entity_kind?: string; entity_id?: string; action?: string } = {},
+  ): Observable<AuditRecordsResponse> {
+    const query = [`limit=${encodeURIComponent(String(limit))}`];
+    if (cursor) {
+      query.push(`cursor=${encodeURIComponent(cursor)}`);
+    }
+    if (filters.entity_kind) {
+      query.push(`entity_kind=${encodeURIComponent(filters.entity_kind)}`);
+    }
+    if (filters.entity_id) {
+      query.push(`entity_id=${encodeURIComponent(filters.entity_id)}`);
+    }
+    if (filters.action) {
+      query.push(`action=${encodeURIComponent(filters.action)}`);
+    }
+    return this.http.get<AuditRecordsResponse>(this.apiUrl(`/audit/records?${query.join('&')}`));
+  }
+
+  getAuditSummary(window = '24h'): Observable<AuditSummaryResponse> {
+    return this.http.get<AuditSummaryResponse>(this.apiUrl(`/audit/summary?window=${encodeURIComponent(window)}`));
   }
 
   getKnowledgeSettings(): Observable<KnowledgeSettings> {

@@ -130,6 +130,157 @@
             }
           </div>
         }
+
+        <mat-divider></mat-divider>
+        <section class="audit-stream-panel" data-testid="harbor-assistant-audit-stream">
+          <div class="section-heading">
+            <div>
+              <h2>{{ 'Audit stream' | translate }}</h2>
+              <p class="muted">{{ 'Append-only governance records, shown as metadata only.' | translate }}</p>
+            </div>
+            @if (auditSummary(); as summary) {
+              <span class="pill" [ngClass]="summary.secret_scan === 'clean' ? 'tone-good' : 'tone-warn'">
+                {{ summary.total }} {{ 'records' | translate }}
+              </span>
+            }
+          </div>
+
+          @if (endpointError('auditRecords') || endpointError('auditSummary')) {
+            <div class="notice error compact">
+              {{ endpointErrorNotice(endpointError('auditRecords') ? 'auditRecords' : 'auditSummary') | translate }}
+            </div>
+          }
+
+          <form class="audit-filter-form" [formGroup]="auditFilterForm" (ngSubmit)="applyAuditFilters()">
+            <mat-form-field>
+              <mat-label>{{ 'Entity kind' | translate }}</mat-label>
+              <mat-select formControlName="entityKind">
+                @for (option of auditEntityKindOptions(); track option.value) {
+                  <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Action' | translate }}</mat-label>
+              <mat-select formControlName="action">
+                @for (option of auditActionOptions(); track option.value) {
+                  <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Entity id' | translate }}</mat-label>
+              <input matInput formControlName="entityId" autocomplete="off" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Limit' | translate }}</mat-label>
+              <mat-select formControlName="limit">
+                @for (option of auditLimitOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <div class="audit-filter-actions">
+              <button mat-button color="primary" type="submit" [disabled]="actionBusy('audit-records')">
+                {{ actionBusy('audit-records') ? ('Refreshing' | translate) : ('Apply' | translate) }}
+              </button>
+              <button mat-button type="button" [disabled]="actionBusy('audit-records')" (click)="resetAuditFilters()">
+                {{ 'Reset' | translate }}
+              </button>
+            </div>
+          </form>
+
+          @if (auditSummary(); as summary) {
+            <div class="audit-summary-grid">
+              <div>
+                <span class="field-label">{{ 'Window' | translate }}</span>
+                <strong>{{ summary.window }}</strong>
+              </div>
+              <div>
+                <span class="field-label">{{ 'Metadata' | translate }}</span>
+                <strong>{{ summary.metadata_only ? ('metadata only' | translate) : ('unknown' | translate) }}</strong>
+              </div>
+              <div>
+                <span class="field-label">{{ 'Secret scan' | translate }}</span>
+                <strong>{{ summary.secret_scan | translate }}</strong>
+              </div>
+            </div>
+          }
+
+          @if (auditRecordsResponse(); as page) {
+            <div class="audit-pagination-row">
+              <span class="muted">
+                {{ page.total }} {{ 'records' | translate }} · {{ 'Limit' | translate }} {{ page.limit }}
+              </span>
+              <div class="row-actions">
+                <button mat-button type="button" [disabled]="!auditHasPreviousPage() || actionBusy('audit-records')" (click)="previousAuditPage()">
+                  {{ 'Previous' | translate }}
+                </button>
+                <button mat-button type="button" [disabled]="!auditHasNextPage() || actionBusy('audit-records')" (click)="nextAuditPage()">
+                  {{ 'Next' | translate }}
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (auditActionEntries().length || auditEntityEntries().length) {
+            <div class="audit-counts">
+              @for (entry of auditActionEntries(); track entry.label) {
+                <span class="pill">{{ entry.label }} · {{ entry.count }}</span>
+              }
+              @for (entry of auditEntityEntries(); track entry.label) {
+                <span class="pill muted-pill">{{ entry.label }} · {{ entry.count }}</span>
+              }
+            </div>
+          }
+
+          @if (auditRecords().length === 0) {
+            <div class="empty-state">{{ 'No audit records yet.' | translate }}</div>
+          } @else {
+            <div class="audit-record-list">
+              @for (record of auditRecords(); track record.audit_id) {
+                <article class="audit-record-row">
+                  <div>
+                    <div class="rule-review-meta">
+                      <span class="pill">{{ record.actor_kind | translate }}</span>
+                      <span class="pill">{{ record.created_at || ('unknown' | translate) }}</span>
+                      <span class="pill">{{ 'metadata only' | translate }}</span>
+                      <span class="pill">{{ 'Secret scan' | translate }}: {{ auditRecordsResponse()?.secret_scan || 'clean' }}</span>
+                    </div>
+                    <h2>{{ record.action | translate }}</h2>
+                    <p class="muted">{{ auditRecordEntity(record) | translate }}</p>
+                    <div class="audit-metadata-grid">
+                      <div>
+                        <span class="field-label">{{ 'Audit ID' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.audit_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Workspace' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.workspace_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Entity kind' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.entity_kind) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Entity id' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.entity_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Actor' | translate }}</span>
+                        <strong>{{ record.actor_kind | translate }} · {{ safeMetadataLabel(record.actor_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Created' | translate }}</span>
+                        <strong>{{ record.created_at || ('unknown' | translate) }}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </section>
       </mat-card-content>
     </mat-card>
   }

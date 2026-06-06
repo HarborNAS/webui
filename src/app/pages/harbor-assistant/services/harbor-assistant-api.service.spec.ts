@@ -439,8 +439,7 @@ describe('Harbor Assistant API service', () => {
     expect((await evaluatePromise).secret_scan).toBe('clean');
   });
 
-
-  it('keeps Routing API as a same-origin Beacon surface', async () => {
+  it('keeps Routing and Audit APIs as separate same-origin Beacon surfaces', async () => {
     const routingPromise = firstValueFrom(spectator.service.getRoutingStatus());
     const routingReq = httpMock.expectOne('/api/harbor-beacon/routing/status');
     expect(routingReq.request.method).toBe('GET');
@@ -459,6 +458,38 @@ describe('Harbor Assistant API service', () => {
       secret_scan: 'clean',
     });
     expect((await routingPromise).scope).toBe('beacon_internal_orchestration');
+
+    const recordsPromise = firstValueFrom(spectator.service.getAuditRecords(20, '5', {
+      entity_kind: 'home_guardian',
+      action: 'evaluate_latest',
+    }));
+    const recordsReq = httpMock.expectOne('/api/harbor-beacon/audit/records?limit=20&cursor=5&entity_kind=home_guardian&action=evaluate_latest');
+    expect(recordsReq.request.method).toBe('GET');
+    expect(recordsReq.request.url).not.toContain('routing');
+    recordsReq.flush({
+      records: [],
+      total: 0,
+      limit: 20,
+      cursor: '5',
+      next_cursor: null,
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await recordsPromise).metadata_only).toBe(true);
+
+    const summaryPromise = firstValueFrom(spectator.service.getAuditSummary('24h'));
+    const summaryReq = httpMock.expectOne('/api/harbor-beacon/audit/summary?window=24h');
+    expect(summaryReq.request.method).toBe('GET');
+    summaryReq.flush({
+      total: 1,
+      window: '24h',
+      by_entity_kind: { home_guardian: 1 },
+      by_action: { evaluate_latest: 1 },
+      by_actor_kind: { user: 1 },
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await summaryPromise).secret_scan).toBe('clean');
   });
 
   it('keeps model management APIs under /api/harbor-beacon', async () => {

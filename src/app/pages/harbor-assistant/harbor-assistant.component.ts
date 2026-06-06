@@ -35,6 +35,9 @@ import {
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
+  AuditRecord,
+  AuditRecordsResponse,
+  AuditSummaryResponse,
   AutomationRuleReview,
   AutomationReviewsResponse,
   CameraDevice,
@@ -132,6 +135,8 @@ interface HarborAssistantPageData {
   familyTimelineDigest: EndpointResult<FamilyTimelineDigestResponse>;
   homeGuardianActivity: EndpointResult<HomeGuardianActivityResponse>;
   routingStatus: EndpointResult<RoutingStatusResponse>;
+  auditRecords: EndpointResult<AuditRecordsResponse>;
+  auditSummary: EndpointResult<AuditSummaryResponse>;
   homeAssistantEntities: EndpointResult<HomeAssistantEntitiesResponse>;
   evtReadiness: EndpointResult<EvtReadinessResponse>;
   evtPreflightLatest: EndpointResult<EvtPreflightResponse>;
@@ -175,6 +180,11 @@ interface EventIntelligenceStatusCard {
   status: string;
   detail: string;
   tone: HarborAssistantStatusTone;
+}
+
+interface CountEntry {
+  label: string;
+  count: number;
 }
 
 type CustomerModelSection = 'downloading' | 'installed' | 'available';
@@ -502,6 +512,10 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly familyTimelineDigest = signal<FamilyTimelineDigestResponse | null>(null);
   protected readonly homeGuardianActivity = signal<HomeGuardianActivityResponse | null>(null);
   protected readonly routingStatus = signal<RoutingStatusResponse | null>(null);
+  protected readonly auditRecordsResponse = signal<AuditRecordsResponse | null>(null);
+  protected readonly auditSummary = signal<AuditSummaryResponse | null>(null);
+  protected readonly auditPageCursor = signal<string | null>(null);
+  protected readonly auditPreviousCursors = signal<(string | null)[]>([]);
   protected readonly guardianEvaluation = signal<HomeGuardianEvaluationResponse | null>(null);
   protected readonly guardianHaEntities = signal<HomeAssistantEntity[]>([]);
   protected readonly selectedGuardianHaEntityId = signal('');
@@ -576,6 +590,12 @@ export class HarborAssistantComponent implements OnInit {
     { label: T('Use cloud API for selected capabilities'), value: 'selected_capabilities' },
   ];
 
+  protected readonly auditLimitOptions: ProtocolOption[] = [
+    { label: '12', value: '12' },
+    { label: '25', value: '25' },
+    { label: '50', value: '50' },
+  ];
+
   protected readonly dvrSegmentOptions: ProtocolOption[] = [
     { label: T('30 seconds'), value: '30' },
     { label: T('1 minute'), value: '60' },
@@ -597,6 +617,13 @@ export class HarborAssistantComponent implements OnInit {
 
   protected readonly ruleDraftForm = this.fb.group({
     prompt: ['', Validators.required],
+  });
+
+  protected readonly auditFilterForm = this.fb.group({
+    entityKind: [''],
+    action: [''],
+    entityId: [''],
+    limit: ['12'],
   });
 
   protected readonly manualForm = this.fb.group({
@@ -804,6 +831,19 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly routingCapabilityRows = computed(() => this.routingStatus()?.capability_readiness ?? []);
   protected readonly routingRuntimeRows = computed(() => this.routingStatus()?.runtimes ?? []);
   protected readonly routingFallbackBlockers = computed(() => this.routingStatus()?.fallback_blockers ?? []);
+  protected readonly auditRecords = computed(() => this.auditRecordsResponse()?.records ?? []);
+  protected readonly auditActionEntries = computed(() => this.countEntries(this.auditSummary()?.by_action));
+  protected readonly auditEntityEntries = computed(() => this.countEntries(this.auditSummary()?.by_entity_kind));
+  protected readonly auditActionOptions = computed(() => this.buildAuditFilterOptions(
+    this.auditSummary()?.by_action,
+    this.auditRecords().map((record) => record.action),
+  ));
+  protected readonly auditEntityKindOptions = computed(() => this.buildAuditFilterOptions(
+    this.auditSummary()?.by_entity_kind,
+    this.auditRecords().map((record) => record.entity_kind),
+  ));
+  protected readonly auditHasNextPage = computed(() => Boolean(this.auditRecordsResponse()?.next_cursor));
+  protected readonly auditHasPreviousPage = computed(() => this.auditPreviousCursors().length > 0);
   protected readonly safeGuardianHaEntities = computed(() => this.guardianHaEntities().filter((entity) => {
     return ['light', 'switch', 'input_boolean', 'scene'].includes(entity.domain);
   }));
@@ -929,6 +969,41 @@ export class HarborAssistantComponent implements OnInit {
 
   protected toggleRulesDrawer(): void {
     this.rulesDrawerOpen.set(!this.rulesDrawerOpen());
+  }
+
+  protected applyAuditFilters(): void {
+    this.auditPreviousCursors.set([]);
+    this.fetchAuditRecords(null);
+  }
+
+  protected resetAuditFilters(): void {
+    this.auditFilterForm.reset({
+      entityKind: '',
+      action: '',
+      entityId: '',
+      limit: '12',
+    });
+    this.auditPreviousCursors.set([]);
+    this.fetchAuditRecords(null);
+  }
+
+  protected nextAuditPage(): void {
+    const nextCursor = this.auditRecordsResponse()?.next_cursor ?? null;
+    if (!nextCursor || this.actionBusy('audit-records')) {
+      return;
+    }
+    this.auditPreviousCursors.set([...this.auditPreviousCursors(), this.auditPageCursor()]);
+    this.fetchAuditRecords(nextCursor);
+  }
+
+  protected previousAuditPage(): void {
+    const cursors = this.auditPreviousCursors();
+    if (cursors.length === 0 || this.actionBusy('audit-records')) {
+      return;
+    }
+    const previousCursor = cursors[cursors.length - 1] ?? null;
+    this.auditPreviousCursors.set(cursors.slice(0, -1));
+    this.fetchAuditRecords(previousCursor);
   }
 
   protected saveRuleDraft(): void {
@@ -2901,6 +2976,9 @@ export class HarborAssistantComponent implements OnInit {
         return T('Family Timeline could not refresh. Latest cached timeline is shown.');
       case 'homeGuardianActivity':
         return T('Home Guardian activity could not refresh. Latest cached activity is shown.');
+      case 'auditRecords':
+      case 'auditSummary':
+        return T('Audit records could not refresh. Latest cached records are shown.');
       case 'evtReadiness':
       case 'evtPreflightLatest':
       case 'evtEvidenceBundle':
@@ -3117,6 +3195,105 @@ export class HarborAssistantComponent implements OnInit {
 
   protected capabilitiesByClass(capabilityClass: string): HarborOsImCapabilityItem[] {
     return (this.capabilityMap()?.items ?? []).filter((item) => item.capability_class === capabilityClass);
+  }
+
+  protected auditRecordEntity(record: AuditRecord): string {
+    const entityId = this.safeMetadataLabel(record.entity_id);
+    return entityId ? `${record.entity_kind} · ${entityId}` : record.entity_kind;
+  }
+
+  protected safeMetadataLabel(value?: string | null): string {
+    const trimmed = (value ?? '').trim();
+    if (!trimmed) {
+      return T('unknown');
+    }
+    const lower = trimmed.toLowerCase();
+    if (
+      lower.includes('route_key')
+      || lower.includes('secret')
+      || lower.includes('token')
+      || lower.includes('session')
+      || lower.includes('rtsp://')
+      || lower.includes('/mnt/')
+      || /^[a-z]:\\/i.test(trimmed)
+      || lower.startsWith('route/')
+    ) {
+      return T('redacted');
+    }
+    return trimmed.length > 48 ? `...${trimmed.slice(-16)}` : trimmed;
+  }
+
+  private fetchAuditRecords(cursor: string | null): void {
+    this.actionInProgress.set('audit-records');
+    this.actionError.set(null);
+    this.harborAssistantApi.getAuditRecords(
+      this.auditRecordLimit(),
+      cursor,
+      this.auditRecordFilters(),
+    ).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        this.auditRecordsResponse.set(response);
+        this.auditPageCursor.set(response.cursor ?? null);
+        this.mergeEndpointErrors({ auditRecords: null });
+      },
+      error: (error: unknown) => {
+        const message = `audit-records: ${this.getErrorMessage(error)}`;
+        this.mergeEndpointErrors({ auditRecords: message });
+        this.actionError.set(this.getErrorMessage(error));
+      },
+    });
+  }
+
+  private auditRecordLimit(): number {
+    const parsed = Number(this.auditFilterForm.controls.limit.value);
+    return [12, 25, 50].includes(parsed) ? parsed : 12;
+  }
+
+  private auditRecordFilters(): { entity_kind?: string; entity_id?: string; action?: string } {
+    const value = this.auditFilterForm.getRawValue();
+    const filters: { entity_kind?: string; entity_id?: string; action?: string } = {};
+    const entityKind = value.entityKind.trim();
+    const entityId = value.entityId.trim();
+    const action = value.action.trim();
+    if (entityKind) {
+      filters.entity_kind = entityKind;
+    }
+    if (entityId) {
+      filters.entity_id = entityId;
+    }
+    if (action) {
+      filters.action = action;
+    }
+    return filters;
+  }
+
+  private buildAuditFilterOptions(
+    counts?: Record<string, number> | null,
+    currentValues: string[] = [],
+  ): ProtocolOption[] {
+    const values = new Set<string>();
+    Object.keys(counts ?? {}).forEach((value) => values.add(value));
+    currentValues.forEach((value) => {
+      if (value) {
+        values.add(value);
+      }
+    });
+    return [
+      { label: T('All'), value: '' },
+      ...Array.from(values)
+        .sort((left, right) => left.localeCompare(right))
+        .map((value) => ({ label: value, value })),
+    ];
+  }
+
+  private countEntries(counts?: Record<string, number> | null): CountEntry[] {
+    return Object.entries(counts ?? {})
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => right.count - left.count || left.label.localeCompare(right.label))
+      .slice(0, 5);
   }
 
   protected isCancelableJob(job: LocalModelDownloadJob): boolean {
@@ -4241,6 +4418,12 @@ export class HarborAssistantComponent implements OnInit {
         familyTimelineDigest: this.result('family-timeline-digest', this.harborAssistantApi.getFamilyTimelineDigest()),
         homeGuardianActivity: this.result('home-guardian-activity', this.harborAssistantApi.getHomeGuardianActivity()),
         routingStatus: this.result('routing-status', this.harborAssistantApi.getRoutingStatus()),
+        auditRecords: this.result('audit-records', this.harborAssistantApi.getAuditRecords(
+          this.auditRecordLimit(),
+          this.auditPageCursor(),
+          this.auditRecordFilters(),
+        )),
+        auditSummary: this.result('audit-summary', this.harborAssistantApi.getAuditSummary('24h')),
         homeAssistantEntities: this.result('home-assistant-entities', this.harborAssistantApi.getHomeAssistantEntities()),
         evtReadiness: this.result('evt-readiness', this.harborAssistantApi.getEvtReadiness()),
         evtPreflightLatest: this.result('evt-preflight-latest', this.harborAssistantApi.getEvtPreflightLatest()),
@@ -4285,6 +4468,8 @@ export class HarborAssistantComponent implements OnInit {
             familyTimelineDigest: payload.familyTimelineDigest,
             homeGuardianActivity: payload.homeGuardianActivity,
             routingStatus: payload.routingStatus,
+            auditRecords: payload.auditRecords,
+            auditSummary: payload.auditSummary,
             homeAssistantEntities: payload.homeAssistantEntities,
             evtReadiness: payload.evtReadiness,
             evtPreflightLatest: payload.evtPreflightLatest,
@@ -4397,6 +4582,9 @@ export class HarborAssistantComponent implements OnInit {
     this.familyTimelineDigest.set(pageData.familyTimelineDigest.data);
     this.homeGuardianActivity.set(pageData.homeGuardianActivity.data);
     this.routingStatus.set(pageData.routingStatus.data);
+    this.auditRecordsResponse.set(pageData.auditRecords.data);
+    this.auditPageCursor.set(pageData.auditRecords.data?.cursor ?? null);
+    this.auditSummary.set(pageData.auditSummary.data);
     this.guardianHaEntities.set(pageData.homeAssistantEntities.data?.entities ?? []);
     this.ensureGuardianHaEntitySelection();
     this.evtReadiness.set(pageData.evtReadiness.data);
@@ -4431,6 +4619,8 @@ export class HarborAssistantComponent implements OnInit {
         familyTimelineDigest: pageData.familyTimelineDigest.error,
         homeGuardianActivity: pageData.homeGuardianActivity.error,
         routingStatus: pageData.routingStatus.error,
+        auditRecords: pageData.auditRecords.error,
+        auditSummary: pageData.auditSummary.error,
         homeAssistantEntities: pageData.homeAssistantEntities.error,
         evtReadiness: pageData.evtReadiness.error,
         evtPreflightLatest: pageData.evtPreflightLatest.error,
@@ -4479,6 +4669,10 @@ export class HarborAssistantComponent implements OnInit {
     this.familyTimelineDigest.set(null);
     this.homeGuardianActivity.set(null);
     this.routingStatus.set(null);
+    this.auditRecordsResponse.set(null);
+    this.auditSummary.set(null);
+    this.auditPageCursor.set(null);
+    this.auditPreviousCursors.set([]);
     this.guardianEvaluation.set(null);
     this.guardianHaEntities.set([]);
     this.selectedGuardianHaEntityId.set('');
