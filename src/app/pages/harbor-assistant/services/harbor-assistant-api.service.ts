@@ -24,6 +24,10 @@ import {
   EvtEvidenceBundleResponse,
   EvtPreflightResponse,
   EvtReadinessResponse,
+  FamilyMemoryEventsResponse,
+  FamilyMemoryFeedbackPayload,
+  FamilyMemoryFeedbackResponse,
+  FamilyMemoryStats,
   FamilyTimelineDigestResponse,
   FamilyTimelineResponse,
   FilesBrowseResponse,
@@ -160,6 +164,45 @@ export class HarborAssistantApiService {
 
   getFamilyTimelineDigest(): Observable<FamilyTimelineDigestResponse> {
     return this.http.get<FamilyTimelineDigestResponse>(this.apiUrl('/family/timeline/digest'));
+  }
+
+  getFamilyMemoryEvents(params: {
+    include_hidden?: boolean;
+    favorites_only?: boolean;
+    hidden_only?: boolean;
+    corrected_only?: boolean;
+    limit?: number;
+  } = {}): Observable<FamilyMemoryEventsResponse> {
+    const query = new URLSearchParams();
+    const limit = params.limit ?? 50;
+    query.set('limit', String(limit));
+    if (params.include_hidden) {
+      query.set('include_hidden', 'true');
+    }
+    if (params.favorites_only) {
+      query.set('favorites_only', 'true');
+    }
+    if (params.hidden_only) {
+      query.set('hidden_only', 'true');
+    }
+    if (params.corrected_only) {
+      query.set('corrected_only', 'true');
+    }
+    return this.http.get<FamilyMemoryEventsResponse>(this.apiUrl(`/family/memory/events?${query.toString()}`));
+  }
+
+  getFamilyMemoryStats(): Observable<FamilyMemoryStats> {
+    return this.http.get<FamilyMemoryStats>(this.apiUrl('/family/memory/stats'));
+  }
+
+  submitFamilyMemoryFeedback(
+    eventId: string,
+    payload: FamilyMemoryFeedbackPayload,
+  ): Observable<FamilyMemoryFeedbackResponse> {
+    return this.http.post<FamilyMemoryFeedbackResponse>(
+      this.apiUrl(`/family/memory/events/${encodeURIComponent(eventId)}/feedback`),
+      payload,
+    );
   }
 
   getHomeGuardianActivity(): Observable<HomeGuardianActivityResponse> {

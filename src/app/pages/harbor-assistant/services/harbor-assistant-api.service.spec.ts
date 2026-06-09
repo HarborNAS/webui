@@ -190,6 +190,68 @@ describe('Harbor Assistant API service', () => {
       secret_scan: 'clean',
     });
     expect((await digestPromise).secret_scan).toBe('clean');
+
+    const memoryPromise = firstValueFrom(spectator.service.getFamilyMemoryEvents({
+      include_hidden: true,
+      hidden_only: true,
+      limit: 12,
+    }));
+    const memoryReq = httpMock.expectOne(
+      '/api/harbor-beacon/family/memory/events?limit=12&include_hidden=true&hidden_only=true',
+    );
+    expect(memoryReq.request.method).toBe('GET');
+    memoryReq.flush({
+      generated_at: 'epoch_ms:4',
+      limit: 12,
+      metadata_only: true,
+      secret_scan: 'clean',
+      memory_overlay: {
+        generated_at: 'epoch_ms:4',
+        total_feedback_records: 0,
+        event_count: 0,
+        confirmed_count: 0,
+        favorite_count: 0,
+        hidden_count: 0,
+        corrected_count: 0,
+        bounded_limit: 5000,
+        metadata_only: true,
+        secret_scan: 'clean',
+      },
+      events: [],
+    });
+    expect((await memoryPromise).secret_scan).toBe('clean');
+
+    const feedbackPromise = firstValueFrom(spectator.service.submitFamilyMemoryFeedback('event/latest', {
+      action: 'correct_summary',
+      corrected_summary: 'delivery arrived',
+    }));
+    const feedbackReq = httpMock.expectOne('/api/harbor-beacon/family/memory/events/event%2Flatest/feedback');
+    expect(feedbackReq.request.method).toBe('POST');
+    expect(feedbackReq.request.body).toEqual({
+      action: 'correct_summary',
+      corrected_summary: 'delivery arrived',
+    });
+    feedbackReq.flush({
+      status: 'stored',
+      event_id: 'event/latest',
+      feedback: {},
+      memory_overlay: {
+        generated_at: 'epoch_ms:5',
+        total_feedback_records: 1,
+        event_count: 1,
+        confirmed_count: 0,
+        favorite_count: 0,
+        hidden_count: 0,
+        corrected_count: 1,
+        bounded_limit: 5000,
+        metadata_only: true,
+        secret_scan: 'clean',
+      },
+      evidence: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await feedbackPromise).status).toBe('stored');
   });
 
   it('does not send credential reads or secrets to HarborGate paths', async () => {

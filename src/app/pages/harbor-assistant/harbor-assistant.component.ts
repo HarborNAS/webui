@@ -57,6 +57,10 @@ import {
   EvtPreflightResponse,
   EvtReadinessResponse,
   EvtServiceStatus,
+  FamilyMemoryEventView,
+  FamilyMemoryEventsResponse,
+  FamilyMemoryFeedbackPayload,
+  FamilyMemoryStats,
   FamilyTimelineDigestResponse,
   FamilyTimelineResponse,
   FilesBrowseResponse,
@@ -136,6 +140,7 @@ interface HarborAssistantPageData {
   visionVlmStatus: EndpointResult<VisionVlmStatusResponse>;
   familyTimeline: EndpointResult<FamilyTimelineResponse>;
   familyTimelineDigest: EndpointResult<FamilyTimelineDigestResponse>;
+  familyMemoryEvents: EndpointResult<FamilyMemoryEventsResponse>;
   homeGuardianActivity: EndpointResult<HomeGuardianActivityResponse>;
   routingStatus: EndpointResult<RoutingStatusResponse>;
   auditRecords: EndpointResult<AuditRecordsResponse>;
@@ -514,6 +519,9 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly visionVlmStatus = signal<VisionVlmStatusResponse | null>(null);
   protected readonly familyTimeline = signal<FamilyTimelineResponse | null>(null);
   protected readonly familyTimelineDigest = signal<FamilyTimelineDigestResponse | null>(null);
+  protected readonly familyMemoryEvents = signal<FamilyMemoryEventsResponse | null>(null);
+  protected readonly familyMemoryReviewFilter = signal<'pending' | 'favorites' | 'hidden' | 'corrected'>('pending');
+  protected readonly familyMemoryCorrectionText = signal('');
   protected readonly homeGuardianActivity = signal<HomeGuardianActivityResponse | null>(null);
   protected readonly routingStatus = signal<RoutingStatusResponse | null>(null);
   protected readonly auditRecordsResponse = signal<AuditRecordsResponse | null>(null);
@@ -830,6 +838,25 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly activeHomeGuardianRules = computed(() => this.homeGuardianRules().filter((review) => {
     return review.status === 'active' || review.status === 'paused' || review.status === 'pending' || review.status === 'draft';
   }));
+  protected readonly familyMemoryStats = computed<FamilyMemoryStats | null>(() => {
+    return this.familyMemoryEvents()?.memory_overlay
+      ?? this.familyTimelineDigest()?.memory_overlay
+      ?? this.familyTimeline()?.memory_overlay
+      ?? null;
+  });
+  protected readonly familyMemoryReviewItems = computed<FamilyMemoryEventView[]>(() => {
+    const events = this.familyMemoryEvents()?.events ?? [];
+    if (this.familyMemoryReviewFilter() !== 'pending') {
+      return events;
+    }
+    return events.filter((event) => {
+      return !event.overlay.confirmed_useful
+        && !event.overlay.favorite
+        && !event.overlay.hidden
+        && !event.overlay.corrected_summary
+        && !(event.overlay.corrected_labels?.length);
+    });
+  });
   protected readonly routingExecutionRoutes = computed(() => this.routingStatus()?.execution_routes ?? []);
   protected readonly routingPolicyRows = computed(() => this.routingStatus()?.model_route_policies ?? []);
   protected readonly routingCapabilityRows = computed(() => this.routingStatus()?.capability_readiness ?? []);
@@ -1162,6 +1189,87 @@ export class HarborAssistantComponent implements OnInit {
     const eventId = typeof item['event_id'] === 'string' ? item['event_id'] : T('event');
     const reason = typeof item['reason'] === 'string' ? item['reason'] : '';
     return reason ? `${eventId} · ${reason}` : eventId;
+  }
+
+  protected setFamilyMemoryReviewFilter(filter: 'pending' | 'favorites' | 'hidden' | 'corrected'): void {
+    this.familyMemoryReviewFilter.set(filter);
+    this.refreshFamilyTimeline();
+  }
+
+  protected setFamilyMemoryCorrectionText(event: Event): void {
+    const target = event.target as HTMLInputElement | null;
+    this.familyMemoryCorrectionText.set(target?.value ?? '');
+  }
+
+  protected familyMemoryOverlayForEvent(eventId: string): FamilyMemoryEventView['overlay'] | null {
+    return this.familyMemoryEvents()?.events.find((event) => event.event_id === eventId)?.overlay ?? null;
+  }
+
+  protected familyMemoryFeedback(
+    event: FamilyMemoryEventView,
+    action: FamilyMemoryFeedbackPayload['action'],
+  ): void {
+    const payload: FamilyMemoryFeedbackPayload = { action };
+    const correction = this.familyMemoryCorrectionText().trim();
+    if (action === 'correct_summary') {
+      if (!correction) {
+        this.actionError.set(T('Enter a corrected summary first.'));
+        return;
+      }
+      payload.corrected_summary = correction;
+    }
+    if (action === 'correct_labels') {
+      const labels = correction
+        .split(/[,\s，、]+/)
+        .map((label) => label.trim())
+        .filter(Boolean);
+      if (!labels.length) {
+        this.actionError.set(T('Enter corrected labels first.'));
+        return;
+      }
+      payload.corrected_labels = labels;
+    }
+    const actionId = `family-memory:${action}:${event.event_id}`;
+    this.actionInProgress.set(actionId);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+    this.harborAssistantApi.submitFamilyMemoryFeedback(event.event_id, payload).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        this.actionMessage.set(this.familyMemoryFeedbackMessage(response.status, action));
+        this.familyMemoryCorrectionText.set('');
+        this.refreshFamilyTimeline();
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
+  }
+
+  protected familyMemoryFeedbackActionBusy(event: FamilyMemoryEventView, action: string): boolean {
+    return this.actionInProgress() === `family-memory:${action}:${event.event_id}`;
+  }
+
+  protected familyMemoryFeedbackMessage(status: string, action: string): string {
+    if (status !== 'stored') {
+      return T('Family memory feedback was not stored.');
+    }
+    switch (action) {
+      case 'confirm_useful':
+        return T('Family memory event was marked useful.');
+      case 'favorite':
+        return T('Family memory event was favorited.');
+      case 'hide':
+        return T('Family memory event was hidden.');
+      case 'restore':
+        return T('Family memory event was restored.');
+      case 'correct_summary':
+        return T('Family memory summary was corrected.');
+      case 'correct_labels':
+        return T('Family memory labels were corrected.');
+      default:
+        return T('Family memory feedback was stored.');
+    }
   }
 
   protected ruleReviewSourceLabel(review: AutomationRuleReview): string {
@@ -4443,6 +4551,9 @@ export class HarborAssistantComponent implements OnInit {
         visionVlmStatus: this.result('vision-vlm-status', this.harborAssistantApi.getVisionVlmStatus()),
         familyTimeline: this.result('family-timeline', this.harborAssistantApi.getFamilyTimeline()),
         familyTimelineDigest: this.result('family-timeline-digest', this.harborAssistantApi.getFamilyTimelineDigest()),
+        familyMemoryEvents: this.result('family-memory-events', this.harborAssistantApi.getFamilyMemoryEvents(
+          this.familyMemoryReviewParams(),
+        )),
         homeGuardianActivity: this.result('home-guardian-activity', this.harborAssistantApi.getHomeGuardianActivity()),
         routingStatus: this.result('routing-status', this.harborAssistantApi.getRoutingStatus()),
         auditRecords: this.result('audit-records', this.harborAssistantApi.getAuditRecords(
@@ -4494,6 +4605,7 @@ export class HarborAssistantComponent implements OnInit {
             visionVlmStatus: payload.visionVlmStatus,
             familyTimeline: payload.familyTimeline,
             familyTimelineDigest: payload.familyTimelineDigest,
+            familyMemoryEvents: payload.familyMemoryEvents,
             homeGuardianActivity: payload.homeGuardianActivity,
             routingStatus: payload.routingStatus,
             auditRecords: payload.auditRecords,
@@ -4609,6 +4721,7 @@ export class HarborAssistantComponent implements OnInit {
     this.visionVlmStatus.set(pageData.visionVlmStatus.data);
     this.familyTimeline.set(pageData.familyTimeline.data);
     this.familyTimelineDigest.set(pageData.familyTimelineDigest.data);
+    this.familyMemoryEvents.set(pageData.familyMemoryEvents.data);
     this.homeGuardianActivity.set(pageData.homeGuardianActivity.data);
     this.routingStatus.set(pageData.routingStatus.data);
     this.auditRecordsResponse.set(pageData.auditRecords.data);
@@ -4647,6 +4760,7 @@ export class HarborAssistantComponent implements OnInit {
         visionVlmStatus: pageData.visionVlmStatus.error,
         familyTimeline: pageData.familyTimeline.error,
         familyTimelineDigest: pageData.familyTimelineDigest.error,
+        familyMemoryEvents: pageData.familyMemoryEvents.error,
         homeGuardianActivity: pageData.homeGuardianActivity.error,
         routingStatus: pageData.routingStatus.error,
         auditRecords: pageData.auditRecords.error,
@@ -4698,6 +4812,7 @@ export class HarborAssistantComponent implements OnInit {
     this.visionVlmStatus.set(null);
     this.familyTimeline.set(null);
     this.familyTimelineDigest.set(null);
+    this.familyMemoryEvents.set(null);
     this.homeGuardianActivity.set(null);
     this.routingStatus.set(null);
     this.auditRecordsResponse.set(null);
@@ -5137,22 +5252,45 @@ export class HarborAssistantComponent implements OnInit {
     forkJoin({
       timeline: this.harborAssistantApi.getFamilyTimeline(),
       digest: this.harborAssistantApi.getFamilyTimelineDigest(),
+      memoryEvents: this.harborAssistantApi.getFamilyMemoryEvents(this.familyMemoryReviewParams()),
     }).pipe(
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
-      next: ({ timeline, digest }) => {
+      next: ({ timeline, digest, memoryEvents }) => {
         this.familyTimeline.set(timeline);
         this.familyTimelineDigest.set(digest);
-        this.mergeEndpointErrors({ familyTimeline: null, familyTimelineDigest: null });
+        this.familyMemoryEvents.set(memoryEvents);
+        this.mergeEndpointErrors({ familyTimeline: null, familyTimelineDigest: null, familyMemoryEvents: null });
       },
       error: (error: unknown) => {
         const message = this.getErrorMessage(error);
         this.mergeEndpointErrors({
           familyTimeline: `family-timeline: ${message}`,
           familyTimelineDigest: `family-timeline-digest: ${message}`,
+          familyMemoryEvents: `family-memory-events: ${message}`,
         });
       },
     });
+  }
+
+  private familyMemoryReviewParams(): {
+    include_hidden?: boolean;
+    favorites_only?: boolean;
+    hidden_only?: boolean;
+    corrected_only?: boolean;
+    limit?: number;
+  } {
+    switch (this.familyMemoryReviewFilter()) {
+      case 'favorites':
+        return { favorites_only: true, limit: 50 };
+      case 'hidden':
+        return { include_hidden: true, hidden_only: true, limit: 50 };
+      case 'corrected':
+        return { corrected_only: true, limit: 50 };
+      case 'pending':
+      default:
+        return { limit: 50 };
+    }
   }
 
   private refreshVisionVlmStatus(): void {

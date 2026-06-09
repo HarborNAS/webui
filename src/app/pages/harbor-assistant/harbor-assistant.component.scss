@@ -594,6 +594,66 @@ $hd-space-5: 20px;
   justify-content: flex-end;
 }
 
+.memory-review-panel {
+  border-top: 1px solid $hd-border-subtle;
+  display: grid;
+  gap: $hd-space-3;
+  margin-top: $hd-space-4;
+  padding-top: $hd-space-4;
+}
+
+.segmented-control {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: $hd-space-1;
+
+  button.active {
+    background: $hd-bg-canvas;
+    border: 1px solid $hd-border-default;
+  }
+}
+
+.memory-review-list {
+  display: grid;
+  gap: $hd-space-3;
+}
+
+.memory-review-row {
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 360px);
+  padding: $hd-space-3;
+
+  h2,
+  p {
+    overflow-wrap: anywhere;
+  }
+}
+
+.memory-review-actions {
+  display: grid;
+  gap: $hd-space-2;
+  min-width: 0;
+}
+
+.memory-correction-row {
+  display: grid;
+  gap: $hd-space-2;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+
+  input {
+    border: 1px solid $hd-border-default;
+    border-radius: 6px;
+    color: var(--fg1);
+    min-height: 34px;
+    min-width: 0;
+    padding: 0 $hd-space-2;
+  }
+}
+
 .evt-readiness-panel {
   .evt-heading {
     align-items: flex-start;

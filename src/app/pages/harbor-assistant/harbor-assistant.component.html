@@ -414,6 +414,97 @@
                     }
                   </div>
                 }
+                <div class="memory-review-panel">
+                  <div class="section-heading-row compact">
+                    <div>
+                      <h2>{{ 'Memory Review' | translate }}</h2>
+                      <p class="muted">
+                        {{ familyMemoryStats()?.confirmed_count ?? 0 }} {{ 'confirmed' | translate }} ·
+                        {{ familyMemoryStats()?.favorite_count ?? 0 }} {{ 'favorites' | translate }} ·
+                        {{ familyMemoryStats()?.hidden_count ?? 0 }} {{ 'hidden' | translate }} ·
+                        {{ familyMemoryStats()?.corrected_count ?? 0 }} {{ 'corrected' | translate }}
+                      </p>
+                    </div>
+                    <div class="segmented-control compact">
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'pending'" (click)="setFamilyMemoryReviewFilter('pending')">
+                        {{ 'Pending' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'favorites'" (click)="setFamilyMemoryReviewFilter('favorites')">
+                        {{ 'Favorites' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'hidden'" (click)="setFamilyMemoryReviewFilter('hidden')">
+                        {{ 'Hidden' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'corrected'" (click)="setFamilyMemoryReviewFilter('corrected')">
+                        {{ 'Corrected' | translate }}
+                      </button>
+                    </div>
+                  </div>
+                  @if (endpointError('familyMemoryEvents')) {
+                    <div class="notice error compact">{{ endpointErrorNotice('familyMemoryEvents') | translate }}</div>
+                  }
+                  @if (familyMemoryReviewItems().length) {
+                    <div class="memory-review-list">
+                      @for (event of familyMemoryReviewItems().slice(0, 8); track event.event_id) {
+                        <article class="memory-review-row">
+                          <div class="event-intelligence-main">
+                            <div class="event-intelligence-meta">
+                              <span class="pill">{{ event.camera_id }}</span>
+                              <span class="pill">{{ event.event_type }}</span>
+                              <span class="pill" [ngClass]="toneClass(event.vlm_status)">{{ event.vlm_status | translate }}</span>
+                            </div>
+                            <h2>{{ event.summary }}</h2>
+                            <p class="muted">{{ event.labels.join(', ') || ('No labels' | translate) }}</p>
+                            <div class="event-intelligence-meta">
+                              @if (event.overlay.confirmed_useful) {
+                                <span class="pill">{{ 'confirmed' | translate }}</span>
+                              }
+                              @if (event.overlay.favorite) {
+                                <span class="pill">{{ 'favorite' | translate }}</span>
+                              }
+                              @if (event.overlay.hidden) {
+                                <span class="pill">{{ 'hidden' | translate }}</span>
+                              }
+                              @if (event.overlay.corrected_summary || event.overlay.corrected_labels?.length) {
+                                <span class="pill">{{ 'corrected' | translate }}</span>
+                              }
+                            </div>
+                          </div>
+                          <div class="memory-review-actions">
+                            <div class="row-actions">
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'confirm_useful')">
+                                {{ 'Useful' | translate }}
+                              </button>
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'favorite')">
+                                {{ 'Favorite' | translate }}
+                              </button>
+                              @if (event.overlay.hidden) {
+                                <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'restore')">
+                                  {{ 'Restore' | translate }}
+                                </button>
+                              } @else {
+                                <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'hide')">
+                                  {{ 'Hide' | translate }}
+                                </button>
+                              }
+                            </div>
+                            <div class="memory-correction-row">
+                              <input type="text" [placeholder]="'Correct summary or labels' | translate" [value]="familyMemoryCorrectionText()" (input)="setFamilyMemoryCorrectionText($event)" />
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'correct_summary')">
+                                {{ 'Summary' | translate }}
+                              </button>
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'correct_labels')">
+                                {{ 'Labels' | translate }}
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      }
+                    </div>
+                  } @else {
+                    <p class="muted">{{ 'No family memory review items for this filter.' | translate }}</p>
+                  }
+                </div>
               </div>
 
               <mat-divider></mat-divider>

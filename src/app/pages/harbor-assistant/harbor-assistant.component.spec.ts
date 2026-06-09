@@ -510,6 +510,54 @@ describe('Harbor Assistant component', () => {
         degraded: 0,
         not_sampled: 0,
       },
+      memory_overlay: familyMemoryStats({ event_count: 1 }),
+    }));
+    api.getFamilyMemoryEvents = jest.fn(() => of({
+      generated_at: 'epoch_ms:2',
+      limit: 50,
+      metadata_only: true,
+      secret_scan: 'clean',
+      memory_overlay: familyMemoryStats({ event_count: 1 }),
+      events: [{
+        event_id: 'lve_guardian_1',
+        camera_id: 'front-door',
+        event_type: 'person_detected',
+        summary: 'Courier at the front door.',
+        confidence: 0.92,
+        labels: ['person', 'courier'],
+        started_at: 'epoch_ms:1',
+        received_at: 'epoch_ms:1',
+        latency_ms: 1370,
+        vlm_status: 'active',
+        artifact: {
+          artifact_id: 'artifact_1',
+          mime_type: 'image/jpeg',
+          byte_size: 12345,
+          sha256_present: true,
+          local_path_redacted: true,
+          raw_image_included: false,
+        },
+        overlay: {
+          event_id: 'lve_guardian_1',
+          confirmed_useful: false,
+          favorite: false,
+          hidden: false,
+          corrected_summary: null,
+          corrected_labels: null,
+          corrected_at: null,
+          updated_at: null,
+          feedback_count: 0,
+        },
+      }],
+    }));
+    api.submitFamilyMemoryFeedback = jest.fn(() => of({
+      status: 'stored',
+      event_id: 'lve_guardian_1',
+      feedback: {},
+      memory_overlay: familyMemoryStats({ event_count: 1, favorite_count: 1 }),
+      evidence: {},
+      metadata_only: true,
+      secret_scan: 'clean',
     }));
     api.getAutomationReviews = jest.fn(() => of({
       generated_at: 'epoch_ms:2',
@@ -575,6 +623,8 @@ describe('Harbor Assistant component', () => {
     expect(panel).toHaveText('front-door');
     expect(panel).toHaveText('VLM coverage');
     expect(panel).toHaveText('Home Guardian');
+    expect(panel).toHaveText('Memory Review');
+    expect(panel).toHaveText('Courier at the front door.');
     expect(panel).toHaveText('VLM describe');
     expect(panel).toHaveText('1 rules');
     expect(panel).toHaveText('Entry light');
@@ -592,6 +642,13 @@ describe('Harbor Assistant component', () => {
 
     expect(api.evaluateAutomationReviewLatest).toHaveBeenCalledWith('guardian_review_1');
     expect(panel).toHaveText('idempotent duplicate event/action run');
+
+    const favoriteButton = spectator.queryAll('button')
+      .find((button) => button.textContent?.trim() === 'Favorite') as HTMLButtonElement;
+    spectator.click(favoriteButton);
+    spectator.detectChanges();
+
+    expect(api.submitFamilyMemoryFeedback).toHaveBeenCalledWith('lve_guardian_1', { action: 'favorite' });
   });
 
   it('runs VLM describe for an event and keeps the display redacted', () => {
@@ -1647,6 +1704,21 @@ describe('Harbor Assistant component', () => {
   });
 });
 
+function familyMemoryStats(overrides: Record<string, number> = {}): Record<string, unknown> {
+  return {
+    generated_at: 'epoch_ms:0',
+    total_feedback_records: overrides['total_feedback_records'] ?? 0,
+    event_count: overrides['event_count'] ?? 0,
+    confirmed_count: overrides['confirmed_count'] ?? 0,
+    favorite_count: overrides['favorite_count'] ?? 0,
+    hidden_count: overrides['hidden_count'] ?? 0,
+    corrected_count: overrides['corrected_count'] ?? 0,
+    bounded_limit: 5000,
+    metadata_only: true,
+    secret_scan: 'clean',
+  };
+}
+
 function storedLocalVisionEvent(eventId: string): unknown {
   return {
     received_at: 'epoch_ms:1',
@@ -2068,6 +2140,24 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       top_labels: [],
       cameras: [],
       latest_event_id: null,
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    getFamilyMemoryEvents: jest.fn(() => of({
+      generated_at: 'epoch_ms:0',
+      limit: 50,
+      metadata_only: true,
+      secret_scan: 'clean',
+      memory_overlay: familyMemoryStats(),
+      events: [],
+    })),
+    getFamilyMemoryStats: jest.fn(() => of(familyMemoryStats())),
+    submitFamilyMemoryFeedback: jest.fn(() => of({
+      status: 'stored',
+      event_id: 'lve_guardian_1',
+      feedback: {},
+      memory_overlay: familyMemoryStats({ favorite_count: 1 }),
+      evidence: {},
       metadata_only: true,
       secret_scan: 'clean',
     })),

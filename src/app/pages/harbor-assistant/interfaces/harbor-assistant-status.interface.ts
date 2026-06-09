@@ -730,6 +730,7 @@ export interface FamilyTimelineResponse {
   metadata_only: boolean;
   buckets: FamilyTimelineBucket[];
   events: FamilyTimelineEvent[];
+  memory_overlay?: FamilyMemoryStats | null;
 }
 
 export interface FamilyTimelineDigestResponse {
@@ -750,6 +751,62 @@ export interface FamilyTimelineDigestResponse {
     degraded: number;
     not_sampled: number;
   };
+  memory_overlay?: FamilyMemoryStats | null;
+}
+
+export interface FamilyMemoryStats {
+  generated_at: string;
+  total_feedback_records: number;
+  event_count: number;
+  confirmed_count: number;
+  favorite_count: number;
+  hidden_count: number;
+  corrected_count: number;
+  bounded_limit: number;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface FamilyMemoryOverlay {
+  event_id: string;
+  confirmed_useful: boolean;
+  favorite: boolean;
+  hidden: boolean;
+  corrected_summary?: string | null;
+  corrected_labels?: string[] | null;
+  corrected_at?: string | null;
+  updated_at?: string | null;
+  feedback_count: number;
+}
+
+export interface FamilyMemoryEventView extends FamilyTimelineEvent {
+  overlay: FamilyMemoryOverlay;
+}
+
+export interface FamilyMemoryEventsResponse {
+  generated_at: string;
+  limit: number;
+  metadata_only: boolean;
+  secret_scan: string;
+  memory_overlay: FamilyMemoryStats;
+  events: FamilyMemoryEventView[];
+}
+
+export interface FamilyMemoryFeedbackPayload {
+  action: 'confirm_useful' | 'favorite' | 'hide' | 'restore' | 'correct_summary' | 'correct_labels';
+  corrected_summary?: string;
+  corrected_labels?: string[];
+  note?: string;
+}
+
+export interface FamilyMemoryFeedbackResponse {
+  status: string;
+  event_id: string;
+  feedback: Record<string, unknown>;
+  memory_overlay: FamilyMemoryStats;
+  evidence: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
 }
 
 export interface HomeGuardianActivityResponse {
