@@ -667,6 +667,28 @@ export interface LocalVisionEventsResponse {
   events: StoredLocalVisionEvent[];
 }
 
+export interface VisionVlmStatusResponse {
+  generated_at: string;
+  kind: string;
+  readiness: Record<string, unknown>;
+  latest_enrichment?: Record<string, unknown> | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface VisionVlmEnrichResponse {
+  status: string;
+  reason?: string | null;
+  message?: string | null;
+  event?: StoredLocalVisionEvent | null;
+  event_id?: string | null;
+  camera_id?: string | null;
+  readiness?: Record<string, unknown> | null;
+  evidence?: Record<string, unknown> | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
 export interface FamilyTimelineArtifactMetadata {
   artifact_id?: string | null;
   mime_type?: string | null;
@@ -722,6 +744,12 @@ export interface FamilyTimelineDigestResponse {
   latest_event_id?: string | null;
   metadata_only: boolean;
   secret_scan: string;
+  vlm_coverage?: {
+    total: number;
+    active: number;
+    degraded: number;
+    not_sampled: number;
+  };
 }
 
 export interface HomeGuardianActivityResponse {

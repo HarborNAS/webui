@@ -49,6 +49,8 @@ import {
   KnowledgeIndexStatusResponse,
   KnowledgeSettings,
   LocalVisionEventsResponse,
+  VisionVlmEnrichResponse,
+  VisionVlmStatusResponse,
   LocalModelCatalogResponse,
   LocalModelDownloadJobResponse,
   LocalModelDownloadsResponse,
@@ -482,6 +484,24 @@ export class HarborAssistantApiService {
   getLocalVisionEvents(limit = 5): Observable<LocalVisionEventsResponse> {
     return this.http.get<LocalVisionEventsResponse>(
       this.apiUrl(`/vision/events?limit=${encodeURIComponent(String(limit))}`),
+    );
+  }
+
+  getVisionVlmStatus(): Observable<VisionVlmStatusResponse> {
+    return this.http.get<VisionVlmStatusResponse>(this.apiUrl('/vision/vlm/status'));
+  }
+
+  enrichLatestVisionEventWithVlm(): Observable<VisionVlmEnrichResponse> {
+    return this.http.post<VisionVlmEnrichResponse>(
+      this.apiUrl('/vision/events/latest/vlm-enrich'),
+      {},
+    );
+  }
+
+  enrichVisionEventWithVlm(eventId: string): Observable<VisionVlmEnrichResponse> {
+    return this.http.post<VisionVlmEnrichResponse>(
+      this.apiUrl(`/vision/events/${encodeURIComponent(eventId)}/vlm-enrich`),
+      {},
     );
   }
 

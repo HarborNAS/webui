@@ -83,6 +83,8 @@ import {
   KnowledgeSourceRoot,
   LocalVisionEventsResponse,
   StoredLocalVisionEvent,
+  VisionVlmEnrichResponse,
+  VisionVlmStatusResponse,
   LocalModelCatalogItem,
   LocalModelCatalogResponse,
   LocalModelDownloadJob,
@@ -131,6 +133,7 @@ interface HarborAssistantPageData {
   shareLinks: EndpointResult<ShareLinkSummary[]>;
   automationReviews: EndpointResult<AutomationReviewsResponse>;
   localVisionEvents: EndpointResult<LocalVisionEventsResponse>;
+  visionVlmStatus: EndpointResult<VisionVlmStatusResponse>;
   familyTimeline: EndpointResult<FamilyTimelineResponse>;
   familyTimelineDigest: EndpointResult<FamilyTimelineDigestResponse>;
   homeGuardianActivity: EndpointResult<HomeGuardianActivityResponse>;
@@ -508,6 +511,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly shareLinks = signal<ShareLinkSummary[]>([]);
   protected readonly automationReviews = signal<AutomationRuleReview[]>([]);
   protected readonly localVisionEvents = signal<StoredLocalVisionEvent[]>([]);
+  protected readonly visionVlmStatus = signal<VisionVlmStatusResponse | null>(null);
   protected readonly familyTimeline = signal<FamilyTimelineResponse | null>(null);
   protected readonly familyTimelineDigest = signal<FamilyTimelineDigestResponse | null>(null);
   protected readonly homeGuardianActivity = signal<HomeGuardianActivityResponse | null>(null);
@@ -1097,6 +1101,26 @@ export class HarborAssistantComponent implements OnInit {
       }],
       metadata_only: true,
     }, T('Home Guardian Home Assistant rule draft was created.'));
+  }
+
+  protected describeVisionEventWithVlm(stored: StoredLocalVisionEvent): void {
+    const actionId = `vlm-enrich:${stored.event.event_id}`;
+    this.actionInProgress.set(actionId);
+    this.actionError.set(null);
+    this.actionMessage.set(null);
+
+    this.harborAssistantApi.enrichVisionEventWithVlm(stored.event.event_id).pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        this.applyVlmEnrichmentResponse(response);
+        this.actionMessage.set(this.vlmEnrichmentMessage(response));
+        this.refreshFamilyTimeline();
+        this.refreshVisionVlmStatus();
+      },
+      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
+    });
   }
 
   protected evaluateGuardianLatest(review: AutomationRuleReview): void {
@@ -2971,6 +2995,8 @@ export class HarborAssistantComponent implements OnInit {
         return T('The model list could not refresh. Try again later.');
       case 'localVisionEvents':
         return T('Event intelligence status could not refresh. Latest cached status is shown.');
+      case 'visionVlmStatus':
+        return T('VLM status could not refresh. Latest cached VLM status is shown.');
       case 'familyTimeline':
       case 'familyTimelineDigest':
         return T('Family Timeline could not refresh. Latest cached timeline is shown.');
@@ -4414,6 +4440,7 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: this.result('share-links', this.harborAssistantApi.getShareLinks()),
         automationReviews: this.result('automation-reviews', this.harborAssistantApi.getAutomationReviews()),
         localVisionEvents: this.result('local-vision-events', this.harborAssistantApi.getLocalVisionEvents(5)),
+        visionVlmStatus: this.result('vision-vlm-status', this.harborAssistantApi.getVisionVlmStatus()),
         familyTimeline: this.result('family-timeline', this.harborAssistantApi.getFamilyTimeline()),
         familyTimelineDigest: this.result('family-timeline-digest', this.harborAssistantApi.getFamilyTimelineDigest()),
         homeGuardianActivity: this.result('home-guardian-activity', this.harborAssistantApi.getHomeGuardianActivity()),
@@ -4464,6 +4491,7 @@ export class HarborAssistantComponent implements OnInit {
             shareLinks: payload.shareLinks,
             automationReviews: payload.automationReviews,
             localVisionEvents: payload.localVisionEvents,
+            visionVlmStatus: payload.visionVlmStatus,
             familyTimeline: payload.familyTimeline,
             familyTimelineDigest: payload.familyTimelineDigest,
             homeGuardianActivity: payload.homeGuardianActivity,
@@ -4578,6 +4606,7 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set(pageData.shareLinks.data ?? []);
     this.automationReviews.set(pageData.automationReviews.data?.reviews ?? []);
     this.localVisionEvents.set(pageData.localVisionEvents.data?.events ?? []);
+    this.visionVlmStatus.set(pageData.visionVlmStatus.data);
     this.familyTimeline.set(pageData.familyTimeline.data);
     this.familyTimelineDigest.set(pageData.familyTimelineDigest.data);
     this.homeGuardianActivity.set(pageData.homeGuardianActivity.data);
@@ -4615,6 +4644,7 @@ export class HarborAssistantComponent implements OnInit {
         shareLinks: pageData.shareLinks.error,
         automationReviews: pageData.automationReviews.error,
         localVisionEvents: pageData.localVisionEvents.error,
+        visionVlmStatus: pageData.visionVlmStatus.error,
         familyTimeline: pageData.familyTimeline.error,
         familyTimelineDigest: pageData.familyTimelineDigest.error,
         homeGuardianActivity: pageData.homeGuardianActivity.error,
@@ -4665,6 +4695,7 @@ export class HarborAssistantComponent implements OnInit {
     this.shareLinks.set([]);
     this.automationReviews.set([]);
     this.localVisionEvents.set([]);
+    this.visionVlmStatus.set(null);
     this.familyTimeline.set(null);
     this.familyTimelineDigest.set(null);
     this.homeGuardianActivity.set(null);
@@ -5100,6 +5131,72 @@ export class HarborAssistantComponent implements OnInit {
         this.mergeEndpointErrors({ homeGuardianActivity: `home-guardian-activity: ${this.getErrorMessage(error)}` });
       },
     });
+  }
+
+  private refreshFamilyTimeline(): void {
+    forkJoin({
+      timeline: this.harborAssistantApi.getFamilyTimeline(),
+      digest: this.harborAssistantApi.getFamilyTimelineDigest(),
+    }).pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: ({ timeline, digest }) => {
+        this.familyTimeline.set(timeline);
+        this.familyTimelineDigest.set(digest);
+        this.mergeEndpointErrors({ familyTimeline: null, familyTimelineDigest: null });
+      },
+      error: (error: unknown) => {
+        const message = this.getErrorMessage(error);
+        this.mergeEndpointErrors({
+          familyTimeline: `family-timeline: ${message}`,
+          familyTimelineDigest: `family-timeline-digest: ${message}`,
+        });
+      },
+    });
+  }
+
+  private refreshVisionVlmStatus(): void {
+    this.harborAssistantApi.getVisionVlmStatus().pipe(
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (status) => {
+        this.visionVlmStatus.set(status);
+        this.mergeEndpointErrors({ visionVlmStatus: null });
+      },
+      error: (error: unknown) => {
+        this.mergeEndpointErrors({ visionVlmStatus: `vision-vlm-status: ${this.getErrorMessage(error)}` });
+      },
+    });
+  }
+
+  private applyVlmEnrichmentResponse(response: VisionVlmEnrichResponse): void {
+    if (!response.event) {
+      return;
+    }
+    const enriched = response.event;
+    this.localVisionEvents.update((events) => {
+      const next = events.map((stored) => {
+        return stored.event.event_id === enriched.event.event_id ? enriched : stored;
+      });
+      return next.some((stored) => stored.event.event_id === enriched.event.event_id)
+        ? next
+        : [enriched, ...next].slice(0, 5);
+    });
+  }
+
+  private vlmEnrichmentMessage(response: VisionVlmEnrichResponse): string {
+    switch (response.status) {
+      case 'active':
+        return T('VLM summary attached to the event.');
+      case 'busy':
+        return T('VLM queue is busy. The event was not changed.');
+      case 'blocked':
+        return response.message || T('VLM enrichment is blocked by local-only readiness.');
+      case 'degraded':
+        return T('VLM returned degraded status; YOLO/event summary remains available.');
+      default:
+        return response.message || T('VLM enrichment finished.');
+    }
   }
 
   private ensureGuardianHaEntitySelection(): void {

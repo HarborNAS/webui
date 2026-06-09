@@ -504,6 +504,12 @@ describe('Harbor Assistant component', () => {
       latest_event_id: 'lve_guardian_1',
       metadata_only: true,
       secret_scan: 'clean',
+      vlm_coverage: {
+        total: 1,
+        active: 1,
+        degraded: 0,
+        not_sampled: 0,
+      },
     }));
     api.getAutomationReviews = jest.fn(() => of({
       generated_at: 'epoch_ms:2',
@@ -567,7 +573,9 @@ describe('Harbor Assistant component', () => {
     expect(panel).toHaveText('Family Timeline');
     expect(panel).toHaveText('最近 24 小时记录到 1 条家庭视觉事件。');
     expect(panel).toHaveText('front-door');
+    expect(panel).toHaveText('VLM coverage');
     expect(panel).toHaveText('Home Guardian');
+    expect(panel).toHaveText('VLM describe');
     expect(panel).toHaveText('1 rules');
     expect(panel).toHaveText('Entry light');
     expect(panel).not.toHaveText('sensor.secret');
@@ -584,6 +592,41 @@ describe('Harbor Assistant component', () => {
 
     expect(api.evaluateAutomationReviewLatest).toHaveBeenCalledWith('guardian_review_1');
     expect(panel).toHaveText('idempotent duplicate event/action run');
+  });
+
+  it('runs VLM describe for an event and keeps the display redacted', () => {
+    api.getLocalVisionEvents = jest.fn(() => of({
+      generated_at: 'epoch_ms:1',
+      limit: 5,
+      events: [storedLocalVisionEvent('lve_vlm_1')],
+    }));
+    api.enrichVisionEventWithVlm = jest.fn(() => of({
+      status: 'active',
+      reason: 'enriched',
+      event: storedLocalVisionEvent('lve_vlm_1'),
+      metadata_only: true,
+      secret_scan: 'clean',
+    }));
+
+    spectator = createComponent({
+      providers: [
+        mockProvider(ActivatedRoute, {
+          queryParamMap: of(convertToParamMap({ tab: 'camera' })),
+        }),
+      ],
+    });
+    spectator.detectChanges();
+
+    const describeButton = spectator.queryAll('button')
+      .find((button) => button.textContent?.includes('VLM describe')) as HTMLButtonElement;
+    spectator.click(describeButton);
+    spectator.detectChanges();
+
+    expect(api.enrichVisionEventWithVlm).toHaveBeenCalledWith('lve_vlm_1');
+    expect(spectator.element.textContent).toContain('VLM summary attached to the event.');
+    expect(spectator.element.textContent).not.toContain('rtsp://');
+    expect(spectator.element.textContent).not.toContain('/tmp/');
+    expect(spectator.element.textContent).not.toContain('route_key');
   });
 
   it('ignores removed tab aliases even when an old focus parameter is present', () => {
@@ -1986,6 +2029,27 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     })),
     getShareLinks: jest.fn(() => of([])),
     getLocalVisionEvents: jest.fn(() => of({ generated_at: 'epoch_ms:0', limit: 5, events: [] })),
+    getVisionVlmStatus: jest.fn(() => of({
+      generated_at: 'epoch_ms:0',
+      kind: 'vision_vlm_status_v1',
+      readiness: { status: 'available', endpoint_ready: true },
+      latest_enrichment: { status: 'not_run' },
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    enrichVisionEventWithVlm: jest.fn((eventId) => of({
+      status: 'active',
+      reason: 'enriched',
+      event: storedLocalVisionEvent(eventId),
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
+    enrichLatestVisionEventWithVlm: jest.fn(() => of({
+      status: 'busy',
+      reason: 'queue_busy',
+      metadata_only: true,
+      secret_scan: 'clean',
+    })),
     getFamilyTimeline: jest.fn(() => of({
       generated_at: 'epoch_ms:0',
       window_seconds: 86400,

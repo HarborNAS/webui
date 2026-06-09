@@ -347,6 +347,9 @@
                         </span>
                       </div>
                       <div class="row-actions">
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="describeVisionEventWithVlm(stored)">
+                          {{ actionBusy('vlm-enrich:' + stored.event.event_id) ? ('Describing' | translate) : ('VLM describe' | translate) }}
+                        </button>
                         <button mat-button type="button" [disabled]="isBusy()" (click)="createGuardianNotifyRule(stored)">
                           {{ actionBusy('guardian-rule-create:' + stored.event.event_id) ? ('Creating rule' | translate) : ('Notify rule' | translate) }}
                         </button>
@@ -368,6 +371,16 @@
                     <p class="muted">
                       {{ familyTimelineDigest()?.headline || ('No family timeline digest yet.' | translate) }}
                     </p>
+                    @if (familyTimelineDigest()?.vlm_coverage; as coverage) {
+                      <p class="muted">
+                        {{ 'VLM coverage' | translate }}:
+                        {{ coverage.active }} {{ 'active' | translate }},
+                        {{ coverage.degraded }} {{ 'degraded' | translate }},
+                        {{ coverage.not_sampled }} {{ 'not sampled' | translate }}
+                      </p>
+                    } @else {
+                      <p class="muted">{{ 'VLM coverage unavailable' | translate }}</p>
+                    }
                   </div>
                   <span class="pill" [ngClass]="toneClass(familyTimelineDigest()?.status || 'unknown')">
                     {{ familyTimelineDigest()?.status || ('unknown' | translate) }}

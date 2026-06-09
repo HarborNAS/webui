@@ -135,6 +135,31 @@ describe('Harbor Assistant API service', () => {
     expect(response.limit).toBe(3);
     expect(response.events).toEqual([]);
 
+    const vlmStatusPromise = firstValueFrom(spectator.service.getVisionVlmStatus());
+    const vlmStatusReq = httpMock.expectOne('/api/harbor-beacon/vision/vlm/status');
+    expect(vlmStatusReq.request.method).toBe('GET');
+    vlmStatusReq.flush({
+      generated_at: 'epoch_ms:1',
+      kind: 'vision_vlm_status_v1',
+      readiness: { status: 'available', endpoint_ready: true },
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await vlmStatusPromise).secret_scan).toBe('clean');
+
+    const vlmEnrichPromise = firstValueFrom(spectator.service.enrichVisionEventWithVlm('event/latest'));
+    const vlmEnrichReq = httpMock.expectOne('/api/harbor-beacon/vision/events/event%2Flatest/vlm-enrich');
+    expect(vlmEnrichReq.request.method).toBe('POST');
+    expect(vlmEnrichReq.request.body).toEqual({});
+    vlmEnrichReq.flush({
+      status: 'busy',
+      reason: 'queue_busy',
+      event_id: 'event/latest',
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await vlmEnrichPromise).status).toBe('busy');
+
     const timelinePromise = firstValueFrom(spectator.service.getFamilyTimeline());
     const timelineReq = httpMock.expectOne('/api/harbor-beacon/family/timeline');
     expect(timelineReq.request.method).toBe('GET');
