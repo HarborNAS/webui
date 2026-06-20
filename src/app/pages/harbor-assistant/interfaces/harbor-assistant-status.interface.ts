@@ -971,6 +971,63 @@ export interface RagReadinessResponse {
   evidence?: string[];
 }
 
+export interface EvtServiceStatus {
+  service: string;
+  status?: string;
+  active?: boolean;
+  error?: string | null;
+}
+
+export interface EvtReadinessResponse {
+  kind?: string;
+  profile?: string;
+  generated_at?: string | null;
+  status?: string;
+  summary?: string;
+  blockers?: string[];
+  warnings?: string[];
+  package?: Record<string, unknown>;
+  services?: EvtServiceStatus[];
+  gateway?: Record<string, unknown>;
+  default_notification_target?: Record<string, unknown>;
+  home_assistant?: Record<string, unknown>;
+  camera?: Record<string, unknown>;
+  models?: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  guards?: Record<string, unknown>;
+  redacted?: boolean;
+}
+
+export interface EvtPreflightResponse {
+  kind?: string;
+  profile?: string;
+  status?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_ms?: number;
+  long_run_started?: boolean;
+  short_run_started?: boolean;
+  operator_supervisor_required?: boolean;
+  blockers?: string[];
+  warnings?: string[];
+  checks?: Record<string, unknown>[];
+  readiness?: EvtReadinessResponse;
+  redacted?: boolean;
+}
+
+export interface EvtEvidenceBundleResponse {
+  kind?: string;
+  generated_at?: string | null;
+  profile?: string;
+  status?: string;
+  readiness?: EvtReadinessResponse;
+  preflight?: EvtPreflightResponse | Record<string, unknown>;
+  diagnostics_workflow?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  redacted?: boolean;
+}
+
 export interface KnowledgeSourceRoot {
   root_id: string;
   label: string;

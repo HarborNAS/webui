@@ -107,7 +107,7 @@ describe('Harbor Assistant component', () => {
 
     const component = spectator.component as unknown as {
       selectTab: (tab: 'messages' | 'home-assistant' | 'settings') => void;
-      selectSettingsSection: (section: 'ai' | 'camera') => void;
+      selectSettingsSection: (section: 'ai' | 'camera' | 'diagnostics') => void;
     };
 
     expect(spectator.query('.tab-strip')).toHaveText('Search');
@@ -137,6 +137,42 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.simple-dvr-form')).toExist();
     expect(spectator.query('.device-edit-grid')).toExist();
     expect(spectator.query('.system-tab')).not.toExist();
+  });
+
+  it('renders EVT readiness diagnostics and runs preflight without long stress controls', () => {
+    spectator = createComponent({
+      providers: [
+        mockProvider(ActivatedRoute, {
+          queryParamMap: of(convertToParamMap({ tab: 'settings', section: 'diagnostics' })),
+        }),
+      ],
+    });
+    spectator.detectChanges();
+
+    expect(spectator.query('[data-testid="harbor-assistant-evt-readiness-panel"]')).toExist();
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('EVT Readiness');
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('k3-direct-72h-readiness');
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('Gateway and target');
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('Secret scan');
+    expect(spectator.element.textContent).not.toContain('Start 72h');
+    expect(spectator.element.textContent).not.toContain('Start 4h');
+
+    const runPreflightButton = spectator.queryAll('button')
+      .find((button) => button.textContent?.includes('Run preflight')) as HTMLButtonElement;
+    spectator.click(runPreflightButton);
+    spectator.detectChanges();
+
+    expect(api.runEvtPreflight).toHaveBeenCalled();
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('88 ms');
+    expect(spectator.query('.evt-readiness-panel')).not.toHaveText('long_run_started true');
+
+    const viewEvidenceButton = spectator.queryAll('button')
+      .find((button) => button.textContent?.includes('View evidence JSON')) as HTMLButtonElement;
+    spectator.click(viewEvidenceButton);
+    spectator.detectChanges();
+
+    expect(api.getEvtEvidenceBundle).toHaveBeenCalled();
+    expect(spectator.query('[data-testid="harbor-assistant-evt-evidence-json"]')).toHaveText('"redacted": true');
   });
 
   it('shows read-only local vision events in the camera tab', () => {
@@ -1572,6 +1608,62 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     })),
     getShareLinks: jest.fn(() => of([])),
     getLocalVisionEvents: jest.fn(() => of({ generated_at: 'epoch_ms:0', limit: 5, events: [] })),
+    getEvtReadiness: jest.fn(() => of({
+      status: 'ready',
+      profile: 'k3-direct-72h-readiness',
+      generated_at: '1710000000',
+      blockers: [],
+      warnings: [],
+      services: [{ service: 'harboros-beacon.service', status: 'active', active: true }],
+      gateway: { status: 'available', default_target_ready: true },
+      home_assistant: { status: 'synced', entity_count: 3 },
+      camera: { status: 'available', configured_count: 2, latest_event_available: true },
+      models: { semantic_router: { status: 'active', local_only: true } },
+      resources: {
+        memory: { status: 'available', available_percent: 42 },
+        disk: { root: { status: 'available', use_percent: 20 } },
+        thermal: { status: 'available', max_celsius: 52 },
+      },
+      security: { secret_scan: { status: 'clean', total_count: 0, counts: { rtsp_url: 0, bearer_token: 0 } } },
+      redacted: true,
+    })),
+    runEvtPreflight: jest.fn(() => of({
+      status: 'ready',
+      completed_at: '1710000001',
+      duration_ms: 88,
+      long_run_started: false,
+      short_run_started: false,
+      readiness: {
+        status: 'ready',
+        profile: 'k3-direct-72h-readiness',
+        blockers: [],
+        warnings: [],
+      },
+      redacted: true,
+    })),
+    getEvtPreflightLatest: jest.fn(() => of({
+      status: 'not_run',
+      long_run_started: false,
+      short_run_started: false,
+      redacted: true,
+    })),
+    getEvtEvidenceBundle: jest.fn(() => of({
+      status: 'ready',
+      generated_at: '1710000002',
+      readiness: {
+        status: 'ready',
+        profile: 'k3-direct-72h-readiness',
+        blockers: [],
+        warnings: [],
+      },
+      preflight: {
+        kind: 'evt_preflight_v1',
+        status: 'ready',
+        long_run_started: false,
+        short_run_started: false,
+      },
+      redacted: true,
+    })),
   };
 }
 

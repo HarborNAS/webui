@@ -1546,6 +1546,131 @@
       </details>
     </section>
       }
+
+      @if (isSettingsSection('diagnostics')) {
+        <section class="settings-section-panel diagnostics-tab">
+          @if (endpointError('evtReadiness') || endpointError('evtPreflightLatest') || endpointError('evtEvidenceBundle')) {
+            <div class="notice warn">{{ endpointErrorNotice('evtReadiness') | translate }}</div>
+          }
+
+          <mat-card class="settings-card native-panel evt-readiness-panel" data-testid="harbor-assistant-evt-readiness-panel">
+            <mat-card-header>
+              <mat-card-title>{{ 'EVT Readiness' | translate }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <section class="section-heading evt-heading">
+                <div>
+                  <span class="field-label">{{ 'Profile' | translate }}</span>
+                  <strong>{{ evtReadiness()?.profile || 'k3-direct-72h-readiness' }}</strong>
+                  <p class="muted">{{ 'Short environment preflight only. Long stress runs use operator supervisor.' | translate }}</p>
+                </div>
+                <div class="row-actions">
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="refreshEvtReadiness()">
+                    {{ actionBusy('evt-readiness') ? ('Refreshing...' | translate) : ('Refresh readiness' | translate) }}
+                  </button>
+                  <button mat-button color="primary" type="button" [disabled]="loading() || isBusy()" (click)="runEvtPreflight()">
+                    {{ actionBusy('evt-preflight') ? ('Running...' | translate) : ('Run preflight' | translate) }}
+                  </button>
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="viewEvtEvidenceBundle()">
+                    {{ 'View evidence JSON' | translate }}
+                  </button>
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="downloadEvtEvidenceBundle()">
+                    {{ 'Download evidence JSON' | translate }}
+                  </button>
+                </div>
+              </section>
+
+              @if (evtReadiness(); as readiness) {
+                <div class="overview-grid compact-overview evt-overview">
+                  <div>
+                    <span class="field-label">{{ 'Overall' | translate }}</span>
+                    <strong [ngClass]="toneClass(readiness.status)">{{ userStatusLabel(readiness.status) | translate }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Generated' | translate }}</span>
+                    <strong>{{ evtGeneratedAtLabel(readiness.generated_at) }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Latest preflight' | translate }}</span>
+                    <strong>{{ evtPreflightCompletedAt() }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Duration' | translate }}</span>
+                    <strong>{{ evtDurationLabel() }}</strong>
+                  </div>
+                </div>
+
+                @if (evtBlockers().length) {
+                  <div class="notice error compact evt-list">
+                    <p><strong>{{ 'Blockers' | translate }}</strong>: {{ evtBlockers().join(' · ') }}</p>
+                  </div>
+                }
+                @if (evtWarnings().length) {
+                  <div class="notice warn compact evt-list">
+                    <p><strong>{{ 'Warnings' | translate }}</strong>: {{ evtWarnings().join(' · ') }}</p>
+                  </div>
+                }
+
+                <section class="evt-metric-grid">
+                  @for (metric of evtReadinessMetrics(); track metric.id) {
+                    <article class="metric" [ngClass]="metric.tone">
+                      <span>{{ metric.label | translate }}</span>
+                      <strong>{{ metric.value }}</strong>
+                      <p>{{ metric.detail }}</p>
+                    </article>
+                  }
+                </section>
+
+                <section class="evt-service-list">
+                  <div class="section-heading compact-heading">
+                    <h2>{{ 'Services' | translate }}</h2>
+                    <p class="muted">{{ 'Service status is metadata-only.' | translate }}</p>
+                  </div>
+                  <div class="table-list compact-table">
+                    @for (service of evtServiceStatuses(); track service.service) {
+                      <article class="table-row">
+                        <div>
+                          <h2>{{ service.service }}</h2>
+                          <p class="muted">{{ service.status || ('unknown' | translate) }}</p>
+                        </div>
+                        <span class="pill" [ngClass]="service.active ? 'tone-good' : 'tone-warn'">
+                          {{ service.active ? ('Active' | translate) : ('Check' | translate) }}
+                        </span>
+                      </article>
+                    }
+                  </div>
+                </section>
+
+                <section class="evt-secret-scan">
+                  <div class="section-heading compact-heading">
+                    <h2>{{ 'Secret scan' | translate }}</h2>
+                    <p class="muted">{{ evtSecretScanSummary() }}</p>
+                  </div>
+                  @if (evtSecretScanCounts().length) {
+                    <div class="pill-row">
+                      @for (count of evtSecretScanCounts(); track count) {
+                        <span class="pill">{{ count }}</span>
+                      }
+                    </div>
+                  }
+                </section>
+
+                @if (evtEvidenceJson()) {
+                  <section class="evt-evidence-preview">
+                    <div class="section-heading compact-heading">
+                      <h2>{{ 'Redacted evidence JSON' | translate }}</h2>
+                      <p class="muted">{{ 'Payload contains summaries and counts only.' | translate }}</p>
+                    </div>
+                    <pre data-testid="harbor-assistant-evt-evidence-json">{{ evtEvidenceJson() }}</pre>
+                  </section>
+                }
+              } @else {
+                <div class="empty-state">{{ 'EVT readiness has not been loaded yet.' | translate }}</div>
+              }
+            </mat-card-content>
+          </mat-card>
+        </section>
+      }
     </section>
   }
 </section>

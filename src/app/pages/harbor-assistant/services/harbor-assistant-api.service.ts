@@ -19,6 +19,9 @@ import {
   DvrRecordingSettings,
   DvrRecordingStatusResponse,
   DvrTimelineResponse,
+  EvtEvidenceBundleResponse,
+  EvtPreflightResponse,
+  EvtReadinessResponse,
   FilesBrowseResponse,
   GatewayStatusResponse,
   HarborAssistantBackendStatus,
@@ -124,6 +127,22 @@ export class HarborAssistantApiService {
 
   getRagReadiness(): Observable<RagReadinessResponse> {
     return this.http.get<RagReadinessResponse>(this.apiUrl('/rag/readiness'));
+  }
+
+  getEvtReadiness(): Observable<EvtReadinessResponse> {
+    return this.http.get<EvtReadinessResponse>(this.apiUrl('/evt/readiness'));
+  }
+
+  runEvtPreflight(): Observable<EvtPreflightResponse> {
+    return this.http.post<EvtPreflightResponse>(this.apiUrl('/evt/preflight'), {});
+  }
+
+  getEvtPreflightLatest(): Observable<EvtPreflightResponse> {
+    return this.http.get<EvtPreflightResponse>(this.apiUrl('/evt/preflight/latest'));
+  }
+
+  getEvtEvidenceBundle(): Observable<EvtEvidenceBundleResponse> {
+    return this.http.get<EvtEvidenceBundleResponse>(this.apiUrl('/evt/evidence-bundle'));
   }
 
   getKnowledgeSettings(): Observable<KnowledgeSettings> {
