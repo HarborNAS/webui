@@ -7,7 +7,7 @@ import { provideMockStore } from '@ngrx/store/testing';
 import { mockApi, mockCall } from 'app/core/testing/utils/mock-api.utils';
 import { mockAuth } from 'app/core/testing/utils/mock-auth.utils';
 import { ContainerDeviceType, containerGpuType, ContainerType } from 'app/enums/container.enum';
-import { ContainerDevice } from 'app/interfaces/container.interface';
+import { ContainerDevice, ContainerGpuChoice } from 'app/interfaces/container.interface';
 import { SnackbarService } from 'app/modules/snackbar/services/snackbar.service';
 import { ApiService } from 'app/modules/websocket/api.service';
 import {
@@ -24,7 +24,7 @@ describe('AddGpuDeviceMenuComponent', () => {
     id: 123,
     type: ContainerType.Container,
   });
-  const gpuChoices = {
+  let gpuChoices: Record<string, ContainerGpuChoice> = {
     '0000:19:00.0': containerGpuType.Nvidia,
     '0000:1a:00.0': containerGpuType.Amd,
   };
@@ -66,6 +66,10 @@ describe('AddGpuDeviceMenuComponent', () => {
   });
 
   beforeEach(() => {
+    gpuChoices = {
+      '0000:19:00.0': containerGpuType.Nvidia,
+      '0000:1a:00.0': containerGpuType.Amd,
+    };
     spectator = createComponent();
     loader = TestbedHarnessEnvironment.loader(spectator.fixture);
   });
@@ -95,5 +99,62 @@ describe('AddGpuDeviceMenuComponent', () => {
     }]);
     expect(spectator.inject(ContainerDevicesStore).reload).toHaveBeenCalled();
     expect(spectator.inject(SnackbarService).success).toHaveBeenCalledWith('GPU Device was added');
+  });
+
+  it('shows W7900 BAR failure guidance and disables the GPU menu item', async () => {
+    gpuChoices = {
+      '0000:03:00.0': {
+        pci_slot: '0000:03:00.0',
+        gpu_type: containerGpuType.Amd,
+        description: 'AMD Radeon PRO W7900 (0000:03:00.0)',
+        available: false,
+        error: 'amd_w7900_bar_rebar_failure',
+        failure_reason: 'amd_w7900_bar_rebar_failure',
+        capabilities: [],
+        recommended_actions: [
+          'Append the recommended kernel options via system.advanced.update and reboot once.',
+        ],
+        os_profile: {
+          kernel_extra_options: 'pci=realloc=on,big_root_window,resource_alignment=36@0000:00:01.1',
+        },
+      },
+    };
+    spectator = createComponent();
+    loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+
+    const menu = await loader.getHarness(MatMenuHarness.with({ triggerText: 'Add' }));
+    await menu.open();
+
+    const menuItems = await menu.getItems();
+    expect(menuItems).toHaveLength(1);
+    expect(await menuItems[0].getText()).toContain('W7900 BAR allocation failed');
+    expect(await menuItems[0].getText()).toContain('resource_alignment=36@0000:00:01.1');
+    expect(await menuItems[0].isDisabled()).toBe(true);
+  });
+
+  it('does not expose placeholder kernel options before the upstream bridge is confirmed', async () => {
+    gpuChoices = {
+      '0000:03:00.0': {
+        pci_slot: '0000:03:00.0',
+        gpu_type: containerGpuType.Amd,
+        description: 'AMD Radeon PRO W7900 (0000:03:00.0)',
+        available: false,
+        error: 'amd_w7900_bar_rebar_failure',
+        failure_reason: 'amd_w7900_bar_rebar_failure',
+        os_profile: {
+          kernel_extra_options: 'resource_alignment=36@<upstream_bridge_pci_slot>',
+          manual_bridge_confirmation_required: true,
+        },
+      },
+    };
+    spectator = createComponent();
+    loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+
+    const menu = await loader.getHarness(MatMenuHarness.with({ triggerText: 'Add' }));
+    await menu.open();
+
+    const menuText = await (await menu.getItems())[0].getText();
+    expect(menuText).toContain('confirm the upstream bridge');
+    expect(menuText).not.toContain('resource_alignment');
   });
 });
