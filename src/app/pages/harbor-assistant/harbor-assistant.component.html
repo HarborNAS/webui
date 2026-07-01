@@ -2030,27 +2030,27 @@
 
           <mat-card class="settings-card native-panel evt-readiness-panel" data-testid="harbor-assistant-evt-readiness-panel">
             <mat-card-header>
-              <mat-card-title>{{ 'EVT Readiness' | translate }}</mat-card-title>
+              <mat-card-title>{{ 'Device Readiness' | translate }}</mat-card-title>
             </mat-card-header>
             <mat-card-content>
               <section class="section-heading evt-heading">
                 <div>
                   <span class="field-label">{{ 'Profile' | translate }}</span>
-                  <strong>{{ evtReadiness()?.profile || 'k3-direct-72h-readiness' }}</strong>
-                  <p class="muted">{{ 'Short environment preflight only. Long stress runs use operator supervisor.' | translate }}</p>
+                  <strong>{{ evtProfileLabel() | translate }}</strong>
+                  <p class="muted">{{ 'Runs a quick local readiness check only.' | translate }}</p>
                 </div>
                 <div class="row-actions">
                   <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="refreshEvtReadiness()">
                     {{ actionBusy('evt-readiness') ? ('Refreshing...' | translate) : ('Refresh readiness' | translate) }}
                   </button>
                   <button mat-button color="primary" type="button" [disabled]="loading() || isBusy()" (click)="runEvtPreflight()">
-                    {{ actionBusy('evt-preflight') ? ('Running...' | translate) : ('Run preflight' | translate) }}
+                    {{ actionBusy('evt-preflight') ? ('Running...' | translate) : ('Run quick check' | translate) }}
                   </button>
                   <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="viewEvtEvidenceBundle()">
-                    {{ 'View evidence JSON' | translate }}
+                    {{ 'View redacted evidence' | translate }}
                   </button>
                   <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="downloadEvtEvidenceBundle()">
-                    {{ 'Download evidence JSON' | translate }}
+                    {{ 'Download redacted evidence' | translate }}
                   </button>
                 </div>
               </section>
@@ -2066,7 +2066,7 @@
                     <strong>{{ evtGeneratedAtLabel(readiness.generated_at) }}</strong>
                   </div>
                   <div>
-                    <span class="field-label">{{ 'Latest preflight' | translate }}</span>
+                    <span class="field-label">{{ 'Latest check' | translate }}</span>
                     <strong>{{ evtPreflightCompletedAt() }}</strong>
                   </div>
                   <div>
@@ -2140,7 +2140,7 @@
                   </section>
                 }
               } @else {
-                <div class="empty-state">{{ 'EVT readiness has not been loaded yet.' | translate }}</div>
+                <div class="empty-state">{{ 'Device readiness has not been loaded yet.' | translate }}</div>
               }
             </mat-card-content>
           </mat-card>

@@ -28,10 +28,10 @@ import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camer
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
 import { HarborAssistantSearchComponent } from 'app/pages/harbor-assistant/search/harbor-assistant-search.component';
 import {
-  FolderPickerDialogComponent,
-  FolderPickerDialogData,
-  FolderPickerDialogResult,
-} from 'app/pages/file-manager/folder-picker-dialog/folder-picker-dialog.component';
+  HarborAssistantFolderBrowserDialogComponent,
+  HarborAssistantFolderBrowserDialogData,
+  HarborAssistantFolderBrowserDialogResult,
+} from 'app/pages/harbor-assistant/shared/harbor-assistant-folder-browser-dialog.component';
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
@@ -951,7 +951,7 @@ export class HarborAssistantComponent implements OnInit {
         this.evtReadiness.set(readiness);
         this.evtPreflightLatest.set(latestPreflight);
         this.mergeEndpointErrors({ evtReadiness: null, evtPreflightLatest: null });
-        this.actionMessage.set(T('EVT readiness refreshed.'));
+        this.actionMessage.set(T('Readiness refreshed.'));
       },
       error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });
@@ -970,7 +970,7 @@ export class HarborAssistantComponent implements OnInit {
         this.evtPreflightLatest.set(preflight);
         this.evtReadiness.set(preflight.readiness ?? this.evtReadiness());
         this.mergeEndpointErrors({ evtReadiness: null, evtPreflightLatest: null });
-        this.actionMessage.set(T('EVT preflight completed. No long stress run was started.'));
+        this.actionMessage.set(T('Quick readiness check completed.'));
       },
       error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });
@@ -1649,18 +1649,19 @@ export class HarborAssistantComponent implements OnInit {
     const currentPath = this.dvrForm.controls.mediaLibraryRoot.value.trim()
       || this.dvrSettings()?.media_library_root
       || '/mnt';
-    const data: FolderPickerDialogData = {
+    const data: HarborAssistantFolderBrowserDialogData = {
       title: T('Choose recording media library'),
       currentPath: currentPath.startsWith('/mnt/') ? currentPath : '/mnt',
       confirmLabel: T('Use this folder'),
-      currentSelectionLabel: T('Current selection'),
-      disabledSelectionTooltip: T('Choose a folder in a pool or USB device.'),
-      allowDatasetRootSelection: true,
       itemSelectLabel: T('Use'),
     };
 
-    this.matDialog.open<FolderPickerDialogComponent, FolderPickerDialogData, FolderPickerDialogResult>(
-      FolderPickerDialogComponent,
+    this.matDialog.open<
+      HarborAssistantFolderBrowserDialogComponent,
+      HarborAssistantFolderBrowserDialogData,
+      HarborAssistantFolderBrowserDialogResult
+    >(
+      HarborAssistantFolderBrowserDialogComponent,
       {
         data,
         maxWidth: '95vw',
@@ -2459,76 +2460,98 @@ export class HarborAssistantComponent implements OnInit {
   protected openKnowledgeFolderPicker(root?: KnowledgeSourceRoot | null): void {
     this.sourcePickerEditingRoot.set(root ?? null);
     const currentPath = root?.path ?? this.knowledgeSourceForm.controls.path.value.trim();
-    const pickerPath = currentPath.startsWith('/mnt/') ? currentPath : '/mnt';
-    const data: FolderPickerDialogData = {
+    const pickerPath = this.knowledgeSourcePickerStartPath(currentPath);
+    const data: HarborAssistantFolderBrowserDialogData = {
       title: root ? T('Edit data source') : T('Add data source'),
       currentPath: pickerPath,
       excludePaths: this.knowledgeSourceRoots()
         .filter((candidate) => candidate.root_id !== root?.root_id)
         .map((candidate) => candidate.path),
       confirmLabel: T('Use this folder'),
-      currentSelectionLabel: T('Current selection'),
-      disabledSelectionTooltip: T('Choose a folder in a pool or USB device.'),
-      allowDatasetRootSelection: true,
       itemSelectLabel: T('Use'),
     };
 
-    try {
-      this.matDialog.open<FolderPickerDialogComponent, FolderPickerDialogData, FolderPickerDialogResult>(
-        FolderPickerDialogComponent,
-        {
-          data,
-          maxWidth: '95vw',
-          width: '760px',
-        },
-      ).afterClosed()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((result) => {
-          if (result?.path) {
-            this.saveKnowledgeSourceFromPath(result.path, root ?? null);
-          }
-        });
-    } catch {
-      this.browseKnowledgeFiles(pickerPath);
+    this.matDialog.open<
+      HarborAssistantFolderBrowserDialogComponent,
+      HarborAssistantFolderBrowserDialogData,
+      HarborAssistantFolderBrowserDialogResult
+    >(
+      HarborAssistantFolderBrowserDialogComponent,
+      {
+        data,
+        maxWidth: '95vw',
+        width: '760px',
+      },
+    ).afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result) => {
+        if (result?.path) {
+          this.saveKnowledgeSourceFromPath(result.path, root ?? null);
+        }
+      });
+  }
+
+  private knowledgeSourcePickerStartPath(currentPath: string): string {
+    const trimmedPath = currentPath.trim();
+    if (trimmedPath.startsWith('/mnt/')) {
+      return trimmedPath;
     }
+
+    const indexRoot = (
+      this.knowledgeIndexForm.controls.indexRoot.value.trim()
+      || this.knowledgeSettings()?.index_root?.trim()
+      || ''
+    );
+    if (indexRoot.startsWith('/mnt/')) {
+      return this.parentFolderPath(indexRoot);
+    }
+
+    return '/mnt';
+  }
+
+  private parentFolderPath(path: string): string {
+    const normalized = path.trim().replace(/[\\/]+$/, '');
+    const parts = normalized.split('/').filter((part) => part.length > 0);
+    if (parts.length <= 2 || parts[0] !== 'mnt') {
+      return '/mnt';
+    }
+
+    return `/${parts.slice(0, -1).join('/')}`;
   }
 
   protected openModelStoreFolderPicker(): void {
     const currentPath = this.modelCapabilitiesResponse()?.model_store?.path ?? '/mnt';
     const pickerPath = currentPath.startsWith('/mnt/') ? currentPath : '/mnt';
-    const data: FolderPickerDialogData = {
+    const data: HarborAssistantFolderBrowserDialogData = {
       title: T('Model storage location'),
       currentPath: pickerPath,
       excludePaths: [],
       confirmLabel: T('Use this folder'),
-      currentSelectionLabel: T('Current selection'),
-      disabledSelectionTooltip: T('Choose a writable folder on HarborOS.'),
-      allowDatasetRootSelection: true,
       itemSelectLabel: T('Use'),
     };
 
-    try {
-      this.matDialog.open<FolderPickerDialogComponent, FolderPickerDialogData, FolderPickerDialogResult>(
-        FolderPickerDialogComponent,
-        {
-          data,
-          maxWidth: '95vw',
-          width: '760px',
-        },
-      ).afterClosed()
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((result) => {
-          if (result?.path) {
-            this.runAction(
-              'model-store',
-              this.harborAssistantApi.updateModelStore(result.path),
-              T('Model storage location was updated.'),
-            );
-          }
-        });
-    } catch {
-      this.actionError.set(T('Folder picker is temporarily unavailable. Try again later.'));
-    }
+    this.matDialog.open<
+      HarborAssistantFolderBrowserDialogComponent,
+      HarborAssistantFolderBrowserDialogData,
+      HarborAssistantFolderBrowserDialogResult
+    >(
+      HarborAssistantFolderBrowserDialogComponent,
+      {
+        data,
+        maxWidth: '95vw',
+        width: '760px',
+      },
+    ).afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result) => {
+        if (result?.path) {
+          this.runAction(
+            'model-store',
+            this.harborAssistantApi.updateModelStore(result.path),
+            T('Model storage location was updated.'),
+          );
+        }
+      });
   }
 
   protected saveKnowledgeSourceFromPath(path: string, root?: KnowledgeSourceRoot | null): void {
@@ -2973,6 +2996,20 @@ export class HarborAssistantComponent implements OnInit {
     return this.formatUnix(value);
   }
 
+  protected evtProfileLabel(): string {
+    const profile = this.evtReadiness()?.profile?.trim();
+    if (!profile) {
+      return T('Device readiness');
+    }
+
+    const normalized = profile.toLowerCase();
+    if (normalized.includes('k3') || normalized.includes('harbornavi') || normalized.includes('72h')) {
+      return T('Device readiness');
+    }
+
+    return profile.replace(/[-_]+/g, ' ');
+  }
+
   protected evtPreflightCompletedAt(): string {
     const preflight = this.evtPreflightLatest();
     return this.formatUnix(preflight?.completed_at ?? preflight?.started_at ?? null);
@@ -3116,7 +3153,7 @@ export class HarborAssistantComponent implements OnInit {
       case 'evtReadiness':
       case 'evtPreflightLatest':
       case 'evtEvidenceBundle':
-        return T('EVT readiness status could not refresh. Latest cached status is shown.');
+        return T('Device readiness status could not refresh. Latest cached status is shown.');
       case 'knowledgeSettings':
         return T('Data source settings could not refresh. Try again later.');
       case 'knowledgeIndexStatus':
@@ -5141,9 +5178,9 @@ export class HarborAssistantComponent implements OnInit {
         }
         this.mergeEndpointErrors({ evtEvidenceBundle: null });
         if (download) {
-          this.downloadJson(bundle, `harbornavi-k3-evt-evidence-${bundle.generated_at || Date.now()}.json`);
+          this.downloadJson(bundle, `harbor-assistant-readiness-evidence-${bundle.generated_at || Date.now()}.json`);
         }
-        this.actionMessage.set(download ? T('EVT evidence bundle downloaded.') : T('EVT evidence bundle loaded.'));
+        this.actionMessage.set(download ? T('Readiness evidence downloaded.') : T('Readiness evidence loaded.'));
       },
       error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });

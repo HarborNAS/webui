@@ -2,6 +2,8 @@ import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
 import { MockComponent } from 'ng-mocks';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { of, Subject, throwError } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantComponent } from 'app/pages/harbor-assistant/harbor-assistant.component';
@@ -320,7 +322,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('/mnt/pool/private');
   });
 
-  it('renders EVT readiness diagnostics and runs preflight without long stress controls', () => {
+  it('renders device readiness diagnostics and runs a quick check without long stress controls', () => {
     spectator = createComponent({
       providers: [
         mockProvider(ActivatedRoute, {
@@ -331,15 +333,17 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     expect(spectator.query('[data-testid="harbor-assistant-evt-readiness-panel"]')).toExist();
-    expect(spectator.query('.evt-readiness-panel')).toHaveText('EVT Readiness');
-    expect(spectator.query('.evt-readiness-panel')).toHaveText('k3-direct-72h-readiness');
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('Device Readiness');
+    expect(spectator.query('.evt-readiness-panel')).toHaveText('Device readiness');
+    expect(spectator.query('.evt-readiness-panel')).not.toHaveText('k3-direct-72h-readiness');
+    expect(spectator.query('.evt-readiness-panel')).not.toHaveText('operator supervisor');
     expect(spectator.query('.evt-readiness-panel')).toHaveText('Gateway and target');
     expect(spectator.query('.evt-readiness-panel')).toHaveText('Secret scan');
     expect(spectator.element.textContent).not.toContain('Start 72h');
     expect(spectator.element.textContent).not.toContain('Start 4h');
 
     const runPreflightButton = spectator.queryAll('button')
-      .find((button) => button.textContent?.includes('Run preflight')) as HTMLButtonElement;
+      .find((button) => button.textContent?.includes('Run quick check')) as HTMLButtonElement;
     spectator.click(runPreflightButton);
     spectator.detectChanges();
 
@@ -348,7 +352,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.evt-readiness-panel')).not.toHaveText('long_run_started true');
 
     const viewEvidenceButton = spectator.queryAll('button')
-      .find((button) => button.textContent?.includes('View evidence JSON')) as HTMLButtonElement;
+      .find((button) => button.textContent?.includes('View redacted evidence')) as HTMLButtonElement;
     spectator.click(viewEvidenceButton);
     spectator.detectChanges();
 
@@ -884,7 +888,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.model-capability-row .inline-model-panel')).toHaveText('Hugging Face');
   });
 
-  it('opens the folder picker and saves the selected folder as a data source', () => {
+  it('opens the Harbor Assistant folder browser and saves the selected folder as a data source', () => {
     spectator = createComponent({
       providers: [
         mockProvider(MatDialog, matDialog),
@@ -906,6 +910,35 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.pending-source-card')).not.toExist();
   });
 
+  it('starts Add data source from the Beacon workspace when the index root is under /mnt', () => {
+    api.getKnowledgeSettings.mockReturnValue(of({
+      source_roots: [],
+      index_root: '/mnt/software/harborbeacon-agent-ci/knowledge-index',
+      privacy_level: 'strict_local',
+      default_resource_profile: 'cpu_only',
+    }));
+    spectator = createComponent({
+      providers: [
+        mockProvider(MatDialog, matDialog),
+      ],
+    });
+
+    const component = spectator.component as unknown as {
+      openKnowledgeFolderPicker: () => void;
+    };
+    component.openKnowledgeFolderPicker();
+    spectator.detectChanges();
+
+    expect(matDialog.open).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        data: expect.objectContaining({
+          currentPath: '/mnt/software/harborbeacon-agent-ci',
+        }),
+      }),
+    );
+  });
+
   it('uses Edit to choose a replacement folder for an existing data source', () => {
     spectator = createComponent({
       providers: [
@@ -922,6 +955,16 @@ describe('Harbor Assistant component', () => {
         expect.objectContaining({ root_id: 'nas', path: '/mnt/pool/videos' }),
       ]),
     }));
+  });
+
+  it('keeps folder browsing inside Harbor Assistant instead of the global file manager picker', () => {
+    const source = readFileSync(
+      join(process.cwd(), 'src/app/pages/harbor-assistant/harbor-assistant.component.ts'),
+      'utf8',
+    );
+
+    expect(source).toContain('HarborAssistantFolderBrowserDialogComponent');
+    expect(source).not.toContain('app/pages/file-manager/folder-picker-dialog/folder-picker-dialog.component');
   });
 
   it('shows model downloads inline only after the user asks for more models', () => {
