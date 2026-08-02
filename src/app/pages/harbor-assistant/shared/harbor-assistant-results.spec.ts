@@ -1,24 +1,28 @@
 import {
-  HarborAssistantSearchResponse,
-} from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
-import {
   buildHarborAssistantSearchPayload,
   buildHarborAssistantSearchWaterfallItems,
+  harborAssistantHlsLiveUrl,
   harborAssistantSearchErrorMessage,
   harborAssistantSearchHasNoResults,
   harborAssistantPreviewUrl,
   harborAssistantSearchSameOriginAdminUrl,
+  harborAssistantWhepUrl,
 } from 'app/pages/harbor-assistant/shared/harbor-assistant-results';
+import {
+  HarborAssistantSearchResponse,
+} from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
 describe('Harbor Assistant search result helpers', () => {
   it('builds modality-aware search payloads', () => {
     expect(buildHarborAssistantSearchPayload(' 春天照片 ', 'all')).toEqual({
       query: '春天照片',
-      limit: 24,
       include_documents: true,
+      include_audio: true,
       include_images: true,
       include_videos: true,
+      retrieval_mode: 'auto',
       source_scope: 'dvr_library',
+      source_root_ids: [],
       camera_id: null,
       from: null,
       to: null,
@@ -27,25 +31,32 @@ describe('Harbor Assistant search result helpers', () => {
       query: 'spring',
       limit: 12,
       include_documents: false,
+      include_audio: false,
       include_images: true,
       include_videos: false,
+      retrieval_mode: 'auto',
       source_scope: 'dvr_library',
+      source_root_ids: [],
     });
     expect(buildHarborAssistantSearchPayload('report', 'text')).toEqual({
       query: 'report',
-      limit: 24,
       include_documents: true,
+      include_audio: false,
       include_images: false,
       include_videos: false,
+      retrieval_mode: 'auto',
       source_scope: 'dvr_library',
+      source_root_ids: [],
     });
     expect(buildHarborAssistantSearchPayload('clip', 'videos')).toEqual({
       query: 'clip',
-      limit: 24,
       include_documents: false,
+      include_audio: false,
       include_images: false,
       include_videos: true,
+      retrieval_mode: 'auto',
       source_scope: 'dvr_library',
+      source_root_ids: [],
       camera_id: null,
       from: null,
       to: null,
@@ -58,9 +69,12 @@ describe('Harbor Assistant search result helpers', () => {
       query: 'pouring drink',
       limit: 12,
       include_documents: false,
+      include_audio: false,
       include_images: false,
       include_videos: true,
+      retrieval_mode: 'auto',
       source_scope: 'dvr_library',
+      source_root_ids: [],
       camera_id: 'camera-main',
       from: '1714600000',
       to: '1714600300',
@@ -69,13 +83,34 @@ describe('Harbor Assistant search result helpers', () => {
       query: 'nas docs',
       limit: 6,
       include_documents: true,
+      include_audio: true,
       include_images: true,
       include_videos: true,
+      retrieval_mode: 'auto',
       source_scope: 'nas_files',
+      source_root_ids: [],
       camera_id: null,
       from: null,
       to: null,
     });
+    expect(buildHarborAssistantSearchPayload('陪我聊聊', 'all', 24, { useRetrieval: false }))
+      .toEqual(expect.objectContaining({ retrieval_mode: 'off' }));
+    expect(buildHarborAssistantSearchPayload('必须查资料', 'all', 24, { retrievalMode: 'on' }))
+      .toEqual(expect.objectContaining({ retrieval_mode: 'on' }));
+    expect(buildHarborAssistantSearchPayload('智能返回', 'all')).not.toHaveProperty('limit');
+    expect(buildHarborAssistantSearchPayload('限制返回', 'all', 100))
+      .toEqual(expect.objectContaining({ limit: 50 }));
+    expect(buildHarborAssistantSearchPayload('folder search', 'text', 24, {
+      sourceRootIds: ['documents'],
+    })).toEqual(expect.objectContaining({ source_root_ids: ['documents'] }));
+    expect(buildHarborAssistantSearchPayload('painting and mathematics', 'audio')).toEqual(
+      expect.objectContaining({
+        include_documents: false,
+        include_audio: true,
+        include_images: false,
+        include_videos: false,
+      }),
+    );
   });
 
   it('encodes same-origin preview URLs', () => {
@@ -90,29 +125,61 @@ describe('Harbor Assistant search result helpers', () => {
       .toBe('/api/harbor-beacon/cameras/camera-main/snapshot.jpg');
     expect(harborAssistantSearchSameOriginAdminUrl('/api/harbor-beacon/cameras/camera-main/snapshot.jpg'))
       .toBe('/api/harbor-beacon/cameras/camera-main/snapshot.jpg');
+    expect(harborAssistantSearchSameOriginAdminUrl('/api/harbor-link/hls/harbor-live-1/index.m3u8'))
+      .toBe('/api/harbor-link/hls/harbor-live-1/index.m3u8');
+    expect(harborAssistantSearchSameOriginAdminUrl('/api/harbor-link/media/harbor-live-1/whep'))
+      .toBe('/api/harbor-link/media/harbor-live-1/whep');
     expect(harborAssistantSearchSameOriginAdminUrl('http://127.0.0.1/ui/assets/harbor-fixtures/public-fixture-dvr.jpg'))
       .toBe('/ui/assets/harbor-fixtures/public-fixture-dvr.jpg');
+  });
+
+  it('uses separate same-origin allowlists for HLS playlists and WHEP endpoints', () => {
+    expect(harborAssistantHlsLiveUrl('/api/harbor-link/hls/harbor-live-1/index.m3u8'))
+      .toBe('/api/harbor-link/hls/harbor-live-1/index.m3u8');
+    expect(harborAssistantHlsLiveUrl('/api/beacon/cameras/camera-main/live/live-1/index.m3u8'))
+      .toBe('/api/beacon/cameras/camera-main/live/live-1/index.m3u8');
+    expect(harborAssistantHlsLiveUrl('/api/harbor-link/media/harbor-live-1/whep')).toBeNull();
+    expect(harborAssistantHlsLiveUrl('https://example.com/api/harbor-link/hls/live-1/index.m3u8')).toBeNull();
+
+    expect(harborAssistantWhepUrl('/api/harbor-link/media/harbor-live-1/whep'))
+      .toBe('/api/harbor-link/media/harbor-live-1/whep');
+    expect(harborAssistantWhepUrl('/api/harbor-link/hls/harbor-live-1/index.m3u8')).toBeNull();
+    expect(harborAssistantWhepUrl('/api/harbor-link/media/harbor-live-1/whep/session-1')).toBeNull();
+    expect(harborAssistantWhepUrl('https://example.com/api/harbor-link/media/live-1/whep')).toBeNull();
   });
 
   it('classifies and sorts waterfall items across image, text, and video hits', () => {
     const response = searchResponse({
       images: [
-        { modality: 'image', path: '/mnt/photo-a.jpg', title: 'Photo A', score: 42 },
+        {
+          modality: 'image', path: '/mnt/photo-a.jpg', title: 'Photo A', score: 42,
+        },
       ],
       documents: [
-        { modality: 'document', path: '/mnt/note.md', title: 'Note', score: 77 },
+        {
+          modality: 'document', path: '/mnt/note.md', title: 'Note', score: 77,
+        },
+        {
+          modality: 'audio',
+          path: '/mnt/speech.flac',
+          title: 'Speech',
+          score: 88,
+        },
       ],
       videos: [
-        { modality: 'video', path: '/mnt/clip.mp4', title: 'Clip', score: 55 },
+        {
+          modality: 'video', path: '/mnt/clip.mp4', title: 'Clip', score: 55,
+        },
       ],
     });
 
     const items = buildHarborAssistantSearchWaterfallItems(response, 'all');
 
-    expect(items.map((item) => item.kind)).toEqual(['document', 'video', 'image']);
-    expect(items[0].previewUrl).toBe('/api/harbor-beacon/knowledge/preview?path=%2Fmnt%2Fnote.md');
+    expect(items.map((item) => item.kind)).toEqual(['audio', 'document', 'video', 'image']);
+    expect(items[0].previewUrl).toBe('/api/harbor-beacon/knowledge/preview?path=%2Fmnt%2Fspeech.flac');
     expect(buildHarborAssistantSearchWaterfallItems(response, 'images').map((item) => item.kind)).toEqual(['image']);
     expect(buildHarborAssistantSearchWaterfallItems(response, 'text').map((item) => item.kind)).toEqual(['document']);
+    expect(buildHarborAssistantSearchWaterfallItems(response, 'audio').map((item) => item.kind)).toEqual(['audio']);
     expect(buildHarborAssistantSearchWaterfallItems(response, 'videos').map((item) => item.kind)).toEqual(['video']);
   });
 

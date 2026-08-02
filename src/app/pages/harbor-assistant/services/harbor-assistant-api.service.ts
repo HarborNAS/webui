@@ -37,6 +37,7 @@ import {
   HardwareReadinessResponse,
   InferenceHealthResponse,
   KnowledgeIndexRunResponse,
+  KnowledgeIndexJobsResponse,
   KnowledgeIndexStatusResponse,
   KnowledgeSettings,
   LocalVisionEventsResponse,
@@ -140,6 +141,10 @@ export class HarborAssistantApiService {
 
   getKnowledgeIndexStatus(): Observable<KnowledgeIndexStatusResponse> {
     return this.http.get<KnowledgeIndexStatusResponse>(this.apiUrl('/knowledge/index/status'));
+  }
+
+  getKnowledgeIndexJobs(): Observable<KnowledgeIndexJobsResponse> {
+    return this.http.get<KnowledgeIndexJobsResponse>(this.apiUrl('/knowledge/index/jobs'));
   }
 
   browseFiles(path?: string | null): Observable<FilesBrowseResponse> {
@@ -256,7 +261,10 @@ export class HarborAssistantApiService {
     return this.http.post<ModelEndpointsResponse>(this.apiUrl('/models/endpoints'), payload);
   }
 
-  updateModelEndpoint(modelEndpointId: string, payload: Partial<ModelEndpointPayload>): Observable<ModelEndpointsResponse> {
+  updateModelEndpoint(
+    modelEndpointId: string,
+    payload: Partial<ModelEndpointPayload>,
+  ): Observable<ModelEndpointsResponse> {
     return this.http.patch<ModelEndpointsResponse>(
       this.apiUrl(`/models/endpoints/${encodeURIComponent(modelEndpointId)}`),
       payload,

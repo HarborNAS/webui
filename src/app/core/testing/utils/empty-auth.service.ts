@@ -16,4 +16,5 @@ export class EmptyAuthService {
   loginWithToken = getMissingInjectionErrorFactory(AuthService.name);
   setQueryToken = getMissingInjectionErrorFactory(AuthService.name);
   getOneTimeToken = getMissingInjectionErrorFactory(AuthService.name);
+  getHarborAssistantOneTimeToken = getMissingInjectionErrorFactory(AuthService.name);
 }

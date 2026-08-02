@@ -7,6 +7,14 @@
   >
     {{ 'Refresh' | translate }}
   </button>
+  <button
+    mat-button
+    type="button"
+    color="primary"
+    (click)="selectSettingsSection('rules')"
+  >
+    {{ 'Rules' | translate }} {{ pendingRuleCount() }} {{ 'pending' | translate }}
+  </button>
   <a
     mat-button
     color="primary"
@@ -52,91 +60,12 @@
     }
   </nav>
 
-  <section class="rules-review-entry">
-    <button
-      mat-button
-      type="button"
-      color="primary"
-      (click)="toggleRulesDrawer()"
-    >
-      {{ 'Rules' | translate }} {{ pendingRuleCount() }} {{ 'pending' | translate }}
-    </button>
-  </section>
-
-  @if (rulesDrawerOpen()) {
-    <mat-card class="settings-card native-panel rules-review-drawer">
-      <mat-card-header>
-        <mat-card-title>{{ 'Rules / Pending Reviews' | translate }}</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <form class="rule-draft-form" [formGroup]="ruleDraftForm" (ngSubmit)="saveRuleDraft()">
-          <mat-form-field>
-            <mat-label>{{ 'Natural-language rule draft' | translate }}</mat-label>
-            <textarea matInput rows="3" formControlName="prompt"></textarea>
-          </mat-form-field>
-          <button mat-button color="primary" type="submit" [disabled]="actionBusy('automation-review-create')">
-            {{ actionBusy('automation-review-create') ? ('Saving' | translate) : ('Save draft' | translate) }}
-          </button>
-        </form>
-
-        @if (pendingRuleReviews().length === 0) {
-          <div class="empty-state">{{ 'No rule reviews are waiting.' | translate }}</div>
-        } @else {
-          <div class="rule-review-list">
-            @for (review of pendingRuleReviews(); track review.review_id) {
-              <article class="rule-review-card">
-                <div>
-                  <div class="rule-review-meta">
-                    <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
-                    <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
-                    <span class="pill">{{ review.risk_level || 'medium' }}</span>
-                  </div>
-                  <h2>{{ review.original_prompt }}</h2>
-                  <p class="muted">{{ 'Expires' | translate }}: {{ review.expires_at || 'Unknown' }}</p>
-                </div>
-                <div class="row-actions">
-                  <button mat-button color="primary" type="button" [disabled]="isBusy()" (click)="enableRuleReview(review)">
-                    {{ actionBusy('automation-review-enable:' + review.review_id) ? ('Enabling' | translate) : ('Enable' | translate) }}
-                  </button>
-                  <button mat-button type="button" [disabled]="isBusy()" (click)="discardRuleReview(review)">
-                    {{ actionBusy('automation-review-discard:' + review.review_id) ? ('Discarding' | translate) : ('Discard' | translate) }}
-                  </button>
-                </div>
-              </article>
-            }
-          </div>
-        }
-
-        @if (activeRuleReviews().length > 0) {
-          <mat-divider></mat-divider>
-          <div class="rule-review-list">
-            @for (review of activeRuleReviews().slice(0, 8); track review.review_id) {
-              <article class="rule-review-card compact">
-                <div>
-                  <div class="rule-review-meta">
-                    <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
-                    <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
-                  </div>
-                  <h2>{{ review.original_prompt }}</h2>
-                </div>
-                <div class="row-actions">
-                  @if (review.status === 'active') {
-                    <button mat-button type="button" [disabled]="isBusy()" (click)="pauseRuleReview(review)">
-                      {{ actionBusy('automation-review-pause:' + review.review_id) ? ('Pausing' | translate) : ('Pause' | translate) }}
-                    </button>
-                  }
-                </div>
-              </article>
-            }
-          </div>
-        }
-      </mat-card-content>
-    </mat-card>
-  }
-
   @if (isTab('search')) {
     <section class="tab-panel assistant-search-tab">
-      <ix-harbor-assistant-search></ix-harbor-assistant-search>
+      <ix-harbor-assistant-search
+        [knowledgeIndexJob]="activeKnowledgeIndexJob()"
+        [knowledgeSourceRoots]="knowledgeSourceRoots()"
+      ></ix-harbor-assistant-search>
     </section>
   }
 
@@ -247,12 +176,12 @@
                 </span>
                 <div class="row-actions">
                   @if (connector.setupUrl) {
-                    <a mat-button color="primary" [href]="connector.setupUrl" target="_blank" rel="noopener">
+                    <a mat-button color="primary" target="_blank" rel="noopener" [href]="connector.setupUrl">
                       {{ 'Bind' | translate }}
                     </a>
                   }
                   @if (connector.manageUrl) {
-                    <a mat-button color="primary" [href]="connector.manageUrl" target="_blank" rel="noopener">
+                    <a mat-button color="primary" target="_blank" rel="noopener" [href]="connector.manageUrl">
                       {{ connector.connected ? ('Reconnect' | translate) : ('Manage' | translate) }}
                     </a>
                   }
@@ -415,10 +344,32 @@
               <section class="knowledge-section index-status-card">
                 <div class="section-heading">
                   <h2>{{ 'Index status' | translate }}</h2>
-                  <button mat-button color="primary" type="button" [disabled]="actionBusy('knowledge-index')" (click)="runKnowledgeIndex()">
-                    {{ actionBusy('knowledge-index') ? ('Indexing...' | translate) : ('Start indexing' | translate) }}
+                  <button
+                    mat-button
+                    color="primary"
+                    type="button"
+                    [disabled]="actionBusy('knowledge-index') || knowledgeIndexing()"
+                    (click)="runKnowledgeIndex()"
+                  >
+                    {{ knowledgeIndexing() || actionBusy('knowledge-index')
+                      ? ('Indexing...' | translate)
+                      : ('Start indexing' | translate) }}
                   </button>
                 </div>
+                @if (activeKnowledgeIndexJob(); as indexJob) {
+                  <div class="knowledge-index-job-progress" aria-live="polite">
+                    <div>
+                      <strong>{{ 'Knowledge index is running' | translate }}</strong>
+                      <span>{{ knowledgeIndexPhaseLabel(indexJob) | translate }}</span>
+                    </div>
+                    <span>{{ knowledgeIndexProgress(indexJob) }}%</span>
+                    <mat-progress-bar
+                      mode="determinate"
+                      [value]="knowledgeIndexProgress(indexJob)"
+                      [attr.aria-label]="'Indexing progress' | translate"
+                    ></mat-progress-bar>
+                  </div>
+                }
                 @if (knowledgeIndexStatus(); as indexState) {
                   <div class="overview-grid compact-overview">
                     <div>
@@ -429,13 +380,29 @@
                       <span class="field-label">{{ 'Data source' | translate }}</span>
                       <strong>{{ knowledgeSourceRoots().length }}</strong>
                     </div>
-                    <div>
-                      <span class="field-label">{{ 'Image content' | translate }}</span>
-                      <strong>{{ indexState.content_indexed_image_count ?? 0 }}/{{ indexState.image_count ?? 0 }}</strong>
+                    <div class="knowledge-index-stat knowledge-index-stat--total">
+                      <span class="field-label">{{ 'Indexed files' | translate }}</span>
+                      <strong>{{ indexedKnowledgeFileCount(indexState) }}</strong>
                     </div>
-                    <div>
-                      <span class="field-label">{{ 'Video/image descriptions' | translate }}</span>
-                      <strong>{{ indexState.vlm_indexed_image_count ?? 0 }}</strong>
+                    <div class="knowledge-index-stat knowledge-index-stat--unindexed">
+                      <span class="field-label">{{ 'Unindexed files' | translate }}</span>
+                      <strong>{{ indexState.unindexed_file_count ?? '—' }}</strong>
+                    </div>
+                    <div class="knowledge-index-stat knowledge-index-stat--documents">
+                      <span class="field-label">{{ 'Documents' | translate }}</span>
+                      <strong>{{ indexState.document_count ?? 0 }}</strong>
+                    </div>
+                    <div class="knowledge-index-stat knowledge-index-stat--images">
+                      <span class="field-label">{{ 'Images' | translate }}</span>
+                      <strong>{{ indexState.image_count ?? 0 }}</strong>
+                    </div>
+                    <div class="knowledge-index-stat knowledge-index-stat--audio">
+                      <span class="field-label">{{ 'Audio files' | translate }}</span>
+                      <strong>{{ indexState.audio_count ?? 0 }}</strong>
+                    </div>
+                    <div class="knowledge-index-stat knowledge-index-stat--videos">
+                      <span class="field-label">{{ 'Videos' | translate }}</span>
+                      <strong>{{ indexState.video_count ?? 0 }}</strong>
                     </div>
                   </div>
                 } @else {
@@ -546,10 +513,17 @@
                       <p class="muted">{{ capability.detail | translate }}</p>
                     </div>
                     <div class="model-current-cell">
-                      <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
-                      <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
-                      @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
-                        <p class="muted warn">{{ runtimeNotice | translate }}</p>
+                      @if (workflowSharedModelOwner(capability.capabilityId); as owner) {
+                        <strong>{{ 'Shared model' | translate }}</strong>
+                        <p class="muted">
+                          {{ 'Uses the same running model as' | translate }} {{ owner.label | translate }}
+                        </p>
+                      } @else {
+                        <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
+                        <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
+                        @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
+                          <p class="muted warn">{{ runtimeNotice | translate }}</p>
+                        }
                       }
                     </div>
                     <span class="pill" [ngClass]="workflowCapabilityToneClass(capability.capabilityId)">
@@ -930,7 +904,7 @@
                   (ngSubmit)="saveModelPolicy()"
                 >
                   <mat-form-field>
-                    <input matInput formControlName="routePolicyId" [placeholder]="'Policy id' | translate" readonly />
+                    <input matInput formControlName="routePolicyId" readonly [placeholder]="'Policy id' | translate" />
                   </mat-form-field>
                   <mat-form-field>
                     <mat-select formControlName="localPreferred">
@@ -1059,6 +1033,79 @@
     </section>
       }
 
+      @if (isSettingsSection('rules')) {
+        <section class="settings-section-panel rules-settings-tab">
+          <mat-card class="settings-card native-panel rules-settings-card">
+            <mat-card-header>
+              <mat-card-title>{{ 'Rules / Pending Reviews' | translate }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <form class="rule-draft-form" [formGroup]="ruleDraftForm" (ngSubmit)="saveRuleDraft()">
+                <mat-form-field>
+                  <mat-label>{{ 'Natural-language rule draft' | translate }}</mat-label>
+                  <textarea matInput rows="3" formControlName="prompt"></textarea>
+                </mat-form-field>
+                <button mat-button color="primary" type="submit" [disabled]="actionBusy('automation-review-create')">
+                  {{ actionBusy('automation-review-create') ? ('Saving' | translate) : ('Save draft' | translate) }}
+                </button>
+              </form>
+
+              @if (pendingRuleReviews().length === 0) {
+                <div class="empty-state">{{ 'No rule reviews are waiting.' | translate }}</div>
+              } @else {
+                <div class="rule-review-list">
+                  @for (review of pendingRuleReviews(); track review.review_id) {
+                    <article class="rule-review-card">
+                      <div>
+                        <div class="rule-review-meta">
+                          <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                          <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                          <span class="pill">{{ review.risk_level || 'medium' }}</span>
+                        </div>
+                        <h2>{{ review.original_prompt }}</h2>
+                        <p class="muted">{{ 'Expires' | translate }}: {{ review.expires_at || 'Unknown' }}</p>
+                      </div>
+                      <div class="row-actions">
+                        <button mat-button color="primary" type="button" [disabled]="isBusy()" (click)="enableRuleReview(review)">
+                          {{ actionBusy('automation-review-enable:' + review.review_id) ? ('Enabling' | translate) : ('Enable' | translate) }}
+                        </button>
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="discardRuleReview(review)">
+                          {{ actionBusy('automation-review-discard:' + review.review_id) ? ('Discarding' | translate) : ('Discard' | translate) }}
+                        </button>
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+
+              @if (activeRuleReviews().length > 0) {
+                <mat-divider></mat-divider>
+                <div class="rule-review-list">
+                  @for (review of activeRuleReviews().slice(0, 8); track review.review_id) {
+                    <article class="rule-review-card compact">
+                      <div>
+                        <div class="rule-review-meta">
+                          <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                          <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                        </div>
+                        <h2>{{ review.original_prompt }}</h2>
+                      </div>
+                      <div class="row-actions">
+                        @if (review.status === 'active') {
+                          <button mat-button type="button" [disabled]="isBusy()" (click)="pauseRuleReview(review)">
+                            {{ actionBusy('automation-review-pause:' + review.review_id) ? ('Pausing' | translate) : ('Pause' | translate) }}
+                          </button>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+              }
+            </mat-card-content>
+          </mat-card>
+        </section>
+      }
+
       @if (isSettingsSection('camera')) {
     <section class="settings-section-panel devices-tab">
       <mat-card class="settings-card native-panel camera-list-card">
@@ -1163,11 +1210,11 @@
                       <p class="muted">{{ result.ip }}:{{ result.port }} · {{ result.protocol | translate }}</p>
                       <p class="muted">{{ result.note | translate }}</p>
                     </div>
-                    @if (result.requires_auth && !result.registered) {
+                    @if (!result.registered) {
                       <div class="scan-result-actions">
                         @if (!isScanCredentialOpen(result)) {
                           <button mat-button type="button" (click)="prepareManualFromScan(result)">
-                            {{ 'Enter password to connect' | translate }}
+                            {{ (result.requires_auth ? 'Enter password to connect' : 'Connect camera') | translate }}
                           </button>
                         }
                       </div>
@@ -1177,31 +1224,33 @@
                             <mat-label>{{ 'Username' | translate }}</mat-label>
                             <input matInput formControlName="username" autocomplete="username" />
                           </mat-form-field>
-                          <mat-form-field>
-                            <mat-label>{{ 'Password' | translate }}</mat-label>
-                            <input
-                              matInput
-                              [type]="scanCredentialPasswordVisible() ? 'text' : 'password'"
-                              formControlName="password"
-                              autocomplete="new-password"
-                            />
-                            <button
-                              mat-icon-button
-                              matSuffix
-                              class="password-visibility-button"
-                              type="button"
-                              [attr.aria-label]="(scanCredentialPasswordVisible() ? 'Hide password' : 'Show password') | translate"
-                              [attr.title]="(scanCredentialPasswordVisible() ? 'Hide password' : 'Show password') | translate"
-                              (click)="toggleScanCredentialPasswordVisible()"
-                            >
-                              <tn-icon
-                                library="mdi"
-                                [name]="scanCredentialPasswordVisible() ? 'eye-off' : 'eye'"
-                                customSize="18px"
-                              ></tn-icon>
-                            </button>
-                          </mat-form-field>
-                          <button mat-button color="primary" type="submit" [disabled]="actionInProgress() !== null || scanCredentialForm.invalid">
+                          @if (result.requires_auth) {
+                            <mat-form-field>
+                              <mat-label>{{ 'Password' | translate }}</mat-label>
+                              <input
+                                matInput
+                                formControlName="password"
+                                autocomplete="new-password"
+                                [type]="scanCredentialPasswordVisible() ? 'text' : 'password'"
+                              />
+                              <button
+                                mat-icon-button
+                                matSuffix
+                                class="password-visibility-button"
+                                type="button"
+                                [attr.aria-label]="(scanCredentialPasswordVisible() ? 'Hide password' : 'Show password') | translate"
+                                [attr.title]="(scanCredentialPasswordVisible() ? 'Hide password' : 'Show password') | translate"
+                                (click)="toggleScanCredentialPasswordVisible()"
+                              >
+                                <tn-icon
+                                  library="mdi"
+                                  customSize="18px"
+                                  [name]="scanCredentialPasswordVisible() ? 'eye-off' : 'eye'"
+                                ></tn-icon>
+                              </button>
+                            </mat-form-field>
+                          }
+                          <button mat-button color="primary" type="submit" [disabled]="actionInProgress() !== null">
                             @if (actionBusy('scan-connect:' + result.candidate_id)) {
                               {{ 'Connecting' | translate }}
                             } @else {
@@ -1235,7 +1284,7 @@
               <mat-form-field><mat-label>{{ 'Name' | translate }}</mat-label><input matInput formControlName="name" placeholder="TP1" /></mat-form-field>
               <mat-form-field><mat-label>{{ 'IP address' | translate }}</mat-label><input matInput formControlName="ip" placeholder="192.168.3.231" /></mat-form-field>
               <mat-form-field><mat-label>{{ 'Location' | translate }}</mat-label><input matInput formControlName="room" placeholder="Living room" /></mat-form-field>
-              <mat-form-field><mat-label>{{ 'RTSP path' | translate }}</mat-label><input matInput formControlName="path" placeholder="/stream1" /></mat-form-field>
+              <mat-form-field><mat-label>{{ 'RTSP path' | translate }}</mat-label><input matInput formControlName="path" placeholder="/ch01_sub.264" /></mat-form-field>
               <mat-form-field><mat-label>{{ 'Snapshot URL' | translate }}</mat-label><input matInput formControlName="snapshotUrl" /></mat-form-field>
               <mat-form-field><mat-label>{{ 'RTSP port' | translate }}</mat-label><input matInput formControlName="port" placeholder="554" /></mat-form-field>
               <mat-form-field><mat-label>{{ 'Username' | translate }}</mat-label><input matInput formControlName="username" autocomplete="username" /></mat-form-field>

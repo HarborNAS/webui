@@ -1,192 +1,400 @@
-<section class="harbor-assistant-search-page">
-  <div class="harbor-assistant-search-shell">
-    <main class="rag-workbench">
-      @if (loading() || response() || error()) {
-        <section #searchResults class="results-workbench" data-testid="harbor-assistant-search-search-results">
-          @if (response(); as result) {
-            <div class="results-header">
-              <div>
-                <h2>{{ 'Search results' | translate }}</h2>
-                <p>{{ form.controls.query.value }}</p>
-              </div>
-              <div class="result-summary">
-                <strong>{{ result.total_matches }}</strong>
-                <span>{{ 'results' | translate }}</span>
-                <span>{{ searchStatusLabel(result) | translate }}</span>
-                @if (result.degraded) {
-                  <span>{{ userFacingSearchNotice(result.degraded_reason || '') | translate }}</span>
+<section class="harbor-assistant-chat-page">
+  <aside class="conversation-sidebar" aria-label="Conversation history">
+    <div class="conversation-sidebar-header">
+      <strong>{{ 'Harbor Assistant' | translate }}</strong>
+      <button
+        mat-stroked-button
+        class="new-conversation-button"
+        type="button"
+        [disabled]="conversationBusy()"
+        (click)="clearConversation()"
+      >
+        <span class="new-conversation-icon" aria-hidden="true">＋</span>
+        {{ 'New conversation' | translate }}
+      </button>
+    </div>
+
+    <div class="conversation-list">
+      <div class="conversation-list-heading">{{ 'Recent conversations' | translate }}</div>
+      @if (conversationHistoryLoading()) {
+        <span class="conversation-list-empty">{{ 'Loading' | translate }}…</span>
+      } @else if (conversations().length === 0) {
+        <span class="conversation-list-empty">{{ 'No conversation history yet.' | translate }}</span>
+      }
+      @for (conversation of conversations(); track conversation.conversation_id) {
+        <div
+          class="conversation-item"
+          [class.active]="conversation.conversation_id === activeConversationId()"
+        >
+          <button
+            type="button"
+            class="conversation-select"
+            [disabled]="conversationBusy()"
+            (click)="loadConversation(conversation.conversation_id)"
+          >
+            <strong>{{ conversation.title }}</strong>
+            <small>{{ conversation.turn_count }} {{ 'messages' | translate }}</small>
+          </button>
+          <button
+            type="button"
+            class="delete-conversation"
+            [attr.aria-label]="'Delete conversation' | translate"
+            [attr.aria-busy]="conversationDeleting(conversation.conversation_id)"
+            [disabled]="conversationBusy()"
+            (click)="deleteConversation($event, conversation.conversation_id)"
+          >
+            @if (conversationDeleting(conversation.conversation_id)) {
+              <span class="delete-conversation-spinner" aria-hidden="true"></span>
+            } @else {
+              <tn-icon name="delete" library="mdi"></tn-icon>
+            }
+          </button>
+        </div>
+      }
+    </div>
+
+    <details class="conversation-settings">
+      <summary>
+        <span>{{ 'History settings' | translate }}</span>
+        <small>
+          {{ conversationSettingsForm.controls.history_limit.value }} /
+          {{ conversationSettingsForm.controls.context_turn_limit.value }} /
+          {{ conversationSettingsForm.controls.context_token_limit.value }}
+        </small>
+      </summary>
+      <form [formGroup]="conversationSettingsForm" (ngSubmit)="saveConversationSettings()">
+        <p>{{ 'Configure how many chats are saved and how many recent turns are sent as context.' | translate }}</p>
+        <label>
+          <span>{{ 'Saved conversations' | translate }}</span>
+          <input type="number" min="1" max="100" formControlName="history_limit" />
+        </label>
+        <label>
+          <span>{{ 'Context turns' | translate }}</span>
+          <input type="number" min="0" max="20" formControlName="context_turn_limit" />
+        </label>
+        <label>
+          <span>{{ 'Context token limit' | translate }}</span>
+          <input
+            type="number"
+            min="4096"
+            max="8192"
+            step="1024"
+            formControlName="context_token_limit"
+          />
+          <small>
+            {{ 'The assistant automatically reserves space for the answer and protects the current question.' | translate }}
+          </small>
+        </label>
+        <button mat-stroked-button type="submit" [disabled]="conversationSettingsForm.invalid || conversationBusy()">
+          {{ 'Save' | translate }}
+        </button>
+      </form>
+    </details>
+  </aside>
+
+  <div class="chat-shell">
+    @if (knowledgeIndexJob(); as indexJob) {
+      <section class="knowledge-index-progress" aria-live="polite">
+        <div>
+          <strong>{{ 'Knowledge index is running' | translate }}</strong>
+          <span>{{ indexJobPhaseLabel(indexJob) | translate }}</span>
+        </div>
+        <span>{{ indexJobProgress(indexJob) }}%</span>
+        <mat-progress-bar
+          mode="determinate"
+          [value]="indexJobProgress(indexJob)"
+          [attr.aria-label]="'Indexing progress' | translate"
+        ></mat-progress-bar>
+      </section>
+    }
+    <main #chatScroll class="chat-scroll" data-testid="harbor-assistant-chat-stream">
+      <div class="chat-thread">
+        @if (chatTurns().length === 0 && !pendingQuery()) {
+          <section class="chat-welcome">
+            <span class="welcome-mark" aria-hidden="true">H</span>
+            <h2>{{ 'How can I help you?' | translate }}</h2>
+            <p>{{ 'Ask naturally. Harbor Assistant decides when local knowledge retrieval is needed.' | translate }}</p>
+
+            @if (promptSuggestions().length > 0) {
+              <div class="suggested-questions" aria-label="Questions based on indexed knowledge">
+                @for (suggestion of promptSuggestions(); track suggestion.query) {
+                  <button type="button" class="suggestion-card" (click)="usePromptSuggestion(suggestion)">
+                    <span>{{ suggestion.label }}</span>
+                    <span aria-hidden="true">→</span>
+                  </button>
                 }
               </div>
-            </div>
-          } @else {
-            <div class="results-header">
-              <div>
-                <h2>{{ 'Search results' | translate }}</h2>
-                <p>{{ form.controls.query.value }}</p>
-              </div>
-              <div class="result-summary">
-                <strong>{{ loading() ? ('Searching' | translate) : ('0' | translate) }}</strong>
-                <span>{{ loading() ? ('Searching' | translate) : ('Error' | translate) }}</span>
-              </div>
-            </div>
-          }
+            }
 
-          @if (loading()) {
-            <section class="results-skeleton" aria-live="polite">
-              <div class="skeleton-card"></div>
-              <div class="skeleton-card tall"></div>
-              <div class="skeleton-card"></div>
-            </section>
-          } @else if (response(); as result) {
-            @if (noResults()) {
-              <div class="empty-state filter-empty-state">
-                <span>{{ emptyMessage(result) | translate }}</span>
-                @if (availableResultFilters(result).length > 0) {
-                  <div class="empty-actions">
-                    @for (filter of availableResultFilters(result); track filter) {
-                      <button mat-stroked-button type="button" (click)="switchFilter(filter)">
-                        {{ filterLabel(filter) | translate }}
-                      </button>
+            @if (searchHistory().length > 0) {
+              <div class="search-history-strip" aria-label="Search history">
+                <div class="history-heading">
+                  <span>{{ 'Recent searches' | translate }}</span>
+                  <button type="button" class="text-button" (click)="clearSearchHistory()">
+                    {{ 'Clear' | translate }}
+                  </button>
+                </div>
+                <div class="history-items">
+                  @for (term of searchHistory(); track term) {
+                    <button type="button" class="history-chip" (click)="useSearchHistoryTerm(term)">
+                      {{ term }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+          </section>
+        }
+
+        @for (turn of chatTurns(); track turn.id) {
+          <article class="message user-message">
+            <div class="message-avatar user-avatar">{{ 'You' | translate }}</div>
+            <div class="message-body user-bubble">
+              <p>{{ turn.query }}</p>
+            </div>
+          </article>
+
+          <article class="message assistant-message">
+            <div class="message-avatar assistant-avatar" aria-hidden="true">H</div>
+            <div class="message-body assistant-body">
+              @if (turn.response; as result) {
+                <div class="answer-meta">
+                  <span>{{ (conversationResponse(result) ? 'Conversation' : 'Knowledge answer') | translate }}</span>
+                  @if (!conversationResponse(result)) {
+                    <span>{{ result.total_matches }} {{ 'results' | translate }}</span>
+                  }
+                  @if (result.degraded) {
+                    <span class="degraded-status">{{ 'Degraded' | translate }}</span>
+                  }
+                </div>
+
+                @if (result.answer) {
+                  <markdown class="answer-markdown" [data]="result.answer"></markdown>
+                }
+
+                @if (result.review_scope?.note; as reviewScopeNote) {
+                  <div class="notice compact">{{ reviewScopeNote }}</div>
+                }
+
+                @if (result.warnings.length > 0 || result.blockers.length > 0) {
+                  <div class="notice warning compact">
+                    @for (warning of result.warnings; track warning) {
+                      <span>{{ userFacingSearchNotice(warning) | translate }}</span>
+                    }
+                    @for (blocker of result.blockers; track blocker) {
+                      <span>{{ userFacingSearchNotice(blocker) | translate }}</span>
                     }
                   </div>
                 }
-              </div>
-            } @else {
-              <section class="results-waterfall" aria-live="polite">
-                @for (item of waterfallItems(); track resultTrackKey($index, item)) {
-                  <mat-card class="result-card" [ngClass]="item.kind" tabindex="0" (click)="openPreview(item)" (keydown.enter)="openPreview(item)">
-                    @if (item.kind === 'image') {
-                      <div class="image-frame">
-                        <img [src]="item.previewUrl" [alt]="item.hit.title" loading="lazy" />
-                      </div>
-                    }
-                    @if (item.kind === 'video') {
-                      <div class="video-frame">
-                        <video [src]="videoPreviewUrl(item)" muted playsinline preload="metadata" aria-hidden="true"></video>
-                        <span class="play-chip">{{ 'Play' | translate }}</span>
-                      </div>
-                    }
+                @if (embeddingUnavailable(result)) {
+                  <div class="notice warning compact embedding-action">
+                    <span>{{ 'Vector search model is unavailable. Open Harbor Assistant Settings / AI Settings / Models to select or install a model, then re-index the knowledge base.' | translate }}</span>
+                    <button mat-stroked-button type="button" (click)="openHarborAssistantModels()">
+                      {{ 'Open model settings' | translate }}
+                    </button>
+                  </div>
+                }
 
-                  <mat-card-content>
-                    <div class="card-topline">
-                      <span>{{ kindLabel(item) | translate }}</span>
-                    </div>
-                    <h2>{{ item.hit.title }}</h2>
-                    <p>{{ summary(item.hit) }}</p>
-                  </mat-card-content>
-                </mat-card>
+                @if (!conversationResponse(result) && noResults(result, turn.filter)) {
+                  <div class="empty-state filter-empty-state">
+                    {{ emptyMessage(result, turn.query, turn.filter) | translate }}
+                  </div>
+                } @else if (!conversationResponse(result)) {
+                  <details class="references-panel">
+                    <summary>
+                      <span>{{ 'References' | translate }}</span>
+                      <span>{{ waterfallItems(result, turn.filter).length }}</span>
+                    </summary>
+                    <section class="reference-grid" aria-live="polite">
+                      @for (item of waterfallItems(result, turn.filter); track resultTrackKey($index, item)) {
+                        <mat-card
+                          class="reference-card"
+                          tabindex="0"
+                          [ngClass]="item.kind"
+                          (click)="openPreview(item)"
+                          (keydown.enter)="openPreview(item)"
+                        >
+                          @if (item.kind === 'image') {
+                            <div class="image-frame">
+                              <img loading="lazy" [src]="item.previewUrl" [alt]="item.hit.title" />
+                            </div>
+                          }
+                          @if (item.kind === 'video') {
+                            <div class="video-frame">
+                              <video muted playsinline preload="metadata" aria-hidden="true" [src]="videoPreviewUrl(item)"></video>
+                              <span class="play-chip">{{ 'Play' | translate }}</span>
+                            </div>
+                          }
+                          @if (item.kind === 'audio') {
+                            <div class="audio-frame" (click)="$event.stopPropagation()">
+                              <audio controls preload="metadata" [src]="item.previewUrl"></audio>
+                            </div>
+                          }
+                          <mat-card-content>
+                            <span class="reference-kind">{{ kindLabel(item) | translate }}</span>
+                            <h3>{{ item.hit.title }}</h3>
+                            <p>{{ summary(item.hit) }}</p>
+                          </mat-card-content>
+                        </mat-card>
+                      }
+                    </section>
+                  </details>
+                }
+              } @else if (turn.error) {
+                <div class="notice error">{{ turn.error | translate }}</div>
               }
-              </section>
-            }
-          } @else if (error()) {
-            <div class="empty-state error">{{ error() | translate }}</div>
-          }
-        </section>
-      } @else {
-        <section class="empty-state start-state">
-          <strong>{{ 'Search files, photos, and videos' | translate }}</strong>
-          <span>{{ 'Enter a question, choose a scope, then inspect evidence results.' | translate }}</span>
-        </section>
-      }
+            </div>
+          </article>
+        }
+
+        @if (pendingQuery(); as query) {
+          <article class="message user-message pending-message">
+            <div class="message-avatar user-avatar">{{ 'You' | translate }}</div>
+            <div class="message-body user-bubble"><p>{{ query }}</p></div>
+          </article>
+          <article class="message assistant-message pending-message" aria-live="polite">
+            <div class="message-avatar assistant-avatar" aria-hidden="true">H</div>
+            <div class="message-body assistant-body">
+              <div class="typing-indicator" [attr.aria-label]="'Thinking' | translate">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+          </article>
+        }
+      </div>
     </main>
 
-    <aside class="assistant-panel">
-      <div class="assistant-header">
-        <h2>{{ 'Search' | translate }}</h2>
-      </div>
-
-      <form class="assistant-form" [formGroup]="form" (ngSubmit)="search()">
-        <div class="query-composer">
-          <textarea
-            class="query-input"
-            rows="5"
-            aria-label="Assistant search query"
-            formControlName="query"
-            [placeholder]="'Try asking: who is pouring beer?' | translate"
-          ></textarea>
-          <div class="query-actions">
-            <button mat-flat-button color="primary" type="submit" [disabled]="loading() || form.invalid">
-              {{ 'Search' | translate }}
-            </button>
-          </div>
-        </div>
-
-        <div class="prompt-strip" aria-label="Search question examples">
-          <span>{{ 'Try' | translate }}</span>
-          @for (suggestion of promptSuggestions; track suggestion.query) {
-            <button type="button" class="suggestion-chip" (click)="usePromptSuggestion(suggestion)">
-              {{ suggestion.label | translate }}
-            </button>
-          }
-        </div>
-
-        @if (searchHistory().length > 0) {
-          <div class="prompt-strip search-history-strip" aria-label="Search history">
-            <span>{{ 'History' | translate }}</span>
-            @for (term of searchHistory(); track term) {
-              <button type="button" class="suggestion-chip" (click)="useSearchHistoryTerm(term)">
-                {{ term }}
-              </button>
-            }
-            <button type="button" class="history-clear" (click)="clearSearchHistory()">
-              {{ 'Clear' | translate }}
-            </button>
-          </div>
+    <footer class="composer-dock">
+      <form class="chat-composer" [formGroup]="form" (ngSubmit)="search()">
+        @if (loading()) {
+          <mat-progress-bar mode="indeterminate"></mat-progress-bar>
         }
 
-        <div class="scope-note">{{ 'Search scope' | translate }}: {{ searchScopeLabel() | translate }}</div>
+        <textarea
+          class="composer-input"
+          rows="3"
+          aria-label="Assistant search query"
+          formControlName="query"
+          [placeholder]="'Ask Harbor Assistant' | translate"
+          (keydown.enter)="submitOnEnter($event)"
+        ></textarea>
 
-        <mat-button-toggle-group class="scope-toggle" formControlName="sourceScope" aria-label="Search source scope">
-          <mat-button-toggle value="all">{{ 'All' | translate }}</mat-button-toggle>
-          <mat-button-toggle value="nas_files">{{ 'NAS folders' | translate }}</mat-button-toggle>
-          <mat-button-toggle value="dvr_library">{{ 'DVR media library' | translate }}</mat-button-toggle>
-        </mat-button-toggle-group>
+        <div class="composer-toolbar">
+          <div class="composer-controls">
+            <details #searchSettings class="composer-options">
+              <summary
+                [class.selected]="selectedRetrievalSources().length > 0"
+                [attr.aria-label]="'Search settings' | translate"
+              >
+                <span class="at-mark" aria-hidden="true">&#64;</span>
+                <span>{{ 'Search settings' | translate }}</span>
+                <span class="settings-summary">{{ retrievalModeLabel() }}</span>
+              </summary>
+              <div class="options-popover">
+                <label>{{ 'Conversation mode' | translate }}</label>
+                <mat-button-toggle-group
+                  class="mode-toggle retrieval-mode-toggle"
+                  formControlName="retrievalMode"
+                  aria-label="Conversation mode"
+                >
+                  <mat-button-toggle value="auto">{{ 'Automatic' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="on">{{ 'Force retrieval' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="off">{{ 'Ordinary chat' | translate }}</mat-button-toggle>
+                </mat-button-toggle-group>
 
-        <mat-button-toggle-group class="mode-toggle" formControlName="filter" aria-label="Search result filter">
-          <mat-button-toggle value="all">{{ 'All' | translate }}</mat-button-toggle>
-          <mat-button-toggle value="images">{{ 'Image' | translate }}</mat-button-toggle>
-          <mat-button-toggle value="text">{{ 'Text' | translate }}</mat-button-toggle>
-          <mat-button-toggle value="videos">{{ 'Video' | translate }}</mat-button-toggle>
-        </mat-button-toggle-group>
+                <div class="options-divider"></div>
+                <div class="source-popover-heading">
+                  <div>
+                    <strong>{{ 'Knowledge folders' | translate }}</strong>
+                    <span>{{ 'Select which configured folders the assistant may search when retrieval is needed.' | translate }}</span>
+                  </div>
+                </div>
 
-        <div class="scope-fields time-range-summary">
-          <span class="scope-fields-label">{{ 'Time range' | translate }}</span>
-          <button mat-stroked-button type="button" class="time-range-button" (click)="openTimeRangeDialog()">
-            {{ timeRangeLabel() }}
+                @if (retrievalSources().length === 0) {
+                  <div class="source-empty">{{ 'No enabled knowledge folders are configured.' | translate }}</div>
+                } @else {
+                  <button
+                    type="button"
+                    class="source-option all-sources"
+                    role="checkbox"
+                    [class.selected]="allRetrievalSourcesSelected()"
+                    [attr.aria-checked]="allRetrievalSourcesSelected()"
+                  (click)="toggleAllRetrievalSources()"
+                >
+                  <span class="source-check" aria-hidden="true">{{ allRetrievalSourcesSelected() ? '✓' : '' }}</span>
+                  <span>
+                    <strong>{{ 'Select all' | translate }}</strong>
+                    <small>{{ 'Selects every enabled folder configured in Harbor Assistant.' | translate }}</small>
+                  </span>
+                  </button>
+
+                  @for (source of retrievalSources(); track source.id) {
+                    <button
+                      type="button"
+                      class="source-option"
+                      role="checkbox"
+                      [class.selected]="retrievalSourceSelected(source.id)"
+                      [attr.aria-checked]="retrievalSourceSelected(source.id)"
+                    (click)="toggleRetrievalSource(source.id)"
+                  >
+                    <span class="source-check" aria-hidden="true">{{ retrievalSourceSelected(source.id) ? '✓' : '' }}</span>
+                    <span>
+                      <strong>{{ source.label }}</strong>
+                      <small>{{ source.description }}</small>
+                    </span>
+                  </button>
+                  }
+                }
+
+                <div class="options-divider"></div>
+                <label>{{ 'Result type' | translate }}</label>
+                <mat-button-toggle-group class="mode-toggle" formControlName="filter" aria-label="Search result filter">
+                  <mat-button-toggle value="all">{{ 'All' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="images">{{ 'Image' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="text">{{ 'Text' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="audio">{{ 'Audio' | translate }}</mat-button-toggle>
+                  <mat-button-toggle value="videos">{{ 'Video' | translate }}</mat-button-toggle>
+                </mat-button-toggle-group>
+
+                <label>{{ 'Time range' | translate }}</label>
+                <div class="time-range-row">
+                  <button mat-stroked-button type="button" (click)="openTimeRangeDialog()">
+                    {{ timeRangeLabel() }}
+                  </button>
+                  @if (hasTimeRange()) {
+                    <button mat-button type="button" (click)="clearTimeRange()">{{ 'Clear' | translate }}</button>
+                  }
+                </div>
+
+                <div class="options-divider"></div>
+                <button
+                  mat-stroked-button
+                  type="button"
+                  class="advanced-settings-button"
+                  [disabled]="retrievalSettingsBusy()"
+                  (click)="openAdvancedRetrievalSettings()"
+                >
+                  <span>{{ 'Advanced retrieval strategy' | translate }}</span>
+                  <span aria-hidden="true">›</span>
+                </button>
+              </div>
+            </details>
+          </div>
+
+          <button
+            mat-flat-button
+            color="primary"
+            class="send-button"
+            type="submit"
+            [disabled]="conversationBusy() || form.invalid"
+          >
+            {{ 'Send' | translate }}
           </button>
-          @if (hasTimeRange()) {
-            <button mat-button type="button" (click)="clearTimeRange()">
-              {{ 'Clear' | translate }}
-            </button>
-          }
         </div>
       </form>
-
-      @if (loading()) {
-        <mat-progress-bar mode="indeterminate"></mat-progress-bar>
-      }
-      @if (error()) {
-        <div class="notice error compact">{{ error() | translate }}</div>
-      }
-      @if (response(); as result) {
-        @if (result.warnings.length > 0 || result.blockers.length > 0) {
-          <div class="notice warning compact">
-            @for (warning of result.warnings; track warning) {
-              <span>{{ userFacingSearchNotice(warning) | translate }}</span>
-            }
-            @for (blocker of result.blockers; track blocker) {
-              <span>{{ userFacingSearchNotice(blocker) | translate }}</span>
-            }
-          </div>
-        }
-
-        @if (embeddingUnavailable(result)) {
-          <div class="notice warning compact embedding-action">
-            <span>{{ 'Vector search model is unavailable. Open Harbor Assistant Settings / AI Settings / Models to select or install a model, then re-index the knowledge base.' | translate }}</span>
-            <button mat-stroked-button type="button" (click)="openHarborAssistantModels()">{{ 'Open model settings' | translate }}</button>
-          </div>
-        }
-      }
-    </aside>
+      <p class="composer-hint">
+        {{ retrievalModeHint() | translate }}
+      </p>
+    </footer>
   </div>
 </section>

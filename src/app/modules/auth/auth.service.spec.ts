@@ -71,6 +71,7 @@ describe('AuthService', () => {
       mockApi([
         mockCall('auth.me', authMeUser),
         mockCall('auth.logout'),
+        mockCall('auth.generate_token', 'ONE_TIME_TOKEN'),
         mockCall('auth.login_ex', {
           authenticator: AuthenticatorLoginLevel.Level1,
           response_type: LoginExResponseType.Success,
@@ -612,6 +613,15 @@ describe('AuthService', () => {
       const initResult = await firstValueFrom(spectator.service.initializeSession());
       expect(initResult).toBe(LoginResult.NoToken);
     });
+  });
+
+  it('generates a 30-second single-use token for Harbor Assistant Gate requests', async () => {
+    await expect(firstValueFrom(spectator.service.getHarborAssistantOneTimeToken()))
+      .resolves.toBe('ONE_TIME_TOKEN');
+    expect(spectator.inject(ApiService).call).toHaveBeenCalledWith(
+      'auth.generate_token',
+      [30, {}, false, true],
+    );
   });
 
   // Note: Tests for setupAuthenticationUpdate, setupWsConnectionUpdate, and ngOnDestroy

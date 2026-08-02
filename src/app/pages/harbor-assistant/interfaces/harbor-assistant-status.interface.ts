@@ -31,9 +31,14 @@ export interface HomeAssistantStatusResponse {
   configured: boolean;
   enabled: boolean;
   base_url: string;
+  managed_by_harborlink?: boolean;
+  harborlink_available?: boolean;
   token_configured: boolean;
   token_redacted: boolean;
   exposed_domains: string[];
+  allowed_entities?: string[];
+  allowed_cameras?: string[];
+  camera_entity_bindings?: Record<string, string>;
   status: string;
   last_error?: string | null;
   last_test_at?: string | null;
@@ -46,9 +51,13 @@ export interface HomeAssistantStatusResponse {
 
 export interface HomeAssistantConfigPayload {
   enabled: boolean;
-  base_url: string;
+  base_url?: string;
   access_token?: string | null;
-  exposed_domains: string[];
+  exposed_domains?: string[];
+  allowed_entities?: string[];
+  allowed_cameras?: string[];
+  camera_entity_bindings?: Record<string, string>;
+  clear_access_token?: boolean;
 }
 
 export interface HomeAssistantConfigResponse {
@@ -74,7 +83,7 @@ export interface HomeAssistantEntity {
   state: string;
   display_name: string;
   source?: string;
-  readiness?: 'read_only' | 'safe_control' | 'unsupported' | string;
+  readiness?: string;
   automation_role?: string;
   automation_reference_allowed?: boolean;
   safe_control?: boolean;
@@ -275,7 +284,7 @@ export interface DvrTimelineSegment {
   device_id: string;
   file_path: string;
   sidecar_path?: string | null;
-  media_kind?: 'snapshot' | 'recording' | string;
+  media_kind?: string;
   stream_kind: string;
   started_at: string;
   created_at?: string;
@@ -529,7 +538,7 @@ export interface DeviceMetadataPatchPayload {
   requires_auth?: boolean | null;
 }
 
-export interface RtspCheckPayload extends DeviceCredentialsPayload {}
+export type RtspCheckPayload = DeviceCredentialsPayload;
 
 export interface RtspCheckResult {
   device_id: string;
@@ -544,7 +553,7 @@ export interface RtspCheckResult {
 
 export interface DeviceEvidenceResult {
   id?: string;
-  kind: 'rtsp_check' | 'snapshot' | 'share_link' | 'credential_status' | string;
+  kind: string;
   status?: string;
   summary?: string;
   detail?: string;
@@ -842,15 +851,15 @@ export interface HardwareReadinessComponent {
   evidence?: string[];
 }
 
-export type ModelCapabilityStatusValue =
-  | 'ready'
-  | 'needs_model'
-  | 'needs_runtime'
-  | 'downloading'
-  | 'installed_not_running'
-  | 'degraded'
-  | 'unsupported'
-  | string;
+export type ModelCapabilityStatusValue
+  = | 'ready'
+    | 'needs_model'
+    | 'needs_runtime'
+    | 'downloading'
+    | 'installed_not_running'
+    | 'degraded'
+    | 'unsupported'
+    | (string & Record<never, never>);
 
 export interface ModelCapabilityCurrentModel {
   model_endpoint_id: string;
@@ -885,7 +894,13 @@ export interface ModelCapabilityStatus {
   label: string;
   model_kind: string;
   status: ModelCapabilityStatusValue;
+  desired_model_id?: string | null;
+  active_model_id?: string | null;
+  transition_status?: string;
+  last_error?: string | null;
+  /** @deprecated Use desired_model_id. */
   selected_model_id?: string | null;
+  /** @deprecated Use active_model_id. */
   runtime_model_id?: string | null;
   current_model?: ModelCapabilityCurrentModel | null;
   installed_models?: ModelCapabilityInstallableModel[];
@@ -1007,6 +1022,8 @@ export interface KnowledgeIndexStatusResponse {
   index_root_writable: boolean;
   manifest_count?: number;
   manifest_entry_count?: number;
+  supported_file_count?: number | null;
+  unindexed_file_count?: number | null;
   document_count?: number;
   image_count?: number;
   audio_count?: number;
@@ -1022,6 +1039,36 @@ export interface KnowledgeIndexStatusResponse {
   last_indexed_at?: string | null;
   source_roots: KnowledgeIndexRootStatus[];
   blockers: string[];
+}
+
+export interface KnowledgeIndexJobRecord {
+  job_id: string;
+  source_root_id: string;
+  source_root_label: string;
+  source_root_path: string;
+  modalities: string[];
+  status: string;
+  progress_percent?: number | null;
+  requested_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  error_message?: string | null;
+  retry_count: number;
+  checkpoint: {
+    phase?: string;
+    embedding_total?: number;
+    embedding_completed?: number;
+    embedding_skipped?: number;
+    embedding_failed?: number;
+    [key: string]: unknown;
+  };
+  resource_profile: string;
+  cancel_requested: boolean;
+}
+
+export interface KnowledgeIndexJobsResponse {
+  generated_at: string;
+  jobs: KnowledgeIndexJobRecord[];
 }
 
 export interface KnowledgeIndexRunResponse {
@@ -1071,7 +1118,7 @@ export interface HarborOsStatusResponse {
 export interface HarborOsImCapabilityItem {
   capability_id: string;
   label: string;
-  capability_class: 'safe_query' | 'approval_required_action' | 'unsupported_high_risk' | string;
+  capability_class: string;
   im_ready: boolean;
   risk_level: string;
   approval_required: boolean;
