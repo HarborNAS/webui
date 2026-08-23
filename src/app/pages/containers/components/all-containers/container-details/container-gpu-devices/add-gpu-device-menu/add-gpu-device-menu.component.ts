@@ -9,7 +9,7 @@ import { catchError, of } from 'rxjs';
 import { RequiresRolesDirective } from 'app/directives/requires-roles/requires-roles.directive';
 import { ContainerDeviceType, containerGpuType } from 'app/enums/container.enum';
 import { Role } from 'app/enums/role.enum';
-import { ContainerGpuDevice } from 'app/interfaces/container.interface';
+import { AvailableGpu, ContainerGpuChoice, ContainerGpuDevice } from 'app/interfaces/container.interface';
 import { LoaderService } from 'app/modules/loader/loader.service';
 import { SnackbarService } from 'app/modules/snackbar/services/snackbar.service';
 import { TestDirective } from 'app/modules/test-id/test.directive';
@@ -24,6 +24,8 @@ interface GpuMenuItem {
   pciAddress: string;
   gpuType: string;
   description: string;
+  status: string | null;
+  disabled: boolean;
 }
 
 @Component({
@@ -79,22 +81,18 @@ export class AddGpuDeviceMenuComponent {
       .filter((device) => device.dtype === ContainerDeviceType.Gpu);
 
     return Object.entries(gpuChoices)
-      .filter(([pciAddress, gpuType]) => {
+      .map(([pciAddress, gpuChoice]) => this.gpuMenuItemFromChoice(pciAddress, gpuChoice))
+      .filter((gpu) => {
         const isAlreadyAdded = existingGpuDevices
-          .some((device) => device.pci_address === pciAddress);
+          .some((device) => device.pci_address === gpu.pciAddress);
 
         // Filter out NVIDIA GPUs if drivers aren't enabled
-        if (gpuType === containerGpuType.Nvidia && !nvidiaEnabled) {
+        if (gpu.gpuType === containerGpuType.Nvidia && !nvidiaEnabled) {
           return false;
         }
 
         return !isAlreadyAdded;
-      })
-      .map(([pciAddress, gpuType]): GpuMenuItem => ({
-        pciAddress,
-        gpuType,
-        description: `${gpuType} (${pciAddress})`,
-      }));
+      });
   });
 
   protected readonly hasDevicesToAdd = computed(() => {
@@ -102,11 +100,92 @@ export class AddGpuDeviceMenuComponent {
   });
 
   protected addGpu(gpu: GpuMenuItem): void {
+    if (gpu.disabled) {
+      return;
+    }
+
     this.addDevice({
       dtype: ContainerDeviceType.Gpu,
       gpu_type: gpu.gpuType,
       pci_address: gpu.pciAddress,
     } as ContainerGpuDevice);
+  }
+
+  private gpuMenuItemFromChoice(pciAddress: string, gpuChoice: ContainerGpuChoice): GpuMenuItem {
+    if (typeof gpuChoice === 'string') {
+      return {
+        pciAddress,
+        gpuType: gpuChoice,
+        description: `${gpuChoice} (${pciAddress})`,
+        status: null,
+        disabled: false,
+      };
+    }
+
+    return {
+      pciAddress,
+      gpuType: gpuChoice.gpu_type,
+      description: gpuChoice.description || `${gpuChoice.gpu_type} (${pciAddress})`,
+      status: this.getGpuStatus(gpuChoice),
+      disabled: Boolean(gpuChoice.failure_reason || gpuChoice.error || gpuChoice.available === false),
+    };
+  }
+
+  private getGpuStatus(gpu: AvailableGpu): string | null {
+    if (gpu.failure_reason === 'amd_w7900_bar_rebar_failure') {
+      return this.getW7900BarFailureStatus(gpu);
+    }
+
+    if (gpu.failure_reason) {
+      return this.translate.instant(this.getFailureLabel(gpu.failure_reason));
+    }
+
+    if (gpu.capabilities?.includes('container-rocm')) {
+      return this.translate.instant('Ready for ROCm containers');
+    }
+
+    if (gpu.capabilities?.includes('container-cuda')) {
+      return this.translate.instant('Ready for CUDA containers');
+    }
+
+    if (gpu.capabilities?.includes('container-intel-arc')) {
+      return this.translate.instant('Ready for Intel Arc containers');
+    }
+
+    return null;
+  }
+
+  private getFailureLabel(reason: string): string {
+    const failureLabels: Record<string, string> = {
+      amd_w7900_bar_rebar_failure: 'W7900 BAR allocation failed; IT confirmation and one reboot are required',
+      amd_pcie_bar_resource_failure: 'AMD PCIe BAR allocation failed; confirm hardware profile before changing boot options',
+      amd_kfd_missing: 'AMD driver is loaded but /dev/kfd is missing',
+      amd_render_node_missing: 'AMD render device is missing',
+      intel_igpu_non_target: 'Intel integrated graphics is not a target accelerator',
+      intel_arc_render_node_missing: 'Intel Arc render device is missing',
+      nvidia_container_runtime_missing: 'NVIDIA container runtime is missing',
+      nvidia_device_nodes_missing: 'NVIDIA device nodes are missing',
+      nvidia_procfs_details_missing: 'NVIDIA driver details are missing',
+    };
+
+    return failureLabels[reason] || reason;
+  }
+
+  private getW7900BarFailureStatus(gpu: AvailableGpu): string {
+    if (gpu.os_profile?.['manual_bridge_confirmation_required'] === true) {
+      return this.translate.instant(
+        'W7900 BAR allocation failed; ask IT to confirm the upstream bridge before generating kernel options.',
+      );
+    }
+
+    const kernelOptions = gpu.os_profile?.['kernel_extra_options'];
+    const suffix = typeof kernelOptions === 'string'
+      ? this.translate.instant(' Recommended kernel options: {options}', { options: kernelOptions })
+      : '';
+
+    return this.translate.instant(
+      'W7900 BAR allocation failed; ask IT to append kernel options through Advanced Settings and reboot once.',
+    ) + suffix;
   }
 
   private addDevice(payload: Partial<ContainerGpuDevice>): void {

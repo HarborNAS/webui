@@ -10,7 +10,7 @@ import {
   take,
   of,
 } from 'rxjs';
-import { Container, ContainerDevice } from 'app/interfaces/container.interface';
+import { Container, ContainerDevice, ContainerGpuChoice } from 'app/interfaces/container.interface';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { ContainersStore } from 'app/pages/containers/stores/containers.store';
 import { containerDeviceEntriesToDevices } from 'app/pages/containers/utils/container-device.utils';
@@ -19,7 +19,7 @@ import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
 export interface ContainerDeviceState {
   isLoading: boolean;
   devices: ContainerDevice[];
-  gpuChoices: Record<string, string> | null;
+  gpuChoices: Record<string, ContainerGpuChoice> | null;
   isLoadingGpuChoices: boolean;
 }
 
