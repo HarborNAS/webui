@@ -5,6 +5,7 @@
       <button type="button" aria-label="Close assistant results" (click)="session.resultsOpen.set(false)">×</button>
     </header>
     <div class="assistant-result-stream" aria-live="polite">
+      @if (citationError()) { <p class="assistant-error" role="alert">{{ citationError() | translate }}</p> }
       @if (session.turns().length === 0) {
         <p>{{ 'Ask a question or open a saved conversation.' | translate }}</p>
       }
@@ -13,12 +14,23 @@
           <h3>{{ turn.query }}</h3>
           @if (turn.response; as response) {
             <p class="assistant-answer">{{ summary(response) }}</p>
+            @if (modelRows(response).length) {
+              <dl class="assistant-runtime-metadata">
+                @for (row of modelRows(response); track row.label) {
+                  <dt>{{ row.label | translate }}</dt><dd>{{ row.value }}</dd>
+                }
+              </dl>
+            }
+            <a routerLink="/harbor-assistant" [queryParams]="{tab: 'settings', section: 'ai', focus: 'models'}"
+              (click)="session.resultsOpen.set(false)">
+              {{ 'View model status' | translate }}
+            </a>
             @if (response.reply_pack?.citations?.length) {
               <section class="assistant-citations" aria-label="Answer sources">
                 <strong>{{ 'Sources' | translate }}</strong>
                 @for (citation of response.reply_pack.citations; track $index) {
                   @if (citationUrl(citation); as url) {
-                    <a [href]="url" target="_blank" rel="noopener">{{ citationLabel(citation) }}</a>
+                    <button class="assistant-citation-link" type="button" (click)="openCitation(url)">{{ citationLabel(citation) }}</button>
                   } @else {
                     <span>{{ citationLabel(citation) }}</span>
                   }
@@ -82,6 +94,7 @@
       }
       @if (option === 'time') {
         <strong>{{ 'Time range' | translate }}</strong>
+        <p>{{ 'File modified time' | translate }}</p>
         <label>{{ 'From' | translate }}<input type="datetime-local" [ngModel]="session.draft().from" (ngModelChange)="session.updateDraft({from: $event})" /></label>
         <label>{{ 'To' | translate }}<input type="datetime-local" [ngModel]="session.draft().to" (ngModelChange)="session.updateDraft({to: $event})" /></label>
         <button mat-button type="button" (click)="session.updateDraft({from: '', to: ''})">{{ 'Clear time range' | translate }}</button>

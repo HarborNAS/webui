@@ -106,3 +106,13 @@ button {
   .assistant-options { left: 0; max-width: calc(100vw - 18px); }
   .assistant-context-chips { max-width: 100px; }
 }
+
+.assistant-runtime-metadata {
+  display: grid;
+  font-size: 11px;
+  gap: 4px 8px;
+  grid-template-columns: auto 1fr;
+  overflow-wrap: anywhere;
+  dd { margin: 0; }
+}
+.assistant-citation-link { text-align: left; }

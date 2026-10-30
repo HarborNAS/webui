@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
@@ -105,6 +106,20 @@ describe('AssistantSessionStore', () => {
     expect(store.turns()[0].query).toBe('Hello');
   });
 
+  it('ignores stale history responses from an earlier refresh', () => {
+    const earlier$ = new Subject<unknown>();
+    const latest$ = new Subject<unknown>();
+    api.conversations.mockReturnValueOnce(earlier$).mockReturnValueOnce(latest$);
+    store.refreshHistory();
+    store.refreshHistory();
+    latest$.next({ conversations: [{ conversation_id: 'latest', title: 'Latest', turn_count: 1 }] });
+    latest$.complete();
+    earlier$.next({ conversations: [{ conversation_id: 'old', title: 'Old', turn_count: 1 }] });
+    earlier$.complete();
+    expect(store.history().map((entry) => entry.conversation_id)).toEqual(['latest']);
+    expect(store.historyLoading()).toBe(false);
+  });
+
   it('ignores a late answer after the signed-in user changes', () => {
     const response$ = new Subject<HarborAssistantSearchResponse>();
     api.search.mockReturnValue(response$);
@@ -131,6 +146,26 @@ describe('AssistantSessionStore', () => {
     expect(store.draft().text).toBe('');
     expect(store.draft().sourceRootIds).toEqual(['docs']);
     expect(api.search).not.toHaveBeenCalled();
+  });
+
+  it('continues with the canonical conversation id returned by the server', () => {
+    api.search.mockReturnValue(of({ ...answer, conversation_id: 'canonical-server-id' }));
+    store.updateDraft({ text: 'Hello' });
+    store.send();
+    expect(store.conversationId()).toBe('canonical-server-id');
+    store.updateDraft({ text: 'Follow up' });
+    store.send();
+    expect(api.search).toHaveBeenLastCalledWith(expect.objectContaining({ conversation_id: 'canonical-server-id' }));
+  });
+
+  it('preserves a precise server blocker when a requested time filter is unsupported', () => {
+    api.search.mockReturnValue(throwError(() => new HttpErrorResponse({
+      status: 422, error: { error: 'DVR content search is owned by HarborLink' },
+    })));
+    store.updateDraft({ text: 'Yesterday', from: '2026-10-29T10:00' });
+    store.send();
+    expect(store.error()).toBe('DVR content search is owned by HarborLink');
+    expect(store.turns()[0].error).toBe('DVR content search is owned by HarborLink');
   });
 
   it('rejects a reversed time range without making a request', () => {

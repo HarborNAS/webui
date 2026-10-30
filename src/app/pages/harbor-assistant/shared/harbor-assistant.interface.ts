@@ -43,6 +43,7 @@ export interface HarborAssistantSearchReplyPack {
 }
 
 export interface HarborAssistantSearchResponse {
+  model?: string | Record<string, unknown> | null;
   conversation_id?: string;
   query: string;
   roots: string[];

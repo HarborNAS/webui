@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 import { KnowledgeSourceRoot } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
@@ -39,6 +40,7 @@ export class AssistantSessionStore {
   private readonly settingsApi = inject(HarborAssistantApiService);
   private readonly owner = signal('');
   private requestSequence = 0;
+  private historySequence = 0;
   private initialized = false;
 
   readonly draft = signal<AssistantDraft>(emptyDraft());
@@ -73,6 +75,7 @@ export class AssistantSessionStore {
       return;
     }
     this.requestSequence += 1;
+    this.historySequence += 1;
     this.initialized = true;
     this.owner.set(username);
     this.draft.set(emptyDraft());
@@ -81,6 +84,7 @@ export class AssistantSessionStore {
     this.sources.set([]);
     this.history.set([]);
     this.historyError.set(null);
+    this.historyLoading.set(false);
     this.busy.set(false);
     this.error.set(null);
     this.resultsOpen.set(false);
@@ -152,14 +156,17 @@ export class AssistantSessionStore {
         if (sequence !== this.requestSequence || conversationId !== this.conversationId()) {
           return;
         }
+        if (response.conversation_id?.trim()) {
+          this.conversationId.set(response.conversation_id);
+        }
         this.replacePending({ query, response });
         this.refreshHistory();
       },
-      error: () => {
+      error: (cause: unknown) => {
         if (sequence !== this.requestSequence) {
           return;
         }
-        const error = 'Harbor Assistant could not answer. Your question is kept in the result panel.';
+        const error = this.requestError(cause);
         this.error.set(error);
         this.replacePending({ query, error });
       },
@@ -171,15 +178,16 @@ export class AssistantSessionStore {
     if (!owner) {
       return;
     }
+    const sequence = ++this.historySequence;
     this.historyLoading.set(true);
     this.historyError.set(null);
     this.api.conversations().pipe(finalize(() => {
-      if (owner === this.owner()) {
+      if (owner === this.owner() && sequence === this.historySequence) {
         this.historyLoading.set(false);
       }
     })).subscribe({
       next: (value) => {
-        if (owner !== this.owner()) {
+        if (owner !== this.owner() || sequence !== this.historySequence) {
           return;
         }
         const record = this.record(value);
@@ -204,7 +212,7 @@ export class AssistantSessionStore {
         }
       },
       error: () => {
-        if (owner === this.owner()) {
+        if (owner === this.owner() && sequence === this.historySequence) {
           this.historyError.set('Conversation history is unavailable. New messages can still be sent.');
         }
       },
@@ -244,7 +252,11 @@ export class AssistantSessionStore {
         }));
         this.resultsOpen.set(true);
       },
-      error: () => this.error.set('This conversation could not be restored.'),
+      error: () => {
+        if (sequence === this.requestSequence) {
+          this.error.set('This conversation could not be restored.');
+        }
+      },
     });
   }
 
@@ -260,7 +272,11 @@ export class AssistantSessionStore {
         const available = new Set(sources.map((root) => root.root_id));
         this.updateDraft({ sourceRootIds: this.draft().sourceRootIds.filter((id) => available.has(id)) });
       },
-      error: () => this.error.set('Data sources are unavailable. Ordinary chat remains available.'),
+      error: () => {
+        if (owner === this.owner()) {
+          this.error.set('Data sources are unavailable. Ordinary chat remains available.');
+        }
+      },
     });
   }
 
@@ -288,6 +304,18 @@ export class AssistantSessionStore {
     } catch {
       this.draft.set(emptyDraft());
     }
+  }
+
+  private requestError(cause: unknown): string {
+    if (cause instanceof HttpErrorResponse) {
+      const detail = this.record(cause.error);
+      const nested = this.record(detail['error']);
+      const reason = nested['message'] ?? detail['message'] ?? detail['error'] ?? detail['detail'];
+      if (typeof reason === 'string' && reason.trim()) {
+        return reason.slice(0, 600);
+      }
+    }
+    return 'Harbor Assistant could not answer. Your question is kept in the result panel.';
   }
 
   private replacePending(turn: AssistantTurn): void {

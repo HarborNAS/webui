@@ -1,13 +1,16 @@
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { TestBed } from '@angular/core/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
+import { WINDOW } from 'app/helpers/window.helper';
 import { AuthService } from 'app/modules/auth/auth.service';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
 import { GlobalAssistantComposerComponent } from 'app/pages/harbor-assistant/composer/global-assistant-composer.component';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
+import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
 describe('GlobalAssistantComposerComponent', () => {
   let spectator: Spectator<GlobalAssistantComposerComponent>;
@@ -31,6 +34,55 @@ describe('GlobalAssistantComposerComponent', () => {
     expect(spectator.element.textContent).toContain('Automatic');
     expect(spectator.query('button[aria-label="Add to conversation"]')).toExist();
     expect(api.search).not.toHaveBeenCalled();
+  });
+
+  it('shows only the runtime metadata actually returned with a conversation answer', () => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    session.turns.set([{
+      query: 'Hello',
+      response: {
+        reply_pack: { summary: 'Hello', citations: [] },
+        blockers: [],
+        warnings: [],
+        model: {
+          model_name: 'Qwen2.5',
+          metadata: {
+            runtime_backend_kind: 'llama.cpp',
+            runtime_device: 'Vulkan1: AMD Radeon Pro W7900',
+            base_url: 'http://127.0.0.1:11435/v1',
+            persistent: true,
+          },
+        },
+      } as HarborAssistantSearchResponse,
+    }]);
+    session.resultsOpen.set(true);
+    spectator.detectChanges();
+    const metadata = spectator.query('.assistant-runtime-metadata');
+    expect(metadata).toHaveText('Qwen2.5');
+    expect(metadata).toHaveText('llama.cpp');
+    expect(metadata).toHaveText('Vulkan1: AMD Radeon Pro W7900');
+    expect(metadata).toHaveText('http://127.0.0.1:11435/v1');
+    expect(metadata).toHaveText('true');
+  });
+
+  it('loads source previews through authenticated HttpClient and exposes a real preview failure', () => {
+    spectator = createComponent();
+    const preview = { opener: null, location: { href: '' }, close: jest.fn() };
+    const open = jest.spyOn(spectator.inject(WINDOW), 'open').mockReturnValue(preview as unknown as Window);
+    const get = jest.spyOn(spectator.inject(HttpClient), 'get').mockReturnValue(throwError(() => new HttpErrorResponse({ status: 403 })));
+    const component = spectator.component as unknown as {
+      openCitation: (url: string) => void;
+      citationError: () => string | null;
+    };
+    component.openCitation('/api/harbor-beacon/knowledge/preview?path=%2Fdocs%2Fguide.pdf');
+    expect(get).toHaveBeenCalledWith('/api/harbor-beacon/knowledge/preview?path=%2Fdocs%2Fguide.pdf', {
+      responseType: 'blob',
+    });
+    expect(preview.close).toHaveBeenCalled();
+    expect(component.citationError()).toContain('could not be loaded');
+    open.mockRestore();
+    get.mockRestore();
   });
 
   it('offers exactly four conversation tools and only changes options when a tool is selected', async () => {
