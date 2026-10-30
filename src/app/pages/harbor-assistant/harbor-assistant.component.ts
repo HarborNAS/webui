@@ -2745,8 +2745,15 @@ export class HarborAssistantComponent implements OnInit {
       return '';
     }
     const metadata = endpoint.metadata ?? {};
+    const runtimeProfiles = Array.isArray(metadata['runtime_profiles'])
+      ? metadata['runtime_profiles'].filter((profile): profile is string => typeof profile === 'string')
+      : [];
+    const runtimeBackend = runtimeProfiles.includes('llama.cpp-openai-compatible')
+      || (typeof metadata['base_url'] === 'string' && metadata['base_url'].includes(':11435/'))
+      ? 'llama.cpp'
+      : typeof metadata['runtime_backend_kind'] === 'string' ? String(metadata['runtime_backend_kind']) : '';
     const parts = [
-      typeof metadata['runtime_backend_kind'] === 'string' ? String(metadata['runtime_backend_kind']) : '',
+      runtimeBackend,
       typeof metadata['runtime_device'] === 'string' ? String(metadata['runtime_device']) : '',
       typeof metadata['base_url'] === 'string' ? String(metadata['base_url']) : '',
       metadata['persistent'] === true ? T('persistent') : '',
