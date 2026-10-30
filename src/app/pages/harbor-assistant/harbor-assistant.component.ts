@@ -2762,7 +2762,6 @@ export class HarborAssistantComponent implements OnInit {
       ? metadata['runtime_profiles'].filter((profile): profile is string => typeof profile === 'string')
       : [];
     const runtimeBackend = runtimeProfiles.includes('llama.cpp-openai-compatible')
-      || (typeof metadata['base_url'] === 'string' && metadata['base_url'].includes(':11435/'))
       ? 'llama.cpp'
       : typeof metadata['runtime_backend_kind'] === 'string' ? String(metadata['runtime_backend_kind']) : '';
     const parts = [
