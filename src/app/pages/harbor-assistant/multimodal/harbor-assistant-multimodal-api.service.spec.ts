@@ -27,7 +27,7 @@ describe('HarborAssistantMultimodalApiService', () => {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'Analyze the attached image using only visible evidence. If it is an application screen, identify the visible page and its main purpose before answering. Then answer the user request concisely and include the requested visible details. Do not invent unreadable text, hidden state, or facts that are not visible. User request: Describe the device' },
+          { type: 'text', text: 'Analyze the attached image using only visible evidence. If it is an application screen, identify the visible page and its main purpose before answering. For each visible object, report its own shape and color independently; do not transfer attributes between objects or infer a shared color. Then answer the user request concisely and include the requested visible details. Do not invent unreadable text, hidden state, or facts that are not visible. User request: Describe the device' },
           { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
         ],
       }],
