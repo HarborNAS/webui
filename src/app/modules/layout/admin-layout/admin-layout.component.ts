@@ -26,6 +26,7 @@ import { SidenavService } from 'app/modules/layout/sidenav.service';
 import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
 import { ThemeService } from 'app/modules/theme/theme.service';
 import { SessionTimeoutService } from 'app/services/session-timeout.service';
+import { GlobalAssistantComposerComponent } from 'app/pages/harbor-assistant/composer/global-assistant-composer.component';
 import { AppState } from 'app/store';
 import { waitForPreferences } from 'app/store/preferences/preferences.selectors';
 import { selectHasConsoleFooter } from 'app/store/system-config/system-config.selectors';
@@ -49,6 +50,7 @@ import {
     AlertsPanelComponent,
     AsyncPipe,
     TranslateModule,
+    GlobalAssistantComposerComponent,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {

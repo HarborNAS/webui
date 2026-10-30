@@ -25,6 +25,15 @@ export class HarborAssistantContentApiService {
     return this.http.post<HarborAssistantSearchResponse>(this.apiUrl('/knowledge/search'), payload);
   }
 
+
+  conversations(): Observable<unknown> {
+    return this.http.get<unknown>(this.apiUrl('/knowledge/conversations'));
+  }
+
+  conversation(conversationId: string): Observable<unknown> {
+    return this.http.get<unknown>(this.apiUrl(`/knowledge/conversations/${encodeURIComponent(conversationId)}`));
+  }
+
   cameraState(): Observable<HarborAssistantSearchCameraStateResponse> {
     return this.http.get<HarborAssistantSearchCameraStateResponse>(this.apiUrl('/state'));
   }

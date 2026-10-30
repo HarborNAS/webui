@@ -3,6 +3,9 @@ export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'al
 
 export interface HarborAssistantSearchRequest {
   query: string;
+  conversation_id?: string;
+  retrieval_mode?: 'auto' | 'on' | 'off';
+  source_root_ids?: string[];
   limit?: number;
   include_documents: boolean;
   include_images: boolean;
@@ -40,6 +43,7 @@ export interface HarborAssistantSearchReplyPack {
 }
 
 export interface HarborAssistantSearchResponse {
+  conversation_id?: string;
   query: string;
   roots: string[];
   total_matches: number;

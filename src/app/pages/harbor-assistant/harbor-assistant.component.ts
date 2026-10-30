@@ -111,6 +111,7 @@ import {
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
+import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
 import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 import { harborGateConnectorManageUrl, harborGateConnectorSetupUrl } from 'app/pages/harbor-assistant/utils/harborgate-urls';
 
@@ -195,10 +196,6 @@ interface CountEntry {
   count: number;
 }
 
-interface ChatMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
 
 type CustomerModelSection = 'downloading' | 'installed' | 'available';
 type CustomerModelAction = 'download' | 'downloading' | 'set-current' | 'current' | 'retry' | 'configure-cloud' | 'manual-source';
@@ -461,6 +458,7 @@ export const harborAssistantI18nMarkers = [
 })
 export class HarborAssistantComponent implements OnInit {
   private harborAssistantApi = inject(HarborAssistantApiService);
+  protected readonly assistantSession = inject(AssistantSessionStore);
   private fb = inject(NonNullableFormBuilder);
   private destroyRef = inject(DestroyRef);
   private route = inject(ActivatedRoute);
@@ -497,8 +495,6 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly actionMessage = signal<string | null>(null);
   protected readonly actionError = signal<string | null>(null);
   protected readonly actionInProgress = signal<string | null>(null);
-  protected readonly chatMessages = signal<ChatMessage[]>([]);
-  protected readonly chatBusy = signal(false);
   protected readonly optimisticDefaultNotificationTargetId = signal<string | null>(null);
   protected readonly state = signal<AdminStateResponse | null>(null);
   protected readonly gatewayStatus = signal<GatewayStatusResponse | null>(null);
@@ -643,10 +639,6 @@ export class HarborAssistantComponent implements OnInit {
   });
 
   protected readonly ruleDraftForm = this.fb.group({
-    prompt: ['', Validators.required],
-  });
-
-  protected readonly chatForm = this.fb.group({
     prompt: ['', Validators.required],
   });
 
@@ -930,6 +922,9 @@ export class HarborAssistantComponent implements OnInit {
         const tab = this.normalizeTab(rawTab);
         if (tab) {
           this.activeTab.set(tab);
+          if (tab === 'chat') {
+            this.assistantSession.resultsOpen.set(true);
+          }
         }
         const settingsSection = this.normalizeSettingsSection(params.get('section'));
         if (settingsSection) {
@@ -1005,42 +1000,14 @@ export class HarborAssistantComponent implements OnInit {
 
   protected selectTab(tabId: HarborAssistantTabId): void {
     this.activeTab.set(tabId);
+    if (tabId === 'chat') {
+      this.assistantSession.resultsOpen.set(true);
+    }
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab: tabId, section: null, focus: null, node: null },
       queryParamsHandling: 'merge',
       replaceUrl: true,
-    });
-  }
-
-  protected sendChatPrompt(): void {
-    const prompt = this.chatForm.controls.prompt.value.trim();
-    if (!prompt || this.chatBusy()) {
-      return;
-    }
-    const userMessage: ChatMessage = { role: 'user', content: prompt };
-    this.chatMessages.update((messages) => [...messages, userMessage]);
-    this.chatForm.reset({ prompt: '' });
-    this.chatBusy.set(true);
-    this.actionError.set(null);
-    this.harborAssistantApi.completeChat({
-      model: this.workflowCurrentModelName('semantic_router'),
-      messages: this.chatMessages().map((message) => ({ ...message })),
-      max_tokens: 256,
-      temperature: 0.2,
-    }).pipe(
-      finalize(() => this.chatBusy.set(false)),
-      takeUntilDestroyed(this.destroyRef),
-    ).subscribe({
-      next: (response) => {
-        const content = response.choices?.[0]?.message?.content?.trim();
-        if (content) {
-          this.chatMessages.update((messages) => [...messages, { role: 'assistant', content }]);
-        } else {
-          this.actionError.set(T('Chat returned no assistant content.'));
-        }
-      },
-      error: (error: unknown) => this.actionError.set(this.getErrorMessage(error)),
     });
   }
 

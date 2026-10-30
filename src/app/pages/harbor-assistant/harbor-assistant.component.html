@@ -288,31 +288,10 @@
   @if (isTab('chat')) {
     <section class="tab-panel assistant-chat-tab">
       <mat-card class="settings-card native-panel">
-        <mat-card-header>
-          <mat-card-title>{{ 'Chat' | translate }}</mat-card-title>
-        </mat-card-header>
         <mat-card-content>
-          <div class="chat-message-list" data-testid="harbor-assistant-chat-messages">
-            @if (chatMessages().length === 0) {
-              <div class="empty-state">{{ 'Ask Harbor Assistant a question about your HarborOS system.' | translate }}</div>
-            } @else {
-              @for (message of chatMessages(); track $index) {
-                <article class="chat-message" [class.chat-message-user]="message.role === 'user'">
-                  <span class="field-label">{{ message.role === 'user' ? ('You' | translate) : ('Harbor Assistant' | translate) }}</span>
-                  <p>{{ message.content }}</p>
-                </article>
-              }
-            }
-          </div>
-          <form class="chat-compose" [formGroup]="chatForm" (ngSubmit)="sendChatPrompt()">
-            <mat-form-field>
-              <mat-label>{{ 'Ask Harbor Assistant' | translate }}</mat-label>
-              <textarea matInput rows="3" formControlName="prompt"></textarea>
-            </mat-form-field>
-            <button mat-button color="primary" type="submit" [disabled]="chatBusy() || chatForm.invalid">
-              {{ chatBusy() ? ('Sending...' | translate) : ('Send' | translate) }}
-            </button>
-          </form>
+          <h2>{{ 'Chat' | translate }}</h2>
+          <p>{{ 'Use the global Harbor Assistant composer below. Your conversation stays available across pages.' | translate }}</p>
+          <button mat-button type="button" (click)="assistantSession.resultsOpen.set(true)">{{ 'Open conversation' | translate }}</button>
         </mat-card-content>
       </mat-card>
     </section>
