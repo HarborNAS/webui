@@ -51,6 +51,8 @@ describe('AssistantSessionStore', () => {
       conversation_id: id,
       retrieval_mode: 'on',
       source_root_ids: ['docs'],
+      filter: 'text',
+      include_audio: true,
       include_documents: true,
       include_images: false,
       include_videos: false,
@@ -58,6 +60,16 @@ describe('AssistantSessionStore', () => {
     }));
     expect(store.turns()[0].response).toBe(answer);
     expect(store.draft().text).toBe('');
+  });
+
+  it.each([
+    { filter: 'all' as const, includeAudio: true },
+    { filter: 'images' as const, includeAudio: false },
+    { filter: 'videos' as const, includeAudio: false },
+  ])('sends literal $filter filter and explicit audio selection', ({ filter, includeAudio }) => {
+    store.updateDraft({ text: 'Find a matching source', filter });
+    store.send();
+    expect(api.search).toHaveBeenCalledWith(expect.objectContaining({ filter, include_audio: includeAudio }));
   });
 
   it('keeps the same root store and draft when a page binds the same signed-in user', () => {

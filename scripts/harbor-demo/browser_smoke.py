@@ -543,6 +543,9 @@ class BrowserSmoke:
         payload = response.request.post_data_json
         if expected_mode:
             assert payload.get('retrieval_mode') == expected_mode, 'Unexpected Knowledge Search retrieval mode'
+        selected_filter = payload.get('filter')
+        assert selected_filter in ('all', 'text', 'images', 'videos'), 'Missing literal Knowledge Search filter'
+        assert payload.get('include_audio') is (selected_filter in ('all', 'text')), 'Unexpected explicit audio selection'
         assert response.ok, 'Knowledge Search returned HTTP ' + str(response.status)
         body = await response.json()
         summary = (body.get('reply_pack') or {}).get('summary', '').strip()

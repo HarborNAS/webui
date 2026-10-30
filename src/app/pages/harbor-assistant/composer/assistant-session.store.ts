@@ -142,6 +142,8 @@ export class AssistantSessionStore {
       retrieval_mode: draft.retrievalMode,
       source_root_ids: [...draft.sourceRootIds],
       source_scope: 'all',
+      filter: draft.filter,
+      include_audio: draft.filter === 'all' || draft.filter === 'text',
       include_documents: draft.filter === 'all' || draft.filter === 'text',
       include_images: draft.filter === 'all' || draft.filter === 'images',
       include_videos: draft.filter === 'all' || draft.filter === 'videos',

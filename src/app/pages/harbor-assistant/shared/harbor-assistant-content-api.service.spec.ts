@@ -31,6 +31,8 @@ describe('Harbor Assistant content API service', () => {
     const promise = firstValueFrom(spectator.service.search({
       query: '找到和春天相关的照片',
       limit: 24,
+      filter: 'images',
+      include_audio: false,
       include_documents: true,
       include_images: true,
       include_videos: true,
@@ -41,6 +43,8 @@ describe('Harbor Assistant content API service', () => {
     expect(req.request.body).toEqual({
       query: '找到和春天相关的照片',
       limit: 24,
+      filter: 'images',
+      include_audio: false,
       include_documents: true,
       include_images: true,
       include_videos: true,

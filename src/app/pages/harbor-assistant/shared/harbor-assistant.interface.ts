@@ -6,7 +6,9 @@ export interface HarborAssistantSearchRequest {
   conversation_id?: string;
   retrieval_mode?: 'auto' | 'on' | 'off';
   source_root_ids?: string[];
+  filter?: HarborAssistantSearchResultFilter;
   limit?: number;
+  include_audio?: boolean;
   include_documents: boolean;
   include_images: boolean;
   include_videos: boolean;
