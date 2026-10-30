@@ -11,6 +11,7 @@ export type AssistantMultimodalKind = 'vlm' | 'asr' | 'tts';
 const visionPromptInstruction = [
   'Analyze the attached image using only visible evidence.',
   'If it is an application screen, identify the visible page and its main purpose before answering.',
+  'For each visible object, report its own shape and color independently; do not transfer attributes between objects or infer a shared color.',
   'Then answer the user request concisely and include the requested visible details.',
   'Do not invent unreadable text, hidden state, or facts that are not visible.',
 ].join(' ');

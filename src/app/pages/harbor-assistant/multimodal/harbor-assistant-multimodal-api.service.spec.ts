@@ -36,6 +36,8 @@ describe('HarborAssistantMultimodalApiService', () => {
       max_tokens: 192,
     });
     request.flush({ choices: [{ message: { content: 'A storage device.' } }] });
+    expect(request.request.body.messages[0].content[0].text).toContain('report its own shape and color independently');
+    expect(request.request.body.messages[0].content[0].text).toContain('do not transfer attributes between objects');
     expect(request.request.body.messages[0].content[0].text).toContain('main purpose before answering');
     expect(request.request.body.messages[0].content[0].text).toContain('User request: Describe the device');
     expect((await answer).choices?.[0].message?.content).toBe('A storage device.');
