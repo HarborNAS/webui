@@ -2733,7 +2733,14 @@ export class HarborAssistantComponent implements OnInit {
     if (this.modelProjectionLoading() || this.modelProjectionIncomplete()) {
       return '';
     }
-    const endpoint = this.workflowCurrentEndpoint(kind);
+    const capability = this.workflowCapabilityForKind(kind);
+    const endpoint = capability?.current_model?.model_endpoint_id
+      ? this.modelEndpoints().find((candidate) => candidate.model_endpoint_id === capability.current_model?.model_endpoint_id)
+        ?? this.workflowCurrentEndpoint(kind)
+      : this.currentModelCards().find((card) => {
+        const endpointKind = ['semantic_router', 'retrieval_answer'].includes(kind) ? 'llm' : kind;
+        return card.kind === endpointKind;
+      })?.endpoint ?? this.workflowCurrentEndpoint(kind);
     if (!endpoint) {
       return '';
     }
