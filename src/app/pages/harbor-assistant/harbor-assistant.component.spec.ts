@@ -6,6 +6,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { of, Subject, throwError } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
+import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
+import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
 import { HarborAssistantComponent } from 'app/pages/harbor-assistant/harbor-assistant.component';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 
@@ -134,6 +136,81 @@ describe('Harbor Assistant component', () => {
     expect(metadata).toContain('Vulkan1: AMD Radeon Pro W7900');
     expect(metadata).toContain('http://127.0.0.1:11435/v1');
     expect(metadata).toContain('persistent');
+  });
+
+  it('refreshes only real model status after a completed search warms a cold embedder', () => {
+    const warmedCapabilities$ = new Subject<unknown>();
+    api.getModelCapabilities = jest.fn()
+      .mockReturnValueOnce(of(modelCapabilitiesWithEmbedder({ status: 'needs_model', runtime_ready: false })))
+      .mockReturnValue(warmedCapabilities$);
+    const coldRag = { status: 'degraded', embedding_model: { status: 'needs_model' } };
+    const warmRag = { status: 'ready', embedding_model: { status: 'ready' } };
+    api.getRagReadiness = jest.fn().mockReturnValueOnce(of(coldRag)).mockReturnValue(of(warmRag));
+    const content = {
+      search: jest.fn(() => of({ reply_pack: { summary: 'A cited answer', citations: [] }, blockers: [], warnings: [] })),
+      conversations: jest.fn(() => of({ conversations: [] })),
+    };
+    spectator = createComponent({ providers: [{ provide: HarborAssistantContentApiService, useValue: content }] });
+    const session = spectator.inject(AssistantSessionStore);
+    session.bindUser('cold-embedder-test');
+    expect(spectator.query('.ai-status-toolbar')).toHaveText('Vector search model required');
+    const previousSettingsCalls = api.getKnowledgeSettings?.mock.calls.length;
+    session.updateDraft({ text: 'Read the indexed guide', retrievalMode: 'on' });
+    session.send();
+    spectator.detectChanges();
+    expect(spectator.query('.ai-status-toolbar')).toHaveText('Loading model status');
+    expect(spectator.query('.ai-settings-subtabs')).not.toHaveText('4/4 Ready');
+    warmedCapabilities$.next(modelCapabilitiesWithEmbedder({ status: 'ready', runtime_ready: true }));
+    warmedCapabilities$.complete();
+    spectator.detectChanges();
+    expect(spectator.query('.ai-status-toolbar')).not.toHaveText('Vector search model required');
+    expect(spectator.query('.ai-settings-subtabs')).toHaveText('3/4 Ready');
+    expect(api.getState).toHaveBeenCalledTimes(1);
+    expect(api.getKnowledgeIndexStatus).toHaveBeenCalledTimes(1);
+    expect(api.getKnowledgeSettings).toHaveBeenCalledTimes(previousSettingsCalls ?? 0);
+    for (const name of ['getModelCapabilities', 'getModelRuntimes', 'getModelEndpoints',
+      'getInferenceHealth', 'getLocalModelDownloads', 'getRagReadiness'] as const) {
+      expect(api[name]).toHaveBeenCalledTimes(2);
+    }
+    expect(api.createModelEndpoint).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(api.installModelRuntime).not.toHaveBeenCalled();
+  });
+
+  it('does not let an older full-page or deferred snapshot overwrite readiness refreshed after a search', () => {
+    const oldBootstrap$ = new Subject<unknown>();
+    api.getGatewayStatus = jest.fn(() => oldBootstrap$);
+    api.getModelCapabilities = jest.fn()
+      .mockReturnValueOnce(of(modelCapabilitiesWithEmbedder({ status: 'needs_model', runtime_ready: false })))
+      .mockReturnValue(of(modelCapabilitiesWithEmbedder({ status: 'ready', runtime_ready: true })));
+    api.getRagReadiness = jest.fn()
+      .mockReturnValueOnce(of({ status: 'ready', embedding_model: { status: 'ready' } }))
+      .mockReturnValue(of({ status: 'degraded', embedding_model: { status: 'needs_model' } }));
+    const content = {
+      search: jest.fn(() => of({ reply_pack: { summary: 'A real answer', citations: [] }, blockers: [], warnings: [] })),
+      conversations: jest.fn(() => of({ conversations: [] })),
+    };
+    spectator = createComponent({ providers: [{ provide: HarborAssistantContentApiService, useValue: content }] });
+    const session = spectator.inject(AssistantSessionStore);
+    session.bindUser('late-bootstrap-test');
+    session.updateDraft({ text: 'Warm the index', retrievalMode: 'on' });
+    session.send();
+    spectator.detectChanges();
+    const component = spectator.component as unknown as {
+      modelCapabilitiesResponse: () => { capabilities: { capability_id: string; status: string }[] };
+      rag: () => { embedding_model: { status: string } };
+    };
+    expect(component.modelCapabilitiesResponse().capabilities.find((item) => item.capability_id === 'embedder')?.status)
+      .toBe('ready');
+    oldBootstrap$.next({ status: 'ready', channels: [] });
+    oldBootstrap$.complete();
+    spectator.detectChanges();
+    expect(component.modelCapabilitiesResponse().capabilities.find((item) => item.capability_id === 'embedder')?.status)
+      .toBe('ready');
+    expect(component.rag().embedding_model.status).toBe('ready');
+    expect(spectator.query('.ai-status-toolbar')).not.toHaveText('Vector search model required');
+    expect(spectator.query('.ai-settings-subtabs')).toHaveText('3/4 Ready');
+    expect(api.getState).toHaveBeenCalledTimes(1);
   });
 
   it('does not show raw endpoint errors in the AI settings page', () => {

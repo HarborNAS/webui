@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { Subject } from 'rxjs';
 import { finalize } from 'rxjs/operators';
 import { KnowledgeSourceRoot } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
@@ -42,6 +43,8 @@ export class AssistantSessionStore {
   private requestSequence = 0;
   private historySequence = 0;
   private initialized = false;
+  private readonly responseCompletion$ = new Subject<void>();
+  readonly responseCompleted$ = this.responseCompletion$.asObservable();
 
   readonly draft = signal<AssistantDraft>(emptyDraft());
   readonly conversationId = signal(this.newConversationId());
@@ -162,6 +165,7 @@ export class AssistantSessionStore {
           this.conversationId.set(response.conversation_id);
         }
         this.replacePending({ query, response });
+        this.responseCompletion$.next();
         this.refreshHistory();
       },
       error: (cause: unknown) => {
@@ -253,6 +257,7 @@ export class AssistantSessionStore {
             : [];
         }));
         this.resultsOpen.set(true);
+        this.responseCompletion$.next();
       },
       error: () => {
         if (sequence === this.requestSequence) {

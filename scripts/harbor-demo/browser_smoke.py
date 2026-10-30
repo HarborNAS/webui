@@ -145,6 +145,8 @@ def project(path, value):
     elif path.endswith('/rag/readiness') or path.endswith('/inference/healthz'):
         result.update(scalar_fields(value, ('ready', 'answer_ready', 'retrieval_ready', 'llm_ready',
                                             'embedder_ready', 'runtime_backend_kind', 'runtime_device')))
+        if isinstance(value.get('embedding_model'), dict):
+            result['embedding_model'] = scalar_fields(value['embedding_model'], ('status', 'ready', 'summary'))
         components = value.get('components', [])
         if isinstance(components, list):
             result['components'] = [scalar_fields(item, ('id', 'component_id', 'status', 'ready', 'summary'))
@@ -195,6 +197,7 @@ class BrowserSmoke:
         if path not in SAFE_PATHS and not path.startswith(PREFIX + '/knowledge/conversations/'):
             return
         entry = {'path': path, 'method': response.request.method, 'status': response.status,
+                 'request_started_at_ms': response.request.timing.get('startTime'),
                  'authorization_header_present': bool(await response.request.header_value('authorization'))}
         try:
             timing = response.request.timing
@@ -529,6 +532,43 @@ class BrowserSmoke:
         return {'synthetic_source_visible': True, 'status_text': clipped(text, 1800),
                 'screenshot': await self.screenshot('data-sources-readiness')}
 
+    async def refreshed_model_status(self, request_started_at_ms):
+        paths = {CAPABILITIES, PREFIX + '/models/runtimes', PREFIX + '/models/endpoints',
+                 PREFIX + '/inference/healthz', PREFIX + '/models/local-downloads', PREFIX + '/rag/readiness'}
+        await expect(self.page.locator('.ai-settings-subtabs')).not_to_contain_text(
+            'Loading', timeout=min(self.args.timeout, 45) * 1000)
+        deadline = time.monotonic() + min(self.args.timeout, 45)
+        latest = {}
+        while time.monotonic() < deadline:
+            for entry in self.report['api']:
+                if (entry['method'] == 'GET' and entry['path'] in paths
+                        and (entry.get('request_started_at_ms') or 0) >= request_started_at_ms):
+                    previous = latest.get(entry['path'])
+                    if not previous or entry['request_started_at_ms'] >= previous['request_started_at_ms']:
+                        latest[entry['path']] = entry
+            if paths.issubset(latest):
+                break
+            await self.page.wait_for_timeout(100)
+        assert paths.issubset(latest), 'Completed RAG did not trigger all six model/readiness GET refreshes'
+        assert all(entry['status'] == 200 for entry in latest.values()), 'Post-RAG model status refresh failed'
+        capabilities = latest[CAPABILITIES].get('data', {}).get('capabilities', [])
+        embedder = next((item for item in capabilities
+                         if item.get('capability_id') == 'embedder' or item.get('model_kind') == 'embedder'), None)
+        assert embedder and embedder.get('status') == 'ready', 'Real capabilities still report embedding unavailable'
+        health = latest[PREFIX + '/inference/healthz'].get('data', {})
+        assert health.get('ready') is True, 'Real inference health is unavailable after RAG'
+        await expect(self.page.locator('.ai-status-toolbar')).not_to_contain_text('Vector search model required')
+        core_ids = {'semantic_router', 'embedder', 'retrieval_answer', 'vlm'}
+        core = [item for item in capabilities if item.get('capability_id') in core_ids]
+        if len(core) == len(core_ids):
+            ready = sum(item.get('status') == 'ready' for item in core)
+            await expect(self.page.locator('.ai-settings-subtabs .ai-settings-subtab').nth(1)).to_contain_text(
+                str(ready) + '/' + str(len(core)) + ' Ready')
+        return {'refreshed_paths': sorted(latest), 'embedder': embedder, 'inference_health': health,
+                'rag_readiness': latest[PREFIX + '/rag/readiness'].get('data', {}),
+                'model_tab': await self.page.locator('.ai-settings-subtabs .ai-settings-subtab').nth(1).inner_text(),
+                'status_toolbar': await self.page.locator('.ai-status-toolbar').inner_text()}
+
     async def send(self, text=None, expected_mode=None):
         if text is not None:
             await self.prompt().fill(text)
@@ -558,6 +598,7 @@ class BrowserSmoke:
         answer = self.page.locator('.assistant-turn').last.locator('.assistant-answer')
         await expect(answer).to_have_text(summary, timeout=self.args.timeout * 1000)
         return body, {'elapsed_ms': round((time.perf_counter() - started) * 1000, 1),
+                      'request_started_at_ms': response.request.timing['startTime'],
                       'summary': clipped(summary), 'conversation_id': body.get('conversation_id'),
                       'model': safe_model(body.get('model'))}, payload
 
@@ -570,7 +611,7 @@ class BrowserSmoke:
         return facts
 
     async def rag_chat(self):
-        await self.assistant()
+        await self.ai_tab('sources')
         await self.mode('on', source='demo-documents-209')
         body, facts, payload = await self.send(self.args.rag_query, 'on')
         assert payload.get('source_root_ids') == ['demo-documents-209'], 'RAG did not select the synthetic source'
@@ -580,6 +621,7 @@ class BrowserSmoke:
         assert len(citations) > 0, 'RAG returned no citations'
         await expect(self.page.locator('.assistant-turn').last.locator('.assistant-citations')).to_be_visible()
         self.rag = body
+        facts['readiness_after_answer'] = await self.refreshed_model_status(facts['request_started_at_ms'])
         facts.update(citation_count=len(citations), screenshot=await self.screenshot('rag-answer-citations'))
         return facts
 

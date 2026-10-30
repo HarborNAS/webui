@@ -72,6 +72,20 @@ describe('AssistantSessionStore', () => {
     expect(api.search).toHaveBeenCalledWith(expect.objectContaining({ filter, include_audio: includeAudio }));
   });
 
+  it('announces only completed current responses and valid history restores for status refresh', () => {
+    const completed = jest.fn();
+    store.responseCompleted$.subscribe(completed);
+    api.search.mockReturnValueOnce(throwError(() => new Error('unavailable')));
+    store.updateDraft({ text: 'Failed question' });
+    store.send();
+    expect(completed).not.toHaveBeenCalled();
+    store.updateDraft({ text: 'Successful question' });
+    store.send();
+    expect(completed).toHaveBeenCalledTimes(1);
+    store.loadConversation('saved-1');
+    expect(completed).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps the same root store and draft when a page binds the same signed-in user', () => {
     store.updateDraft({ text: 'Unsaved question', sourceRootIds: ['docs'], retrievalMode: 'off' });
     const id = store.conversationId();

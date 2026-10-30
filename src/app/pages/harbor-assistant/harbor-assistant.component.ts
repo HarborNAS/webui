@@ -21,8 +21,8 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateModule } from '@ngx-translate/core';
 import { TnIconComponent } from '@truenas/ui-components';
-import { Observable, forkJoin, of, timer } from 'rxjs';
-import { catchError, finalize, map, retry, switchMap } from 'rxjs/operators';
+import { Observable, Subscription, forkJoin, of, timer } from 'rxjs';
+import { catchError, finalize, map, retry, switchMap, timeout } from 'rxjs/operators';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
@@ -153,6 +153,11 @@ interface HarborAssistantPageData {
   evidenceByDevice: Record<string, DeviceEvidenceResponse>;
   evidenceErrors: Record<string, string>;
 }
+
+type AssistantModelStatusData = Pick<HarborAssistantPageData,
+  'modelCapabilities' | 'modelRuntimes' | 'modelEndpoints' | 'inferenceHealth' | 'localDownloads' | 'rag'>;
+
+const modelStatusErrorKeys = ['models', 'modelCapabilities', 'modelRuntimes', 'inference', 'localDownloads', 'rag'];
 
 type DeviceEvidenceEntry = readonly [string, DeviceEvidenceResponse | null, string | null];
 
@@ -463,6 +468,9 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly assistantSession = inject(AssistantSessionStore);
   private fb = inject(NonNullableFormBuilder);
   private destroyRef = inject(DestroyRef);
+  private modelStatusSubscription?: Subscription;
+  private modelStatusRevision = 0;
+  private pageLoadRevision = 0;
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private matDialog = inject(MatDialog);
@@ -514,8 +522,15 @@ export class HarborAssistantComponent implements OnInit {
       && this.modelCapabilitiesResponse()
       && this.modelRuntimeManagerResponse(),
   ));
-  protected readonly modelProjectionLoading = computed(() => this.loading() && !this.modelProjectionReady());
-  protected readonly modelProjectionIncomplete = computed(() => !this.loading() && !this.modelProjectionReady());
+
+  protected readonly modelStatusRefreshing = signal(false);
+
+  protected readonly modelProjectionLoading = computed(() => this.modelStatusRefreshing()
+    || (this.loading() && !this.modelProjectionReady()));
+
+  protected readonly modelProjectionIncomplete = computed(() => !this.modelStatusRefreshing()
+    && !this.loading() && !this.modelProjectionReady());
+
   protected readonly hardware = signal<HardwareReadinessResponse | null>(null);
   protected readonly rag = signal<RagReadinessResponse | null>(null);
   protected readonly knowledgeSettings = signal<KnowledgeSettings | null>(null);
@@ -942,6 +957,8 @@ export class HarborAssistantComponent implements OnInit {
         }
       });
 
+    this.assistantSession.responseCompleted$.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.refreshModelStatus());
     this.loadData();
     timer(2000, 2000)
       .pipe(takeUntilDestroyed(this.destroyRef))
@@ -4642,21 +4659,84 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private loadData(): void {
+    const pageRevision = ++this.pageLoadRevision;
+    const statusRevision = ++this.modelStatusRevision;
+    this.modelStatusSubscription?.unsubscribe();
+    this.modelStatusRefreshing.set(false);
     this.loading.set(true);
     this.loadError.set(null);
 
     this.fetchPageData().pipe(
-      finalize(() => this.loading.set(false)),
+      finalize(() => {
+        if (pageRevision === this.pageLoadRevision) {
+          this.loading.set(false);
+        }
+      }),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({
       next: (pageData) => {
-        this.applyPageData(pageData);
-        this.refreshDeferredStatus();
+        if (pageRevision !== this.pageLoadRevision) {
+          return;
+        }
+        this.applyPageData(pageData, statusRevision === this.modelStatusRevision);
+        this.refreshDeferredStatus(statusRevision);
       },
       error: (error: unknown) => {
-        this.loadError.set(this.getErrorMessage(error));
-        this.clearData();
+        if (pageRevision === this.pageLoadRevision) {
+          this.loadError.set(this.getErrorMessage(error));
+          if (statusRevision === this.modelStatusRevision) {
+            this.clearData();
+          }
+        }
       },
+    });
+  }
+
+  private refreshModelStatus(): void {
+    const revision = ++this.modelStatusRevision;
+    this.modelStatusSubscription?.unsubscribe();
+    this.modelStatusRefreshing.set(true);
+    this.modelStatusSubscription = forkJoin({
+      modelCapabilities: this.statusResult('model-capabilities', this.harborAssistantApi.getModelCapabilities()),
+      modelRuntimes: this.statusResult('model-runtimes', this.harborAssistantApi.getModelRuntimes()),
+      modelEndpoints: this.statusResult('models', this.harborAssistantApi.getModelEndpoints()),
+      inferenceHealth: this.statusResult('inference', this.harborAssistantApi.getInferenceHealth()),
+      localDownloads: this.statusResult('local-downloads', this.harborAssistantApi.getLocalModelDownloads()),
+      rag: this.statusResult('rag', this.harborAssistantApi.getRagReadiness()),
+    }).pipe(
+      finalize(() => {
+        if (revision === this.modelStatusRevision) {
+          this.modelStatusRefreshing.set(false);
+        }
+      }),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((payload) => {
+      if (revision === this.modelStatusRevision) {
+        this.applyModelStatus(payload);
+      }
+    });
+  }
+
+  private statusResult<T>(key: string, request$: Observable<T>): Observable<EndpointResult<T>> {
+    return this.result(key, request$.pipe(timeout({ first: 10000 })), 2);
+  }
+
+  private applyModelStatus(payload: AssistantModelStatusData): void {
+    this.modelEndpointsResponse.set(payload.modelEndpoints.data);
+    this.modelCapabilitiesResponse.set(payload.modelCapabilities.data);
+    this.modelRuntimeManagerResponse.set(
+      payload.modelRuntimes.data ?? payload.modelCapabilities.data?.runtime_manager ?? null,
+    );
+    this.inferenceHealth.set(payload.inferenceHealth.data);
+    this.localDownloads.set(payload.localDownloads.data);
+    this.rag.set(payload.rag.data);
+    this.mergeEndpointErrors({
+      models: payload.modelEndpoints.error,
+      modelCapabilities: payload.modelCapabilities.error,
+      modelRuntimes: payload.modelRuntimes.error,
+      inference: payload.inferenceHealth.error,
+      localDownloads: payload.localDownloads.error,
+      rag: payload.rag.error,
     });
   }
 
@@ -4771,7 +4851,7 @@ export class HarborAssistantComponent implements OnInit {
     );
   }
 
-  private refreshDeferredStatus(): void {
+  private refreshDeferredStatus(statusRevision: number): void {
     forkJoin({
       localCatalog: this.result('local-catalog', this.harborAssistantApi.getLocalModelCatalog()),
       hardware: this.result('hardware', this.harborAssistantApi.getHardwareReadiness()),
@@ -4781,11 +4861,13 @@ export class HarborAssistantComponent implements OnInit {
     ).subscribe((payload) => {
       this.localCatalog.set(payload.localCatalog.data ?? this.localCatalog());
       this.hardware.set(payload.hardware.data ?? this.hardware());
-      this.rag.set(payload.rag.data ?? this.rag());
+      if (statusRevision === this.modelStatusRevision) {
+        this.rag.set(payload.rag.data ?? this.rag());
+      }
       this.mergeEndpointErrors({
         localCatalog: payload.localCatalog.error,
         hardware: payload.hardware.error,
-        rag: payload.rag.error,
+        ...(statusRevision === this.modelStatusRevision ? { rag: payload.rag.error } : {}),
       });
       this.completeAutoModelSelections();
     });
@@ -4833,21 +4915,16 @@ export class HarborAssistantComponent implements OnInit {
     );
   }
 
-  private applyPageData(pageData: HarborAssistantPageData): void {
+  private applyPageData(pageData: HarborAssistantPageData, applyModelStatus = true): void {
     this.state.set(pageData.state.data);
     this.gatewayStatus.set(pageData.gatewayStatus.data);
-    this.inferenceHealth.set(pageData.inferenceHealth.data);
     this.notificationTargetsResponse.set(pageData.notificationTargets.data);
-    this.modelEndpointsResponse.set(pageData.modelEndpoints.data);
-    this.modelCapabilitiesResponse.set(pageData.modelCapabilities.data);
-    this.modelRuntimeManagerResponse.set(
-      pageData.modelRuntimes.data ?? pageData.modelCapabilities.data?.runtime_manager ?? null,
-    );
+    if (applyModelStatus) {
+      this.applyModelStatus(pageData);
+    }
     this.modelPoliciesResponse.set(pageData.modelPolicies.data);
     this.localCatalog.set(pageData.localCatalog.data);
-    this.localDownloads.set(pageData.localDownloads.data);
     this.hardware.set(pageData.hardware.data);
-    this.rag.set(pageData.rag.data);
     this.knowledgeSettings.set(pageData.knowledgeSettings.data);
     this.knowledgeIndexStatus.set(pageData.knowledgeIndexStatus.data);
     this.dvrSettings.set(pageData.dvrSettings.data);
@@ -4911,6 +4988,14 @@ export class HarborAssistantComponent implements OnInit {
         ...pageData.evidenceErrors,
       }).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].length > 0),
     );
+    if (!applyModelStatus) {
+      for (const key of modelStatusErrorKeys) {
+        delete errors[key];
+        if (this.endpointErrors()[key]) {
+          errors[key] = this.endpointErrors()[key];
+        }
+      }
+    }
     this.endpointErrors.set(errors);
     this.loadError.set(pageData.state.error);
 
