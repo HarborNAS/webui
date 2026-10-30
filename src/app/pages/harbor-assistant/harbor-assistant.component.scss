@@ -2280,6 +2280,24 @@ $hd-space-5: 20px;
 }
 
 @media (max-width: 767px) {
+  .tab-button,
+  .settings-section-button { flex-shrink: 0; }
+
+  .ai-settings-subtabs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-settings-subtab {
+    strong,
+    span { overflow: visible; text-overflow: clip; white-space: normal; }
+  }
+
+  .section-heading {
+    flex-wrap: wrap;
+    > * { max-width: 100%; }
+  }
+
   :host ::ng-deep ix-page-header > div {
     align-items: flex-start;
     flex-wrap: wrap;
