@@ -76,7 +76,7 @@ import {
   RtspCheckResult,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
-import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
+import { harborAssistantBeaconApiUrl, harborAssistantRuntimeApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 
 @Injectable({
   providedIn: 'root',
@@ -98,7 +98,7 @@ export class HarborAssistantApiService {
     max_tokens?: number;
     temperature?: number;
   }): Observable<ChatCompletionResponse> {
-    return this.http.post<ChatCompletionResponse>(this.apiUrl('/inference/v1/chat/completions'), payload);
+    return this.http.post<ChatCompletionResponse>(harborAssistantRuntimeApiUrl('/v1/chat/completions'), payload);
   }
 
   getBackendStatus(): Observable<HarborAssistantBackendStatus> {
