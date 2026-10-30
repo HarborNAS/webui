@@ -32,6 +32,7 @@ import {
   FamilyTimelineResponse,
   FilesBrowseResponse,
   GatewayStatusResponse,
+  ChatCompletionResponse,
   HarborAssistantBackendStatus,
   HomeAssistantConfigPayload,
   HomeAssistantConfigResponse,
@@ -89,6 +90,15 @@ export class HarborAssistantApiService {
 
   getState(): Observable<AdminStateResponse> {
     return this.http.get<AdminStateResponse>(this.apiUrl('/state'));
+  }
+
+  completeChat(payload: {
+    model: string;
+    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
+    max_tokens?: number;
+    temperature?: number;
+  }): Observable<ChatCompletionResponse> {
+    return this.http.post<ChatCompletionResponse>(this.apiUrl('/inference/v1/chat/completions'), payload);
   }
 
   getBackendStatus(): Observable<HarborAssistantBackendStatus> {

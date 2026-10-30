@@ -14,7 +14,22 @@ export interface HarborAssistantMetric {
   tone: HarborAssistantStatusTone;
 }
 
-export type HarborAssistantTabId = 'search' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+export type HarborAssistantTabId = 'search' | 'chat' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+
+
+export interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
 
 export interface HarborAssistantTab {
   id: HarborAssistantTabId;
