@@ -16,7 +16,7 @@ import sys
 import time
 from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
-from playwright.async_api import async_playwright, expect
+from playwright.async_api import Error as PlaywrightError, async_playwright, expect
 
 
 PREFIX = '/api/harbor-beacon'
@@ -194,9 +194,9 @@ class BrowserSmoke:
         path = urlsplit(response.url).path
         if path not in SAFE_PATHS and not path.startswith(PREFIX + '/knowledge/conversations/'):
             return
-        entry = {'path': path, 'method': response.request.method, 'status': response.status}
+        entry = {'path': path, 'method': response.request.method, 'status': response.status,
+                 'authorization_header_present': bool(await response.request.header_value('authorization'))}
         try:
-            await response.finished()
             timing = response.request.timing
             entry['timing_ms'] = {key: round(timing[key], 2)
                                   for key in ('responseStart', 'responseEnd', 'requestStart')
@@ -210,7 +210,14 @@ class BrowserSmoke:
             if path == SPEECH and response.ok:
                 entry['bytes'] = len(await response.body())
             else:
-                entry['data'] = project(path, await response.json())
+                try:
+                    entry['data'] = project(path, await response.json())
+                except json.JSONDecodeError:
+                    if response.status in (401, 403):
+                        reason = self.redact((await response.text())[:600])
+                        entry['error_text'] = re.sub(r'[A-Za-z0-9_-]{32,}', '[redacted-long-value]', reason)
+                    else:
+                        raise
         except Exception as error:
             entry['capture_error_kind'] = type(error).__name__
         self.report['api'].append(entry)
@@ -276,12 +283,17 @@ class BrowserSmoke:
     async def close_options(self):
         close = self.page.locator('button[aria-label="Close conversation options"]')
         if await close.is_visible():
-            await close.click()
+            try:
+                await close.click(timeout=5000)
+            except PlaywrightError:
+                if await close.is_visible():
+                    raise
+            await expect(close).to_be_hidden()
 
     async def desktop(self):
         await self.show_page()
         await self.close_options()
-        back = self.page.locator('a[routerlink="/desktop"]')
+        back = self.page.locator('a[routerlink="/desktop"]:visible').first
         if await back.is_visible():
             await back.click()
         elif not await self.page.locator('ix-desktop').is_visible():
@@ -454,7 +466,7 @@ class BrowserSmoke:
                                                   timeout=self.args.timeout * 1000) as completed:
                 release.set()
             actual = await completed.value
-            await actual.finished()
+            await actual.body()
             await expect(toolbar).not_to_contain_text('Loading', timeout=self.args.timeout * 1000)
             return {'attempts': attempts, 'injected_500': True, 'actual_response_delayed': True,
                     'loading_text': pending, 'screenshot': screenshot}
@@ -708,8 +720,13 @@ class BrowserSmoke:
                 await self.gate('asr_zh', lambda: self.asr('zh'))
                 await self.gate('tts_playback', self.tts)
             finally:
+                self.page.remove_listener('response', self.observe)
+                self.page.remove_listener('request', self.observe_request)
                 if self.capture_tasks:
-                    await asyncio.gather(*self.capture_tasks, return_exceptions=True)
+                    try:
+                        await asyncio.wait_for(asyncio.gather(*list(self.capture_tasks), return_exceptions=True), timeout=15)
+                    except asyncio.TimeoutError:
+                        self.report['capture_incomplete'] = True
                 self.write_report()
                 await context.close()
                 await browser.close()
