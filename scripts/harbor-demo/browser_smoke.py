@@ -639,6 +639,7 @@ class BrowserSmoke:
 
     async def asr(self, language):
         await self.multimodal()
+        await self.choose_tool(2)
         await self.mode('off')
         await self.prompt().fill('')
         sample = self.args.samples / (language + '-demo.wav')
@@ -664,8 +665,14 @@ class BrowserSmoke:
         await expect(self.prompt()).to_have_value(transcript)
         assert len([item for item in self.posts if item['path'] == SEARCH]) == before, 'Adding transcript automatically sent a conversation'
         screenshot = await self.screenshot('asr-' + language + '-explicit-draft')
-        _, answer, _ = await self.send(expected_mode='off')
+        question = ('Please acknowledge the voice message above in one short sentence.' if language == 'en'
+                    else '请用一句简短的话确认收到以上语音消息。')
+        await self.prompt().fill(transcript + '\n\n' + question)
+        body, answer, payload = await self.send(expected_mode='off')
+        assert payload.get('query') == transcript + '\n\n' + question, 'The user-edited draft changed the raw transcript'
+        assert 'qwen' in json.dumps(body.get('model', {})).lower(), 'Voice conversation did not use the real Qwen model'
         return {'language': language, 'transcript': clipped(transcript), 'explicit_send': True,
+                'new_conversation': True, 'raw_transcript_preserved': True, 'user_question': question,
                 'asr_elapsed_ms': round((time.perf_counter() - started) * 1000 - answer['elapsed_ms'], 1),
                 'conversation_answer': answer, 'screenshot': screenshot}
 
