@@ -149,16 +149,21 @@ def percentile(values, percent):
 def negative_review_status(attempts, review):
     negatives = [item for item in attempts if item['kind'] == 'insufficient']
     supplied = review.get('reviews', []) if isinstance(review, dict) else []
-    approved = []
+    reviewed, approved = [], []
     for attempt in negatives:
         matches = [entry for entry in supplied if entry.get('attempt_id') == attempt['attempt_id']]
         valid = len(matches) == 1 and matches[0].get('actual_answer') == attempt['observation'].get('answer', '')
-        valid = valid and matches[0].get('fabrication') is False and matches[0].get('evidence_insufficient') is True
+        valid = valid and isinstance(matches[0].get('fabrication'), bool)
+        valid = valid and isinstance(matches[0].get('evidence_insufficient'), bool)
         valid = valid and isinstance(matches[0].get('reviewed_by'), str) and bool(matches[0]['reviewed_by'].strip())
         if valid:
-            approved.append(attempt['attempt_id'])
-    return {'all_reviewed': bool(negatives) and len(approved) == len(negatives),
-            'approved_attempt_ids': approved, 'required_attempt_ids': [item['attempt_id'] for item in negatives]}
+            reviewed.append(attempt['attempt_id'])
+            if matches[0]['fabrication'] is False and matches[0]['evidence_insufficient'] is True:
+                approved.append(attempt['attempt_id'])
+    return {'all_reviewed': bool(negatives) and len(reviewed) == len(negatives),
+            'all_approved': bool(negatives) and len(approved) == len(negatives),
+            'reviewed_attempt_ids': reviewed, 'approved_attempt_ids': approved,
+            'required_attempt_ids': [item['attempt_id'] for item in negatives]}
 
 
 def summary(manifest, attempts, rounds, selected_ids=None, phase='warm', negative_review=None, cold_evidence=False):
@@ -187,7 +192,7 @@ def summary(manifest, attempts, rounds, selected_ids=None, phase='warm', negativ
     automated = coverage and accuracy >= .95 and negatives_pass and must_passed and latency_pass
     reviewed = negative_review_status(attempts, negative_review)
     cold_verified = phase != 'reboot_followup' or bool(cold_evidence)
-    accepted = automated and reviewed['all_reviewed'] and cold_verified
+    accepted = automated and reviewed['all_approved'] and cold_verified
     return {'status': 'passed' if accepted else 'partial', 'acceptance_complete': accepted,
             'automated_criteria_passed': automated, 'manual_negative_review': reviewed,
             'required_rounds_for_acceptance':required_rounds, 'external_reboot_evidence_present':cold_verified,

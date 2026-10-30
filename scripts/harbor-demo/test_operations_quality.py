@@ -97,6 +97,24 @@ class ScoringTests(unittest.TestCase):
             review['reviews'][0]['actual_answer'] = 'A different candidate response'
             self.assertFalse(quality.summary(manifest, attempts, 3, negative_review=review)['acceptance_complete'])
 
+    def test_all_negative_answers_can_be_reviewed_without_being_approved(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            manifest = manifest_fixture(Path(temporary))
+            attempts = attempts_fixture(manifest)
+            review = review_fixture(attempts)
+            review['reviews'][0]['fabrication'] = True
+            review['reviews'][1]['evidence_insufficient'] = False
+            result = quality.summary(manifest, attempts, 3, negative_review=review)
+            status = result['manual_negative_review']
+            self.assertTrue(status['all_reviewed'])
+            self.assertFalse(status['all_approved'])
+            self.assertEqual(len(status['reviewed_attempt_ids']), 6)
+            self.assertEqual(len(status['approved_attempt_ids']), 4)
+            self.assertTrue(result['automated_criteria_passed'])
+            self.assertFalse(result['acceptance_complete'])
+            review['reviews'][0]['fabrication'] = 'false'
+            self.assertFalse(quality.negative_review_status(attempts, review)['all_reviewed'])
+
     def test_every_failed_attempt_counts_and_must_demo_cannot_hide_in_95_percent(self):
         with tempfile.TemporaryDirectory() as temporary:
             manifest = manifest_fixture(Path(temporary))
