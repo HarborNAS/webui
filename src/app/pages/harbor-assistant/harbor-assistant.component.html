@@ -1005,6 +1005,16 @@
               }
             </section>
 
+            @if (modelProjectionLoading()) {
+              <div class="notice info compact" data-testid="model-projection-loading">
+                {{ 'Loading runtime and model status...' | translate }}
+              </div>
+            } @else if (modelProjectionIncomplete()) {
+              <div class="notice warn compact" data-testid="model-projection-incomplete">
+                {{ 'Runtime and model status could not be loaded. Refresh to retry.' | translate }}
+              </div>
+            }
+
             <section class="ai-settings-panel model-capability-list">
               <div class="model-capability-header">
                 <span>{{ 'Capability' | translate }}</span>
@@ -1023,6 +1033,9 @@
                     <div class="model-current-cell">
                       <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
                       <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
+                      @if (workflowCurrentModelMetadata(capability.capabilityId); as modelMetadata) {
+                        <p class="muted mono-text">{{ modelMetadata }}</p>
+                      }
                       @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
                         <p class="muted warn">{{ runtimeNotice | translate }}</p>
                       }
@@ -1031,10 +1044,10 @@
                       {{ workflowCapabilityStatusLabel(capability.capabilityId) | translate }}
                     </span>
                     <div class="row-actions">
-                      <button mat-button color="primary" type="button" (click)="toggleModelCapabilityChooser(capability)">
+                      <button mat-button color="primary" type="button" [disabled]="loading() || !modelProjectionReady()" (click)="toggleModelCapabilityChooser(capability)">
                         {{ 'Select model' | translate }}
                       </button>
-                      <button mat-button type="button" (click)="openModelCapabilityMoreModels(capability)">
+                      <button mat-button type="button" [disabled]="loading() || !modelProjectionReady()" (click)="openModelCapabilityMoreModels(capability)">
                         {{ 'More models' | translate }}
                       </button>
                       @if (workflowRuntimeInstallCandidate(capability.capabilityId); as runtime) {

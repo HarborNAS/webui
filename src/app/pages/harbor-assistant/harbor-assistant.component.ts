@@ -22,7 +22,7 @@ import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateModule } from '@ngx-translate/core';
 import { TnIconComponent } from '@truenas/ui-components';
 import { Observable, forkJoin, of, timer } from 'rxjs';
-import { catchError, finalize, map, switchMap } from 'rxjs/operators';
+import { catchError, finalize, map, retry, switchMap } from 'rxjs/operators';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
@@ -502,6 +502,13 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly modelPoliciesResponse = signal<ModelPoliciesResponse | null>(null);
   protected readonly localCatalog = signal<LocalModelCatalogResponse | null>(null);
   protected readonly localDownloads = signal<LocalModelDownloadsResponse | null>(null);
+  protected readonly modelProjectionReady = computed(() => Boolean(
+    this.modelEndpointsResponse()
+      && this.modelCapabilitiesResponse()
+      && this.modelRuntimeManagerResponse(),
+  ));
+  protected readonly modelProjectionLoading = computed(() => this.loading() && !this.modelProjectionReady());
+  protected readonly modelProjectionIncomplete = computed(() => !this.loading() && !this.modelProjectionReady());
   protected readonly hardware = signal<HardwareReadinessResponse | null>(null);
   protected readonly rag = signal<RagReadinessResponse | null>(null);
   protected readonly knowledgeSettings = signal<KnowledgeSettings | null>(null);
@@ -2671,6 +2678,13 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowCurrentModelName(kind: string): string {
+    if (this.modelProjectionLoading()) {
+      return T('Loading model status...');
+    }
+    if (this.modelProjectionIncomplete()) {
+      return T('Model status unavailable');
+    }
+
     const capability = this.workflowCapabilityForKind(kind);
     if (capability?.selected_model_id) {
       const selected = [
@@ -2695,6 +2709,12 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowCurrentModelDetail(kind: string): string {
+    if (this.modelProjectionLoading()) {
+      return T('Waiting for runtime and endpoint status.');
+    }
+    if (this.modelProjectionIncomplete()) {
+      return T('Runtime and endpoint status could not be loaded.');
+    }
     const capability = this.workflowCapabilityForKind(kind);
     if (capability) {
       return this.modelCapabilityUserStatus(capability);
@@ -2707,6 +2727,24 @@ export class HarborAssistantComponent implements OnInit {
       return current.localPath;
     }
     return T('Local model service');
+  }
+
+  protected workflowCurrentModelMetadata(kind: string): string {
+    if (this.modelProjectionLoading() || this.modelProjectionIncomplete()) {
+      return '';
+    }
+    const endpoint = this.workflowCurrentEndpoint(kind);
+    if (!endpoint) {
+      return '';
+    }
+    const metadata = endpoint.metadata ?? {};
+    const parts = [
+      typeof metadata['runtime_backend_kind'] === 'string' ? String(metadata['runtime_backend_kind']) : '',
+      typeof metadata['runtime_device'] === 'string' ? String(metadata['runtime_device']) : '',
+      typeof metadata['base_url'] === 'string' ? String(metadata['base_url']) : '',
+      metadata['persistent'] === true ? T('persistent') : '',
+    ].filter((value) => value.length > 0);
+    return parts.join(' · ');
   }
 
   protected workflowRuntimeNotice(kind: string): string | null {
@@ -2737,6 +2775,12 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowCapabilityStatusLabel(kind: string): string {
+    if (this.modelProjectionLoading()) {
+      return T('Loading');
+    }
+    if (this.modelProjectionIncomplete()) {
+      return T('Unavailable');
+    }
     const capability = this.workflowCapabilityForKind(kind);
     if (capability) {
       return this.userStatusLabel(capability.status);
@@ -3496,8 +3540,16 @@ export class HarborAssistantComponent implements OnInit {
       {
         id: 'models',
         label: T('Model'),
-        summary: `${readyRequiredModels.length}/${requiredModelRows.length} ${T('Ready')}`,
-        tone: readyRequiredModels.length >= requiredModelRows.length ? 'good' : hasModelWarnings ? 'warn' : 'danger',
+        summary: this.modelProjectionLoading()
+          ? T('Loading')
+          : this.modelProjectionIncomplete()
+            ? T('Unavailable')
+            : `${readyRequiredModels.length}/${requiredModelRows.length} ${T('Ready')}`,
+        tone: this.modelProjectionLoading()
+          ? 'warn'
+          : this.modelProjectionIncomplete()
+            ? 'danger'
+            : readyRequiredModels.length >= requiredModelRows.length ? 'good' : hasModelWarnings ? 'warn' : 'danger',
       },
       {
         id: 'cloud-api',
@@ -3721,6 +3773,20 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private buildAiWorkflowSummary(): AiWorkflowSummary {
+    if (this.modelProjectionLoading()) {
+      return {
+        label: T('Loading model status'),
+        detail: T('Waiting for runtime, endpoint, and capability status to finish loading.'),
+        tone: 'warn',
+      };
+    }
+    if (this.modelProjectionIncomplete()) {
+      return {
+        label: T('Model status unavailable'),
+        detail: T('Runtime, endpoint, or capability status could not be loaded yet.'),
+        tone: 'danger',
+      };
+    }
     if (
       this.endpointError('models')
       || this.endpointError('rag')
@@ -3768,6 +3834,12 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private modelCapabilityTone(kind: string): HarborAssistantStatusTone {
+    if (this.modelProjectionLoading()) {
+      return 'warn';
+    }
+    if (this.modelProjectionIncomplete()) {
+      return 'danger';
+    }
     const capability = this.workflowCapabilityForKind(kind);
     if (capability) {
       switch (capability.status) {
@@ -4567,12 +4639,12 @@ export class HarborAssistantComponent implements OnInit {
         gatewayStatus: this.result('gateway', this.harborAssistantApi.getGatewayStatus()),
         inferenceHealth: this.result('inference', this.harborAssistantApi.getInferenceHealth()),
         notificationTargets: this.result('notification-targets', this.harborAssistantApi.getNotificationTargets()),
-        modelEndpoints: this.result('models', this.harborAssistantApi.getModelEndpoints()),
-        modelCapabilities: this.result('model-capabilities', this.harborAssistantApi.getModelCapabilities()),
-        modelRuntimes: this.result('model-runtimes', this.harborAssistantApi.getModelRuntimes()),
+        modelEndpoints: this.result('models', this.harborAssistantApi.getModelEndpoints(), 2),
+        modelCapabilities: this.result('model-capabilities', this.harborAssistantApi.getModelCapabilities(), 2),
+        modelRuntimes: this.result('model-runtimes', this.harborAssistantApi.getModelRuntimes(), 2),
         modelPolicies: this.result('model-policies', this.harborAssistantApi.getModelPolicies()),
         localCatalog: of<EndpointResult<LocalModelCatalogResponse>>({ data: this.localCatalog(), error: null }),
-        localDownloads: this.result('local-downloads', this.harborAssistantApi.getLocalModelDownloads()),
+        localDownloads: this.result('local-downloads', this.harborAssistantApi.getLocalModelDownloads(), 2),
         hardware: of<EndpointResult<HardwareReadinessResponse>>({ data: this.hardware(), error: null }),
         rag: of<EndpointResult<RagReadinessResponse>>({ data: this.rag(), error: null }),
         knowledgeSettings: this.result('knowledge-settings', this.harborAssistantApi.getKnowledgeSettings()),
@@ -4720,8 +4792,11 @@ export class HarborAssistantComponent implements OnInit {
     this.endpointErrors.set(next);
   }
 
-  private result<T>(key: string, request: Observable<T>): Observable<EndpointResult<T>> {
-    return request.pipe(
+  private result<T>(key: string, request: Observable<T>, retryCount = 0): Observable<EndpointResult<T>> {
+    const retriedRequest = retryCount > 0
+      ? request.pipe(retry({ count: retryCount, delay: (_error, attempt) => timer(attempt * 500) }))
+      : request;
+    return retriedRequest.pipe(
       map((data): EndpointResult<T> => ({ data, error: null })),
       catchError((error: unknown) => of({
         data: null,

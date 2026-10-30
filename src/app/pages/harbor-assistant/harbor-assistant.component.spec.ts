@@ -73,6 +73,69 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent?.toLowerCase()).not.toContain('fallback order');
   });
 
+  it('shows a loading state instead of empty model readiness while projections are pending', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      loading: { set: (value: boolean) => void };
+      modelEndpointsResponse: { set: (value: unknown) => void };
+      modelCapabilitiesResponse: { set: (value: unknown) => void };
+      modelRuntimeManagerResponse: { set: (value: unknown) => void };
+      activeAiSettingsTab: { set: (value: string) => void };
+    };
+    component.loading.set(true);
+    component.activeAiSettingsTab.set('models');
+    component.modelEndpointsResponse.set(null);
+    component.modelCapabilitiesResponse.set(null);
+    component.modelRuntimeManagerResponse.set(null);
+    spectator.detectChanges();
+
+    expect(spectator.query('[data-testid="model-projection-loading"]')).toExist();
+    expect(spectator.element.textContent).toContain('Loading runtime and model status');
+    expect(spectator.element.textContent).not.toContain('0/4 Ready');
+  });
+
+  it('renders external llama.cpp endpoint metadata after model projections load', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      loading: { set: (value: boolean) => void };
+      modelEndpointsResponse: { set: (value: unknown) => void };
+      modelCapabilitiesResponse: { set: (value: unknown) => void };
+      modelRuntimeManagerResponse: { set: (value: unknown) => void };
+      workflowCurrentModelMetadata: (kind: string) => string;
+    };
+    component.loading.set(false);
+    component.modelEndpointsResponse.set({
+      endpoints: [{
+        model_endpoint_id: 'llm-local-llama-vulkan-demo',
+        model_kind: 'llm',
+        endpoint_kind: 'local',
+        provider_key: 'openai_compatible',
+        model_name: 'qwen2.5-0.5b-instruct-q4_k_m.gguf',
+        capability_tags: ['chat', 'llama.cpp'],
+        status: 'active',
+        metadata: {
+          base_url: 'http://127.0.0.1:11435/v1',
+          runtime_backend_kind: 'llama.cpp',
+          runtime_device: 'Vulkan1: AMD Radeon Pro W7900 (RADV NAVI31)',
+          persistent: true,
+        },
+      }],
+    });
+    component.modelCapabilitiesResponse.set({
+      capabilities: [],
+      runtime_manager: { status: 'ready', runtimes: [] },
+      model_store: { status: 'ready', path: '/models' },
+    });
+    component.modelRuntimeManagerResponse.set({ status: 'ready', runtimes: [] });
+    spectator.detectChanges();
+
+    const metadata = component.workflowCurrentModelMetadata('llm');
+    expect(metadata).toContain('llama.cpp');
+    expect(metadata).toContain('Vulkan1: AMD Radeon Pro W7900');
+    expect(metadata).toContain('http://127.0.0.1:11435/v1');
+    expect(metadata).toContain('persistent');
+  });
+
   it('does not show raw endpoint errors in the AI settings page', () => {
     spectator = createComponent();
     spectator.detectChanges();
