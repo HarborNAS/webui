@@ -79,6 +79,14 @@ def diagnostic_projection(body):
     return result
 
 
+def diagnostics_required(case, body):
+    if case['kind'] != 'insufficient':
+        return True
+    model = body.get('model') if isinstance(body, dict) else None
+    return (isinstance(model, dict) and model.get('answer_generation_enabled') is True
+            and isinstance(model.get('latency_ms'), (int, float)))
+
+
 def diagnostic_request(payload):
     if not isinstance(payload, dict) or not isinstance(payload.get('query'), str):
         raise ValueError('Expected a controlled Knowledge Search JSON object')
@@ -364,8 +372,12 @@ class QualityRunner(BrowserSmoke):
         body = await response.json()
         observation['response'] = quality_projection(SEARCH, body)
         observation['controlled_synthetic_diagnostics'] = diagnostic_projection(body)
+        observation['diagnostics_required'] = diagnostics_required(case, body)
         if observation['controlled_synthetic_diagnostics'] is None:
-            observation['issues'].append('controlled_diagnostics_unavailable')
+            if observation['diagnostics_required']:
+                observation['issues'].append('controlled_diagnostics_unavailable')
+            else:
+                observation['diagnostics_not_applicable'] = 'Expected insufficient-evidence early response without measured generation'
         observation['answer'] = (body.get('reply_pack') or {}).get('summary', '').strip()
         observation['citations'] = observation['response'].get('reply_pack', {}).get('citations', [])
         payload = response.request.post_data_json

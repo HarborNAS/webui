@@ -155,6 +155,17 @@ class ManifestAndEvidenceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'positive cases'):
                 quality.load_manifest(file)
 
+    def test_no_match_negative_without_generation_does_not_require_generation_diagnostics(self):
+        negative = {'kind':'insufficient'}
+        positive = {'kind':'document'}
+        self.assertFalse(quality.diagnostics_required(negative, {'model':None, 'total_matches':0}))
+        self.assertFalse(quality.diagnostics_required(negative, {'model':{'answer_generation_enabled':True}}))
+        self.assertTrue(quality.diagnostics_required(negative, {
+            'model':{'answer_generation_enabled':True, 'latency_ms':120}}))
+        self.assertTrue(quality.diagnostics_required(positive, {'model':None}))
+        self.assertTrue(quality.diagnostics_required(positive, {
+            'model':{'answer_generation_enabled':True, 'latency_ms':120}}))
+
     def test_diagnostic_projection_excludes_headers_and_caps_raw_content(self):
         projected = quality.diagnostic_projection({'controlled_synthetic_diagnostics':{
             'query':'synthetic query', 'headers':{'Authorization':'must never be saved'},
