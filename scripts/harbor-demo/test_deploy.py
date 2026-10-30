@@ -57,6 +57,19 @@ class IsolatedAppliance(unittest.TestCase):
         return path
 
 
+class ServiceInventoryTests(unittest.TestCase):
+    def test_health_reports_failed_grounded_runtime_without_changing_services(self):
+        def status(*args, **kwargs):
+            grounded = args[-1] == 'harbor-demo-rag-llama'
+            value = ('failed' if args[1] == 'is-active' else 'disabled') if grounded else 'active'
+            return subprocess.CompletedProcess(args, int(grounded), stdout=value + '\n', stderr='')
+        with patch.object(deploy, 'run', side_effect=status) as commands:
+            states = deploy.service_states()
+        self.assertEqual(states['harbor-demo-rag-llama'], {'active':'failed', 'enabled':'disabled'})
+        self.assertTrue(all(call.args[:2] in [('systemctl','is-active'), ('systemctl','is-enabled')]
+                            for call in commands.call_args_list))
+
+
 class CredentialTests(IsolatedAppliance):
     def test_configured_file_wins_over_legacy_environment(self):
         credential = self.write(self.root / 'current', 'file-token')

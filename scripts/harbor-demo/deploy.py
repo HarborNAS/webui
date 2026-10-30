@@ -14,7 +14,7 @@ import urllib.request
 
 BASE = Path('/var/lib/harborbeacon-agent-ci')
 DIST = BASE / 'harbor-assistant-webui'
-UNITS = ['harboros-beacon', 'harbor-demo-llama', 'harbor-demo-vlm', 'harbor-demo-asr',
+UNITS = ['harboros-beacon', 'harbor-demo-llama', 'harbor-demo-rag-llama', 'harbor-demo-vlm', 'harbor-demo-asr',
          'harbor-demo-tts', 'harbor-gate-webui-edge', 'nginx',
          'harbor-webui-override', 'harbor-webui-override.path']
 CONFIGS = [Path('/etc/nginx/nginx.conf'), Path('/etc/default/harboros-beacon'),
