@@ -334,22 +334,34 @@ class BrowserSmoke:
                 await self.desktop()
             else:
                 await self.ai_tab(name)
+                await expect(self.page.locator('.ai-settings-subtabs')).not_to_contain_text(
+                    'Loading', timeout=self.args.timeout * 1000)
             await self.prompt().wait_for()
             await self.page.evaluate('() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))')
             metrics = await self.page.evaluate("""() => {
               const composer = document.querySelector('.assistant-composer');
               const workspace = document.querySelector('.assistant-page-workspace');
               const prompt = composer?.querySelector('textarea');
+              const footer = document.querySelector('ix-topbar .topbar-mobile-footer');
+              const navigation = document.querySelector('.assistant-mobile-home');
               if (!composer || !workspace || !prompt) return null;
               const c = composer.getBoundingClientRect();
               const w = workspace.getBoundingClientRect();
               const p = prompt.getBoundingClientRect();
+              const f = footer?.getBoundingClientRect();
+              const n = navigation?.getBoundingClientRect();
+              const navigationHit = n && document.elementFromPoint(n.x+n.width/2,n.y+n.height/2);
               const hit = document.elementFromPoint(p.x + p.width / 2, p.y + p.height / 2);
               return {composer: {x:c.x,y:c.y,width:c.width,height:c.height,bottom:c.bottom,right:c.right},
                       workspace: {bottom:w.bottom,width:w.width,height:w.height},
                       viewport: {width:innerWidth,height:innerHeight},
                       composer_count:document.querySelectorAll('.assistant-composer').length,
                       input_unobscured:!!hit && composer.contains(hit),
+                      mobile_footer: f && getComputedStyle(footer).position === 'fixed'
+                        ? {top:f.top,bottom:f.bottom,right:f.right,width:f.width,height:f.height} : null,
+                      mobile_navigation: n && getComputedStyle(navigation).display !== 'none'
+                        ? {top:n.top,bottom:n.bottom,right:n.right,width:n.width,
+                           unobscured:!!navigationHit && navigation.contains(navigationHit)} : null,
                       document_width:document.documentElement.scrollWidth};
             }""")
             assert metrics and metrics['composer_count'] == 1, 'Expected one global Composer'
@@ -359,6 +371,12 @@ class BrowserSmoke:
             assert w['bottom'] <= c['y'] + 1, 'Page workspace overlaps Composer'
             assert metrics['input_unobscured'], 'Composer text input is obscured'
             assert metrics['document_width'] <= width + 2, 'Horizontal document overflow'
+            if width < 768:
+                footer, navigation = metrics['mobile_footer'], metrics['mobile_navigation']
+                assert footer and c['bottom'] <= footer['top'] + 1, 'Composer obscures native OS footer controls'
+                assert footer['right'] <= width + 1, 'Native OS footer exceeds viewport width'
+                assert navigation and navigation['unobscured'], 'Compact Desktop navigation is missing or obscured'
+                assert navigation['right'] <= width + 1 and navigation['bottom'] <= 104, 'Desktop navigation exceeds top bar'
             layouts.append({'route': name, 'metrics': metrics,
                             'screenshot': await self.screenshot('layout-' + str(width) + '-' + name)})
         return {'width': width, 'routes': layouts}
@@ -487,16 +505,21 @@ class BrowserSmoke:
                       and item.get('status') == 'active'
                       and '11435' in str((item.get('metadata') or {}).get('base_url', ''))]
         assert candidates, 'No active llama.cpp LLM endpoint in the real endpoint registry response'
-        metadata = candidates[0].get('metadata') or {}
-        last_test = metadata.get('last_test') or {}
-        assert last_test.get('ok') is True and (last_test.get('details') or {}).get('http_status') == 200, 'Endpoint registry has no successful HTTP 200 health test'
-        assert metadata.get('persistent') is True, 'Endpoint registry does not identify a persistent runtime'
+        qualified = []
+        for candidate in candidates:
+            metadata = candidate.get('metadata') or {}
+            last_test = metadata.get('last_test') or {}
+            if (metadata.get('persistent') is True and last_test.get('ok') is True
+                    and (last_test.get('details') or {}).get('http_status') == 200):
+                qualified.append(candidate)
+        assert qualified, 'No persistent llama.cpp endpoint with a successful HTTP 200 health test'
+        endpoint = qualified[0]
         text = await self.page.locator('.models-tab').inner_text()
         assert 'llama.cpp' in text, 'Models UI does not show the true llama.cpp backend'
         assert 'W7900' in text and 'Vulkan' in text, 'Models UI does not show W7900 Vulkan device'
         assert 'persistent' in text.lower(), 'Models UI does not show runtime persistence'
         return {'llama_cpp': True, 'W7900_Vulkan': True, 'persistent': True, 'active': True, 'health_http_status': 200,
-                'endpoint': candidates[0],
+                'endpoint': endpoint,
                 'screenshot': await self.screenshot('model-runtime-truth')}
 
     async def data_sources(self):
