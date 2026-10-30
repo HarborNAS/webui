@@ -26,6 +26,7 @@ import { catchError, finalize, map, retry, switchMap } from 'rxjs/operators';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
+import { HarborAssistantMultimodalComponent } from 'app/pages/harbor-assistant/multimodal/harbor-assistant-multimodal.component';
 import { HarborAssistantSearchComponent } from 'app/pages/harbor-assistant/search/harbor-assistant-search.component';
 import {
   HarborAssistantFolderBrowserDialogComponent,
@@ -449,6 +450,7 @@ export const harborAssistantI18nMarkers = [
     HarborAssistantSearchComponent,
     HarborAssistantCameraComponent,
     HarborAssistantHomeAssistantComponent,
+    HarborAssistantMultimodalComponent,
     PageHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -468,6 +470,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly tabs: HarborAssistantTab[] = [
     { id: 'search', label: T('Search'), detail: '' },
     { id: 'chat', label: T('Chat'), detail: '' },
+    { id: 'multimodal', label: T('Multimodal'), detail: '' },
     { id: 'camera', label: T('Camera'), detail: '' },
     { id: 'messages', label: T('Message connections'), detail: '' },
     { id: 'home-assistant', label: T('Home Assistant'), detail: '' },
@@ -4363,6 +4366,8 @@ export class HarborAssistantComponent implements OnInit {
         return T('Text recognition');
       case 'asr':
         return T('Speech-to-text');
+      case 'tts':
+        return T('Text-to-speech');
       default:
         return kind;
     }

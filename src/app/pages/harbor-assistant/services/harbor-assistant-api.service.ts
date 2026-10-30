@@ -32,7 +32,6 @@ import {
   FamilyTimelineResponse,
   FilesBrowseResponse,
   GatewayStatusResponse,
-  ChatCompletionResponse,
   HarborAssistantBackendStatus,
   HomeAssistantConfigPayload,
   HomeAssistantConfigResponse,
@@ -76,7 +75,7 @@ import {
   RtspCheckResult,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
-import { harborAssistantBeaconApiUrl, harborAssistantRuntimeApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
+import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 
 @Injectable({
   providedIn: 'root',
@@ -90,15 +89,6 @@ export class HarborAssistantApiService {
 
   getState(): Observable<AdminStateResponse> {
     return this.http.get<AdminStateResponse>(this.apiUrl('/state'));
-  }
-
-  completeChat(payload: {
-    model: string;
-    messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
-    max_tokens?: number;
-    temperature?: number;
-  }): Observable<ChatCompletionResponse> {
-    return this.http.post<ChatCompletionResponse>(harborAssistantRuntimeApiUrl('/v1/chat/completions'), payload);
   }
 
   getBackendStatus(): Observable<HarborAssistantBackendStatus> {

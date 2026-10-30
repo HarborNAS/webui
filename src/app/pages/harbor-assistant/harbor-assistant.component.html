@@ -297,6 +297,16 @@
     </section>
   }
 
+  @if (isTab('multimodal')) {
+    <section class="tab-panel assistant-multimodal-tab">
+      <ix-harbor-assistant-multimodal
+        [endpoints]="modelEndpoints()"
+        [endpointsLoading]="loading()"
+        [endpointsError]="endpointError('modelEndpoints')"
+      ></ix-harbor-assistant-multimodal>
+    </section>
+  }
+
   @if (isTab('search')) {
     <section class="tab-panel assistant-search-tab">
       <ix-harbor-assistant-search></ix-harbor-assistant-search>
