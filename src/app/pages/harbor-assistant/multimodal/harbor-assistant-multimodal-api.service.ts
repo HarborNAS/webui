@@ -8,6 +8,14 @@ export type AssistantAudioLanguage = 'auto' | 'en' | 'zh';
 export type AssistantVoice = '' | 'zh_CN-huayan-medium' | 'en_US-lessac-medium';
 export type AssistantMultimodalKind = 'vlm' | 'asr' | 'tts';
 
+const visionPromptInstruction = [
+  'Analyze the attached image using only visible evidence.',
+  'If it is an application screen, identify the visible page and its main purpose before answering.',
+  'Then answer the user request concisely and include the requested visible details.',
+  'Do not invent unreadable text, hidden state, or facts that are not visible.',
+].join(' ');
+const visionMaxTokens = 192;
+
 export interface AssistantTranscription {
   text: string;
   language?: string;
@@ -18,18 +26,19 @@ export class HarborAssistantMultimodalApiService {
   private readonly http = inject(HttpClient);
 
   describeImage(imageDataUrl: string, question: string): Observable<ChatCompletionResponse> {
+    const prompt = `${visionPromptInstruction} User request: ${question.trim()}`;
     return this.http.post<ChatCompletionResponse>(harborAssistantBeaconApiUrl('/inference/v1/vision/chat/completions'), {
       model: 'automatic',
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: question },
+          { type: 'text', text: prompt },
           { type: 'image_url', image_url: { url: imageDataUrl } },
         ],
       }],
       stream: false,
       temperature: 0,
-      max_tokens: 128,
+      max_tokens: visionMaxTokens,
     });
   }
 

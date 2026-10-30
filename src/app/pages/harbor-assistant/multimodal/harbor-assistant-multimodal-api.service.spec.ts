@@ -27,15 +27,17 @@ describe('HarborAssistantMultimodalApiService', () => {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'Describe the device' },
+          { type: 'text', text: 'Analyze the attached image using only visible evidence. If it is an application screen, identify the visible page and its main purpose before answering. Then answer the user request concisely and include the requested visible details. Do not invent unreadable text, hidden state, or facts that are not visible. User request: Describe the device' },
           { type: 'image_url', image_url: { url: 'data:image/png;base64,AAAA' } },
         ],
       }],
       stream: false,
       temperature: 0,
-      max_tokens: 128,
+      max_tokens: 192,
     });
     request.flush({ choices: [{ message: { content: 'A storage device.' } }] });
+    expect(request.request.body.messages[0].content[0].text).toContain('main purpose before answering');
+    expect(request.request.body.messages[0].content[0].text).toContain('User request: Describe the device');
     expect((await answer).choices?.[0].message?.content).toBe('A storage device.');
   });
 
