@@ -28,6 +28,7 @@ export class HarborAssistantMultimodalApiService {
         ],
       }],
       stream: false,
+      temperature: 0,
       max_tokens: 128,
     });
   }

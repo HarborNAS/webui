@@ -632,7 +632,14 @@ class BrowserSmoke:
         choices = body.get('choices') or []
         answer = (choices[0].get('message') or {}).get('content', '').strip() if choices else ''
         assert answer, 'VLM endpoint returned no actual answer'
-        assert re.search(r'red|blue|green|circle|square|triangle|红|蓝|绿|圆|方|三角', answer, re.I), 'VLM answer does not describe the sample image'
+        expected_image_facts = {
+            'red': r'\bred\b|红',
+            'blue': r'\bblue\b|蓝',
+            'rectangle': r'\brectang(?:le|ular)\b|矩形|长方形',
+            'circle': r'\b(?:circle|circular)\b|圆',
+        }
+        missing = [fact for fact, pattern in expected_image_facts.items() if not re.search(pattern, answer, re.I)]
+        assert not missing, 'VLM answer is missing sample image facts: ' + ', '.join(missing)
         await expect(card.locator('.endpoint-output')).to_have_text(answer)
         return {'answer': clipped(answer), 'elapsed_ms': round((time.perf_counter() - started) * 1000, 1),
                 'screenshot': await self.screenshot('vlm-real-image-answer')}

@@ -32,6 +32,7 @@ describe('HarborAssistantMultimodalApiService', () => {
         ],
       }],
       stream: false,
+      temperature: 0,
       max_tokens: 128,
     });
     request.flush({ choices: [{ message: { content: 'A storage device.' } }] });
