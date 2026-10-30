@@ -16,7 +16,7 @@
 }
 
 .assistant-composer {
-  bottom: var(--assistant-bottom);
+  bottom: calc(var(--assistant-bottom-offset, 0px) + var(--assistant-bottom));
   left: var(--assistant-left);
   right: 30px;
   padding: 10px 16px;
@@ -58,7 +58,7 @@ button {
 }
 
 .assistant-results {
-  bottom: calc(var(--assistant-composer-height, 152px) + 30px);
+  bottom: calc(var(--assistant-bottom-offset, 0px) + var(--assistant-composer-height, 152px) + 30px);
   max-width: calc(100vw - 130px);
   overflow: hidden;
   right: 30px;
@@ -101,8 +101,8 @@ button {
 .assistant-history-item small { display: block; }
 
 @media (max-width: 767px) {
-  .assistant-composer { bottom: 8px; left: 8px; padding: 8px 12px; right: 8px; }
-  .assistant-results { bottom: calc(var(--assistant-composer-height, 152px) + 16px); left: 8px; max-width: none; right: 8px; top: 104px; width: auto; }
+  .assistant-composer { bottom: calc(var(--assistant-bottom-offset, 0px) + 8px); left: 8px; padding: 8px 12px; right: 8px; }
+  .assistant-results { bottom: calc(var(--assistant-bottom-offset, 0px) + var(--assistant-composer-height, 152px) + 16px); left: 8px; max-width: none; right: 8px; top: 104px; width: auto; }
   .assistant-options { left: 0; max-width: calc(100vw - 18px); }
   .assistant-context-chips { max-width: 100px; }
 }

@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import {
   MatDrawerMode, MatSidenav, MatSidenavContainer,
 } from '@angular/material/sidenav';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { filter, map, Subject, pairwise, startWith } from 'rxjs';
@@ -47,6 +47,7 @@ import {
     AppBarComponent,
     TopbarComponent,
     RouterOutlet,
+    RouterLink,
     AlertsPanelComponent,
     AsyncPipe,
     TranslateModule,

@@ -2278,3 +2278,26 @@ $hd-space-5: 20px;
     justify-content: flex-start;
   }
 }
+
+@media (max-width: 767px) {
+  :host ::ng-deep ix-page-header > div {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  :host ::ng-deep ix-page-header h1 {
+    font-size: 20px;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  :host ::ng-deep ix-page-header > div > div:last-child {
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
+
+    > div { display: none; }
+  }
+}
