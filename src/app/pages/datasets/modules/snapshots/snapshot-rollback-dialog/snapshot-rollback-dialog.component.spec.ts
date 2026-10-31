@@ -7,6 +7,7 @@ import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectat
 import { FakeFormatDateTimePipe } from 'app/core/testing/classes/fake-format-datetime.pipe';
 import { mockCall, mockApi } from 'app/core/testing/utils/mock-api.utils';
 import { mockAuth } from 'app/core/testing/utils/mock-auth.utils';
+import { ZfsSnapshot } from 'app/interfaces/zfs-snapshot.interface';
 import { DialogService } from 'app/modules/dialog/dialog.service';
 import { IxFormHarness } from 'app/modules/forms/ix-forms/testing/ix-form.harness';
 import { ApiService } from 'app/modules/websocket/api.service';
@@ -50,8 +51,39 @@ describe('SnapshotRollbackDialogComponent', () => {
     expect(spectator.fixture.nativeElement).toHaveText('Rolling the dataset back destroys data on the dataset');
   });
 
+  it('keeps the exact rollback target visible when creation properties are absent', async () => {
+    spectator.component.publicSnapshot = {
+      name: fakeZfsSnapshot.name,
+      dataset: fakeZfsSnapshot.dataset,
+      snapshot_name: fakeZfsSnapshot.snapshot_name,
+      properties: {},
+    } as ZfsSnapshot;
+
+    expect(() => spectator.detectComponentChanges()).not.toThrow();
+    expect(spectator.fixture.nativeElement).toHaveText(
+      'Use snapshot first-snapshot to roll test-dataset back to an unknown creation time?',
+    );
+    const form = await loader.getHarness(IxFormHarness);
+    await form.fillForm({ Confirm: true });
+    const rollbackButton = await loader.getHarness(MatButtonHarness.with({ text: 'Rollback' }));
+    expect(await rollbackButton.isDisabled()).toBe(false);
+  });
+
+  it('renders creation time from UNIX seconds returned by the snapshot API', () => {
+    spectator.component.publicSnapshot = {
+      ...fakeZfsSnapshot,
+      properties: { creation: { parsed: 1634575914 } },
+    } as unknown as ZfsSnapshot;
+
+    spectator.detectComponentChanges();
+    expect(spectator.fixture.nativeElement).toHaveText('back to 2021-10-18 19:51:54?');
+  });
+
   it('checks getting additional properties query is called', () => {
-    expect(spectator.inject(ApiService).call).toHaveBeenCalledWith('pool.snapshot.query', [[['id', '=', 'test-dataset@first-snapshot']]]);
+    expect(spectator.inject(ApiService).call).toHaveBeenCalledWith('pool.snapshot.query', [
+      [['id', '=', 'test-dataset@first-snapshot']],
+      { extra: { properties: ['creation'] } },
+    ]);
   });
 
   it('rollback dataset to selected snapshot when form is submitted and shows a success message', async () => {
