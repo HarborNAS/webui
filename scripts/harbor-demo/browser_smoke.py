@@ -41,6 +41,27 @@ SAFE_METADATA = ('runtime_backend_kind', 'runtime_device', 'base_url', 'persiste
                  'last_test_status', 'last_test_http_status', 'health_status', 'http_status')
 
 
+def qualified_model_endpoints(endpoints, expected_model=None):
+    qualified = []
+    for endpoint in endpoints:
+        if not endpoint or endpoint.get('model_kind') != 'llm' or endpoint.get('status') != 'active':
+            continue
+        metadata = endpoint.get('metadata') or {}
+        last_test = metadata.get('last_test') or {}
+        device = str(metadata.get('runtime_device', '')).lower()
+        if (endpoint.get('endpoint_kind') != 'local'
+                or metadata.get('runtime_backend_kind') != 'llama.cpp'
+                or 'w7900' not in device or 'vulkan' not in device
+                or metadata.get('persistent') is not True
+                or last_test.get('ok') is not True
+                or (last_test.get('details') or {}).get('http_status') != 200):
+            continue
+        if expected_model and expected_model.lower() not in str(endpoint.get('model_name', '')).lower():
+            continue
+        qualified.append(endpoint)
+    return qualified
+
+
 class GateBlocked(Exception):
     """An earlier required gate did not supply a usable result."""
 
@@ -165,6 +186,7 @@ class BrowserSmoke:
                        'gates': [], 'api': [], 'injections': [],
                        'scope': 'selected' if args.only else 'full',
                        'selected_gates': sorted(args.only) if args.only else sorted(GATES),
+                       'expected_model': getattr(args, 'expected_model', None),
                        'evidence_policy': 'Allowlisted response fields only; no state/tokens/headers/HAR/trace'}
         self.capture_tasks = set()
         self.posts = []
@@ -504,18 +526,10 @@ class BrowserSmoke:
         endpoint_response = next((item for item in reversed(self.report['api'])
                                   if item['path'] == PREFIX + '/models/endpoints' and item['status'] == 200), None)
         endpoints = (endpoint_response or {}).get('data', {}).get('endpoints', [])
-        candidates = [item for item in endpoints if item and item.get('model_kind') == 'llm'
-                      and item.get('status') == 'active'
-                      and '11435' in str((item.get('metadata') or {}).get('base_url', ''))]
-        assert candidates, 'No active llama.cpp LLM endpoint in the real endpoint registry response'
-        qualified = []
-        for candidate in candidates:
-            metadata = candidate.get('metadata') or {}
-            last_test = metadata.get('last_test') or {}
-            if (metadata.get('persistent') is True and last_test.get('ok') is True
-                    and (last_test.get('details') or {}).get('http_status') == 200):
-                qualified.append(candidate)
-        assert qualified, 'No persistent llama.cpp endpoint with a successful HTTP 200 health test'
+        expected_model = getattr(self.args, 'expected_model', None)
+        qualified = qualified_model_endpoints(endpoints, expected_model)
+        assert qualified, ('No active persistent local llama.cpp/W7900 endpoint with a successful HTTP 200 health test'
+                           + (f' for expected model {expected_model}' if expected_model else ''))
         endpoint = qualified[0]
         text = await self.page.locator('.models-tab').inner_text()
         assert 'llama.cpp' in text, 'Models UI does not show the true llama.cpp backend'
@@ -828,6 +842,7 @@ def arguments():
     parser.add_argument('--timeout', type=int, default=180, help='Maximum UI/inference wait in seconds per action')
     parser.add_argument('--height', type=int, default=900, help='Viewport height for all five required widths')
     parser.add_argument('--headful', action='store_true', help='Show native Chrome while testing')
+    parser.add_argument('--expected-model', help='Require this model-name substring in the real active model endpoint')
     parser.add_argument('--rag-query', default='What is the demo verification code?')
     parser.add_argument('--rag-expect', default='HARBOR-RAG-209')
     parser.add_argument('--asr-en-expect', default='Assistant')
