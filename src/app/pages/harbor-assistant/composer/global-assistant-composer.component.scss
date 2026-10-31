@@ -116,3 +116,56 @@ button {
   dd { margin: 0; }
 }
 .assistant-citation-link { text-align: left; }
+
+.assistant-photo-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
+  margin: 12px 0;
+}
+
+.assistant-photo-card {
+  border: 1px solid var(--lines, #ddd);
+  border-radius: 10px;
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+
+  figcaption {
+    align-items: baseline;
+    display: flex;
+    font-size: 12px;
+    gap: 6px;
+    overflow-wrap: anywhere;
+    padding: 8px;
+  }
+}
+
+.assistant-photo-preview {
+  align-items: center;
+  aspect-ratio: 4 / 3;
+  border: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+  width: 100%;
+
+  img {
+    display: block;
+    height: 100%;
+    object-fit: contain;
+    width: 100%;
+  }
+}
+
+.assistant-photo-number { font-weight: 600; }
+.assistant-photo-open { border: 0; font-size: 12px; margin: 0 4px 6px; }
+.assistant-photo-error,
+.assistant-photo-loading { font-size: 12px; padding: 12px; }
+
+@media (min-width: 1280px) {
+  :host(.assistant-results-open) {
+    .assistant-composer { right: 486px; }
+    .assistant-results { bottom: 30px; }
+  }
+}

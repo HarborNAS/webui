@@ -1,11 +1,12 @@
 import { HttpClient } from '@angular/common/http';
-import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, ViewChild, inject, signal } from '@angular/core';
+import { AfterViewInit, ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, ViewChild, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatMenu, MatMenuItem, MatMenuTrigger } from '@angular/material/menu';
 import { RouterLink } from '@angular/router';
 import { TranslateModule } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 import { WINDOW } from 'app/helpers/window.helper';
 import { AuthService } from 'app/modules/auth/auth.service';
 import { AssistantSessionStore, AssistantRetrievalMode, AssistantResultFilter } from 'app/pages/harbor-assistant/composer/assistant-session.store';
@@ -14,6 +15,7 @@ import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared
 
 @Component({
   selector: 'ix-global-assistant-composer',
+  host: { '[class.assistant-results-open]': 'session.resultsOpen()' },
   templateUrl: './global-assistant-composer.component.html',
   styleUrl: './global-assistant-composer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +27,9 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
   private readonly http = inject(HttpClient);
   private readonly window = inject(WINDOW);
   private readonly previewUrls = new Set<string>();
+  private readonly imageRequests = new Map<string, Subscription>();
+  protected readonly imagePreviewUrls = signal<Record<string, string>>({});
+  protected readonly imagePreviewErrors = signal<Record<string, boolean>>({});
   private readonly api = inject(HarborAssistantContentApiService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -36,6 +41,12 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
   constructor() {
     this.auth.user$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user) => {
       this.session.bindUser(user?.pw_name ?? '');
+    });
+    effect(() => {
+      const paths = this.session.resultsOpen()
+        ? this.session.turns().flatMap((turn) => (turn.response?.images ?? []).map((image) => image.path))
+        : [];
+      untracked(() => this.syncImagePreviews(new Set(paths.filter((path) => path?.startsWith('/')))));
     });
   }
 
@@ -55,8 +66,82 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
 
   ngOnDestroy(): void {
     this.resizeObserver?.disconnect();
+    this.syncImagePreviews(new Set());
     this.previewUrls.forEach((url) => URL.revokeObjectURL(url));
     this.element.nativeElement.closest<HTMLElement>('ix-admin-layout')?.style.removeProperty('--assistant-composer-height');
+  }
+
+  private syncImagePreviews(paths: Set<string>): void {
+    for (const [path, request] of this.imageRequests) {
+      if (paths.has(path)) {
+        continue;
+      }
+      request.unsubscribe();
+      this.imageRequests.delete(path);
+      const objectUrl = this.imagePreviewUrls()[path];
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+      this.imagePreviewUrls.update((urls) => {
+        const next = { ...urls };
+        delete next[path];
+        return next;
+      });
+      this.imagePreviewErrors.update((errors) => {
+        const next = { ...errors };
+        delete next[path];
+        return next;
+      });
+    }
+    for (const path of paths) {
+      if (this.imageRequests.has(path)) {
+        continue;
+      }
+      const request = new Subscription();
+      this.imageRequests.set(path, request);
+      request.add(this.api.preview(path).subscribe({
+        next: (blob) => {
+          if (this.imageRequests.get(path) !== request) {
+            return;
+          }
+          if (!['image/png', 'image/jpeg', 'image/webp', 'image/gif'].includes(blob.type)) {
+            this.imagePreviewErrors.update((errors) => ({ ...errors, [path]: true }));
+            return;
+          }
+          const objectUrl = URL.createObjectURL(blob);
+          const previous = this.imagePreviewUrls()[path];
+          if (previous) {
+            URL.revokeObjectURL(previous);
+          }
+          this.imagePreviewUrls.update((urls) => ({ ...urls, [path]: objectUrl }));
+        },
+        error: () => {
+          if (this.imageRequests.get(path) === request) {
+            this.imagePreviewErrors.update((errors) => ({ ...errors, [path]: true }));
+          }
+        },
+      }));
+    }
+  }
+
+  protected imagePreviewFailed(path: string): void {
+    if (!this.imageRequests.has(path)) {
+      return;
+    }
+    const objectUrl = this.imagePreviewUrls()[path];
+    if (objectUrl) {
+      URL.revokeObjectURL(objectUrl);
+    }
+    this.imagePreviewUrls.update((urls) => {
+      const next = { ...urls };
+      delete next[path];
+      return next;
+    });
+    this.imagePreviewErrors.update((errors) => ({ ...errors, [path]: true }));
+  }
+
+  protected openImage(path: string): void {
+    this.openCitation(this.api.previewUrl(path));
   }
 
   protected openOptions(option: 'sources' | 'time' | 'history'): void {

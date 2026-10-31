@@ -18,6 +18,30 @@
             } @else {
               <p class="assistant-warning" role="status">{{ answerNotice(response) | translate }}</p>
             }
+            @if (response.images?.length) {
+              <section class="assistant-photo-grid" aria-label="Photo results">
+                @for (image of response.images; track image.path; let photoIndex = $index) {
+                  <figure class="assistant-photo-card">
+                    <button class="assistant-photo-preview" type="button"
+                      [attr.aria-label]="('Open image preview' | translate) + ' ' + (photoIndex + 1)"
+                      (click)="openImage(image.path)">
+                      @if (imagePreviewUrls()[image.path]; as photoUrl) {
+                        <img loading="lazy" [src]="photoUrl"
+                          [alt]="image.title || (('Photo' | translate) + ' ' + (photoIndex + 1))" (error)="imagePreviewFailed(image.path)" />
+                      } @else if (imagePreviewErrors()[image.path]) {
+                        <span class="assistant-photo-error" role="status">{{ 'Image preview unavailable' | translate }}</span>
+                      } @else {
+                        <span class="assistant-photo-loading" role="status">{{ 'Loading image' | translate }}…</span>
+                      }
+                    </button>
+                    <figcaption><span class="assistant-photo-number">{{ photoIndex + 1 }}</span>{{ image.title || ('Photo' | translate) }}</figcaption>
+                    <button class="assistant-photo-open" type="button" (click)="openImage(image.path)">
+                      {{ 'Open image preview' | translate }}
+                    </button>
+                  </figure>
+                }
+              </section>
+            }
             @if (modelRows(response).length) {
               <dl class="assistant-runtime-metadata">
                 @for (row of modelRows(response); track row.label) {
@@ -117,9 +141,9 @@
     </section>
   }
   <form (submit)="send($event)">
-    <textarea aria-label="Ask Harbor Assistant" rows="2" [ngModel]="session.draft().text" name="assistantPrompt"
-      (ngModelChange)="session.updateDraft({text: $event})" (keydown)="onKeydown($event)"
-      [placeholder]="'Ask Harbor Assistant' | translate"></textarea>
+    <textarea aria-label="Ask Harbor Assistant" rows="2" name="assistantPrompt" [ngModel]="session.draft().text"
+      [placeholder]="'Ask Harbor Assistant' | translate" (ngModelChange)="session.updateDraft({text: $event})"
+      (keydown)="onKeydown($event)"></textarea>
     <div class="assistant-composer-toolbar">
       <button class="assistant-add" type="button" aria-label="Add to conversation" [matMenuTriggerFor]="conversationTools">+</button>
       <mat-menu #conversationTools="matMenu" yPosition="above">
