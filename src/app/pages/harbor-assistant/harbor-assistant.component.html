@@ -326,7 +326,7 @@
         </article>
         <article class="workspace-status">
           <h3>{{ 'Connections' | translate }}</h3>
-          @if (gatewayStatus()) {
+          @if (connectedConnectorCount() !== null) {
             <strong>{{ connectedConnectorCount() }} {{ 'connected' | translate }}</strong>
             <p>{{ 'Use your connected messaging accounts to reach this workspace.' | translate }}</p>
           } @else {

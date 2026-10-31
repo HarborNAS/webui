@@ -832,8 +832,17 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly weixinSetupUrl = computed(() => this.weixinConnector()?.setupUrl ?? '/api/harbor-gate/setup/weixin');
   protected readonly weixinManageUrl = computed(() => this.weixinConnector()?.manageUrl ?? '/api/harbor-gate/admin/im/weixin');
   protected readonly configuredConnectorCount = computed(() => this.connectorCards().filter((card) => card.configured).length);
-  protected readonly connectedConnectorCount = computed(() => {
-    return this.connectorCards().filter((card) => card.connected).length;
+  protected readonly connectedConnectorCount = computed<number | null>(() => {
+    const gateway = this.gatewayStatus();
+    const platforms = [
+      ...(gateway?.feishu ? [{ ...gateway.feishu, platform: 'feishu' }] : []),
+      ...(gateway?.weixin ? [{ ...gateway.weixin, platform: 'weixin' }] : []),
+      ...(gateway?.channels ?? gateway?.platforms ?? []),
+    ].filter((platform) => typeof platform.connected === 'boolean');
+    if (platforms.length === 0) {
+      return null;
+    }
+    return new Set(platforms.filter((platform) => platform.connected).map((platform) => platform.platform)).size;
   });
 
   protected readonly overviewSources = computed(() => {

@@ -318,6 +318,23 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('ix-global-assistant-composer')).not.toExist();
   });
 
+  it('does not turn a Beacon bridge projection into a live connection count', () => {
+    api.getGatewayStatus = jest.fn(() => of({
+      status: 'ready', bridge_provider: { platform: 'feishu', configured: true, connected: false },
+    }));
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({})) })],
+    });
+    expect(spectator.query('.workspace-readiness')).toHaveText('Connection status unavailable');
+    expect(spectator.query('.workspace-readiness')).not.toHaveText('0 connected');
+    const component = spectator.component as unknown as {
+      gatewayStatus: { set: (value: unknown) => void };
+    };
+    component.gatewayStatus.set({ channels: [{ platform: 'feishu', configured: true, connected: true }] });
+    spectator.detectChanges();
+    expect(spectator.query('.workspace-readiness')).toHaveText('1 connected');
+  });
+
   it('uses workspace navigation for management and keeps existing secondary tools', () => {
     spectator = createComponent();
     spectator.detectChanges();
