@@ -1,5 +1,6 @@
 import { NgClass } from '@angular/common';
-import { ChangeDetectionStrategy, Component, ElementRef, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, OnDestroy, OnInit, ViewChild, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButton } from '@angular/material/button';
 import { MatButtonToggle, MatButtonToggleGroup } from '@angular/material/button-toggle';
@@ -7,7 +8,9 @@ import { MatCard, MatCardContent } from '@angular/material/card';
 import { MatDialog } from '@angular/material/dialog';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { Subscription } from 'rxjs';
 import { finalize } from 'rxjs/operators';
+import { WINDOW } from 'app/helpers/window.helper';
 import {
   HarborAssistantSearchResultFilter,
   HarborAssistantSearchHit,
@@ -51,11 +54,17 @@ interface HarborAssistantSearchPromptSuggestion {
     MatProgressBar,
   ],
 })
-export class HarborAssistantSearchComponent implements OnInit {
+export class HarborAssistantSearchComponent implements OnInit, OnDestroy {
   private readonly searchHistoryStorageKey = 'harborAssistant.searchTerms.v1';
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly api = inject(HarborAssistantContentApiService);
   private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
+  private readonly window = inject(WINDOW);
+  private previewSubscriptions = new Subscription();
+  private readonly openedPreviewUrls = new Set<string>();
+  protected readonly imagePreviewUrls = signal<Record<string, string>>({});
+  protected readonly previewError = signal<string | null>(null);
   private readonly translate = inject(TranslateService);
   @ViewChild('searchResults') private searchResults?: ElementRef<HTMLElement>;
 
@@ -83,6 +92,11 @@ export class HarborAssistantSearchComponent implements OnInit {
     this.searchHistory.set(this.loadSearchHistory());
   }
 
+  ngOnDestroy(): void {
+    this.clearImagePreviews();
+    this.openedPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+  }
+
   search(): void {
     if (this.form.invalid || this.loading()) {
       return;
@@ -102,6 +116,7 @@ export class HarborAssistantSearchComponent implements OnInit {
 
     this.loading.set(true);
     this.error.set(null);
+    this.previewError.set(null);
     this.scrollToSearchResults();
 
     this.api.search(payload).pipe(
@@ -109,10 +124,12 @@ export class HarborAssistantSearchComponent implements OnInit {
     ).subscribe({
       next: (response) => {
         this.response.set(response);
+        this.loadImagePreviews(response);
         this.scrollToSearchResults();
       },
       error: (error: unknown) => {
         this.response.set(null);
+        this.clearImagePreviews();
         this.error.set(harborAssistantSearchErrorMessage(error));
         this.scrollToSearchResults();
       },
@@ -188,7 +205,58 @@ export class HarborAssistantSearchComponent implements OnInit {
   }
 
   openPreview(item: HarborAssistantSearchWaterfallItem): void {
-    window.open(item.previewUrl, '_blank', 'noopener');
+    this.previewError.set(null);
+    const cached = this.imagePreviewUrls()[item.hit.path];
+    if (cached) {
+      this.window.open(cached, '_blank', 'noopener');
+      return;
+    }
+    const preview = this.window.open('about:blank', '_blank');
+    if (!preview) {
+      this.previewError.set('Allow pop-ups to open the source preview.');
+      return;
+    }
+    preview.opener = null;
+    this.api.preview(item.hit.path).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (blob) => {
+        const safeTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'video/mp4'];
+        const safeBlob = new Blob([blob], { type: safeTypes.includes(blob.type) ? blob.type : 'text/plain' });
+        const objectUrl = URL.createObjectURL(safeBlob);
+        this.openedPreviewUrls.add(objectUrl);
+        preview.location.href = objectUrl;
+      },
+      error: () => {
+        preview.close();
+        this.previewError.set('The source preview could not be loaded. Check source access and availability.');
+      },
+    });
+  }
+
+  private loadImagePreviews(response: HarborAssistantSearchResponse): void {
+    this.clearImagePreviews();
+    for (const path of new Set(response.images.map((image) => image.path))) {
+      this.previewSubscriptions.add(this.api.preview(path).subscribe({
+        next: (blob) => {
+          const imageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+          if (!imageTypes.includes(blob.type)) {
+            this.previewError.set('The source preview could not be loaded. Check source access and availability.');
+            return;
+          }
+          const objectUrl = URL.createObjectURL(blob);
+          this.imagePreviewUrls.update((urls) => ({ ...urls, [path]: objectUrl }));
+        },
+        error: () => {
+          this.previewError.set('The source preview could not be loaded. Check source access and availability.');
+        },
+      }));
+    }
+  }
+
+  private clearImagePreviews(): void {
+    this.previewSubscriptions.unsubscribe();
+    this.previewSubscriptions = new Subscription();
+    Object.values(this.imagePreviewUrls()).forEach((url) => URL.revokeObjectURL(url));
+    this.imagePreviewUrls.set({});
   }
 
   searchScopeLabel(): string {

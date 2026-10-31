@@ -57,7 +57,9 @@
                   <mat-card class="result-card" tabindex="0" [ngClass]="item.kind" (click)="openPreview(item)" (keydown.enter)="openPreview(item)">
                     @if (item.kind === 'image') {
                       <div class="image-frame">
-                        <img loading="lazy" [src]="item.previewUrl" [alt]="item.hit.title" />
+                        @if (imagePreviewUrls()[item.hit.path]; as previewUrl) {
+                          <img loading="lazy" [src]="previewUrl" [alt]="item.hit.title" />
+                        }
                       </div>
                     }
                     @if (item.kind === 'video') {
@@ -168,6 +170,9 @@
       }
       @if (error()) {
         <div class="notice error compact">{{ error() | translate }}</div>
+      }
+      @if (previewError()) {
+        <div class="notice error compact" role="alert">{{ previewError() | translate }}</div>
       }
       @if (response(); as result) {
         @if (result.warnings.length > 0 || result.blockers.length > 0) {
