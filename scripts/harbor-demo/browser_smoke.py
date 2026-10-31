@@ -782,7 +782,7 @@ class BrowserSmoke:
             else:
                 options['channel'] = 'chrome'
             browser = await playwright.chromium.launch(**options)
-            context = await browser.new_context(ignore_https_errors=True, locale='en-US',
+            context = await browser.new_context(ignore_https_errors=False, locale='en-US',
                                                 viewport={'width': 1440, 'height': self.args.height})
             context.set_default_timeout(self.args.timeout * 1000)
             self.page = await context.new_page()
