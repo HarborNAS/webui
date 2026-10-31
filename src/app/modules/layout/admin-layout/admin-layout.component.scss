@@ -69,3 +69,13 @@
     padding-right: 8px;
   }
 }
+
+// On wide screens keep the current page beside the conversation, as in the
+// Navi workspace. Narrow screens retain the results/page switch above Composer.
+@media (min-width: 1280px) {
+  .app-side-nav-container:has(ix-global-assistant-composer.assistant-results-open) {
+    main[mat-sidenav-content] {
+      padding-right: 486px;
+    }
+  }
+}
