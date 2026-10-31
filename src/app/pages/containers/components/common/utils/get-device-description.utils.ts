@@ -28,6 +28,9 @@ export function getDeviceDescription(translate: TranslateService, device: Contai
     }
 
     case ContainerDeviceType.Gpu: {
+      if (device.gpu_type === 'INTEL') {
+        return `Intel Arc/dGPU (${device.pci_address})`;
+      }
       return `${device.gpu_type} GPU (${device.pci_address})`;
     }
 

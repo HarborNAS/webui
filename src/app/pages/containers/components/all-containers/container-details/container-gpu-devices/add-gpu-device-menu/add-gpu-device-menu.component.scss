@@ -15,3 +15,15 @@
     margin-bottom: -6px;
   }
 }
+
+.gpu-menu-item {
+  display: flex;
+  flex-direction: column;
+  line-height: 18px;
+  padding: 4px 0;
+}
+
+.gpu-menu-status {
+  color: var(--fg2);
+  font-size: 12px;
+}

@@ -122,7 +122,16 @@ export interface AvailableGpu {
   description: string;
   available: boolean;
   error: string | null;
+  readiness?: Record<string, unknown>;
+  capabilities?: string[];
+  failure_reason?: string | null;
+  recommended_actions?: string[];
+  device_nodes?: Record<string, unknown>;
+  container_runtime?: Record<string, unknown>;
+  os_profile?: Record<string, unknown> | null;
 }
+
+export type ContainerGpuChoice = string | AvailableGpu;
 
 export type ContainerDevice
   = | ContainerFilesystemDevice
