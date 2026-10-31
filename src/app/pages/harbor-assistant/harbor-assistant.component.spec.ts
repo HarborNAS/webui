@@ -229,7 +229,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('500 OK');
   });
 
-  it('defaults the Assistant entry to search when no route query is present', () => {
+  it('defaults the Assistant entry to the workspace overview with one global composer', () => {
     spectator = createComponent({
       providers: [
         mockProvider(ActivatedRoute, {
@@ -239,11 +239,86 @@ describe('Harbor Assistant component', () => {
     });
     spectator.detectChanges();
 
-    expect(spectator.query('.assistant-search-tab')).toExist();
+    expect(spectator.query('.workspace-overview')).toExist();
+    expect(spectator.query('ix-harbor-assistant-search')).not.toExist();
     expect(spectator.query('.settings-tab')).not.toExist();
   });
 
-  it('uses one native Harbor Assistant shell for search, camera, messages, Home Assistant, and settings', () => {
+  it.each(['search', 'chat'])('maps the legacy %s link to overview without resetting the conversation', (tab) => {
+    spectator = createComponent({
+      detectChanges: false,
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({ tab })) })],
+    });
+    const session = spectator.inject(AssistantSessionStore);
+    session.updateDraft({ text: 'Keep this draft', sourceRootIds: ['photos'] });
+    const conversationId = session.conversationId();
+    spectator.detectChanges();
+    expect(spectator.query('.workspace-overview')).toExist();
+    expect(spectator.query('ix-harbor-assistant-search')).not.toExist();
+    expect(spectator.query('.assistant-chat-tab')).not.toExist();
+    expect(session.draft().text).toBe('Keep this draft');
+    expect(session.draft().sourceRootIds).toEqual(['photos']);
+    expect(session.conversationId()).toBe(conversationId);
+    expect(session.resultsOpen()).toBe(tab === 'chat');
+  });
+
+  it('opens data sources and model bookmarks from semantic management navigation', () => {
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({})) })],
+    });
+    spectator.click('[data-section="sources"]');
+    expect(spectator.query('.sources-settings-panel')).toExist();
+    expect(spectator.query('[data-section="sources"]')).toHaveAttribute('aria-current', 'page');
+    expect(router.navigate).toHaveBeenLastCalledWith([], expect.objectContaining({
+      queryParams: {
+        tab: 'settings', section: 'ai', focus: 'sources', node: null,
+      },
+    }));
+    spectator.click('[data-section="models"]');
+    expect(spectator.query('.model-capability-list')).toExist();
+    expect(spectator.query('[data-section="models"]')).toHaveAttribute('aria-current', 'page');
+    expect(router.navigate).toHaveBeenLastCalledWith([], expect.objectContaining({
+      queryParams: {
+        tab: 'settings', section: 'ai', focus: 'models', node: null,
+      },
+    }));
+    spectator.click('[data-section="rules"]');
+    expect(spectator.query('.rules-review-drawer')).toExist();
+    expect(spectator.query('.settings-tab')).not.toExist();
+    spectator.click('[data-section="overview"]');
+    expect(spectator.query('.workspace-overview')).toExist();
+    expect(spectator.query('.rules-review-drawer')).not.toExist();
+  });
+
+  it('shows pending readiness on overview while status projections are loading', () => {
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({})) })],
+    });
+    const component = spectator.component as unknown as {
+      loading: { set: (value: boolean) => void };
+      knowledgeSettings: { set: (value: null) => void };
+      knowledgeIndexStatus: { set: (value: null) => void };
+      gatewayStatus: { set: (value: null) => void };
+      modelEndpointsResponse: { set: (value: null) => void };
+      modelCapabilitiesResponse: { set: (value: null) => void };
+      modelRuntimeManagerResponse: { set: (value: null) => void };
+    };
+    component.loading.set(true);
+    component.knowledgeSettings.set(null);
+    component.knowledgeIndexStatus.set(null);
+    component.gatewayStatus.set(null);
+    component.modelEndpointsResponse.set(null);
+    component.modelCapabilitiesResponse.set(null);
+    component.modelRuntimeManagerResponse.set(null);
+    spectator.detectChanges();
+    expect(spectator.query('.workspace-readiness')).toHaveText('Loading data sources');
+    expect(spectator.query('.workspace-readiness')).toHaveText('Loading model status');
+    expect(spectator.query('.workspace-readiness')).toHaveText('Loading connections');
+    expect(spectator.query('.workspace-readiness')).not.toHaveText('0/4 Ready');
+    expect(spectator.query('ix-global-assistant-composer')).not.toExist();
+  });
+
+  it('uses workspace navigation for management and keeps existing secondary tools', () => {
     spectator = createComponent();
     spectator.detectChanges();
 
@@ -253,11 +328,15 @@ describe('Harbor Assistant component', () => {
       targetRoutePreview: (target: { target_id: string; label: string; route_key: string }) => string;
     };
 
-    expect(spectator.query('.tab-strip')).toHaveText('Search');
-    expect(spectator.query('.tab-strip')).toHaveText('Camera');
-    expect(spectator.query('.tab-strip')).toHaveText('Message connections');
-    expect(spectator.query('.tab-strip')).toHaveText('Home Assistant');
-    expect(spectator.query('.tab-strip')).toHaveText('Settings');
+    expect(spectator.query('.workspace-navigation')).toHaveText('Overview');
+    expect(spectator.query('.workspace-navigation')).toHaveText('Data sources');
+    expect(spectator.query('.workspace-navigation')).toHaveText('Models');
+    expect(spectator.query('.workspace-navigation')).toHaveText('Connections');
+    expect(spectator.query('.workspace-tools')).toHaveText('Camera');
+    expect(spectator.query('.workspace-tools')).toHaveText('Multimodal');
+    expect(spectator.query('.workspace-tools')).toHaveText('Home Assistant');
+    expect(spectator.query('.workspace-tools')).toHaveText('Settings');
+    expect(spectator.query('.tab-strip')).not.toExist();
 
     component.selectTab('messages');
     spectator.detectChanges();
@@ -840,7 +919,8 @@ describe('Harbor Assistant component', () => {
     });
     spectator.detectChanges();
 
-    expect(spectator.query('.assistant-search-tab')).toExist();
+    expect(spectator.query('.workspace-overview')).toExist();
+    expect(spectator.query('ix-harbor-assistant-search')).not.toExist();
     expect(spectator.query('.settings-tab')).not.toExist();
     expect(spectator.query('.models-tab')).not.toExist();
   });

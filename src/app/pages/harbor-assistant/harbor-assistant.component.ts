@@ -27,7 +27,6 @@ import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/p
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
 import { HarborAssistantMultimodalComponent } from 'app/pages/harbor-assistant/multimodal/harbor-assistant-multimodal.component';
-import { HarborAssistantSearchComponent } from 'app/pages/harbor-assistant/search/harbor-assistant-search.component';
 import {
   HarborAssistantFolderBrowserDialogComponent,
   HarborAssistantFolderBrowserDialogData,
@@ -452,7 +451,6 @@ export const harborAssistantI18nMarkers = [
     MatOption,
     MatSelect,
     NgClass,
-    HarborAssistantSearchComponent,
     HarborAssistantCameraComponent,
     HarborAssistantHomeAssistantComponent,
     HarborAssistantMultimodalComponent,
@@ -476,8 +474,8 @@ export class HarborAssistantComponent implements OnInit {
   private matDialog = inject(MatDialog);
 
   protected readonly tabs: HarborAssistantTab[] = [
-    { id: 'search', label: T('Search'), detail: '' },
-    { id: 'chat', label: T('Chat'), detail: '' },
+    { id: 'overview', label: T('Overview'), detail: '' },
+    { id: 'rules', label: T('Rules'), detail: '' },
     { id: 'multimodal', label: T('Multimodal'), detail: '' },
     { id: 'camera', label: T('Camera'), detail: '' },
     { id: 'messages', label: T('Message connections'), detail: '' },
@@ -491,7 +489,7 @@ export class HarborAssistantComponent implements OnInit {
     { id: 'diagnostics', label: T('Diagnostics'), detail: '' },
   ];
 
-  protected readonly activeTab = signal<HarborAssistantTabId>('search');
+  protected readonly activeTab = signal<HarborAssistantTabId>('overview');
   protected readonly activeSettingsSection = signal<AssistantSettingsSectionId>('ai');
   protected readonly activeTabDetail = computed(() => {
     return this.tabs.find((tab) => tab.id === this.activeTab())?.detail ?? T('Harbor Assistant settings');
@@ -834,6 +832,22 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly weixinSetupUrl = computed(() => this.weixinConnector()?.setupUrl ?? '/api/harbor-gate/setup/weixin');
   protected readonly weixinManageUrl = computed(() => this.weixinConnector()?.manageUrl ?? '/api/harbor-gate/admin/im/weixin');
   protected readonly configuredConnectorCount = computed(() => this.connectorCards().filter((card) => card.configured).length);
+  protected readonly connectedConnectorCount = computed(() => {
+    return this.connectorCards().filter((card) => card.connected).length;
+  });
+
+  protected readonly overviewSources = computed(() => {
+    if (!this.knowledgeSettings() || !this.knowledgeIndexStatus()) {
+      return this.loading() ? T('Loading data sources') : T('Source status unavailable');
+    }
+    const enabled = this.knowledgeSourceRoots().filter((root) => root.enabled).length;
+    const indexed = this.knowledgeIndexStatus()?.manifest_entry_count;
+    const indexSummary = typeof indexed === 'number'
+      ? `${indexed} ${T('indexed files')}`
+      : this.knowledgeIndexStatus()?.status ?? T('Unknown');
+    return `${enabled} ${T('enabled folders')} · ${indexSummary}`;
+  });
+
   protected readonly notificationTargets = computed(() => {
     return this.notificationTargetsResponse()?.targets
       ?? this.state()?.account_management?.notification_targets
@@ -932,7 +946,8 @@ export class HarborAssistantComponent implements OnInit {
         const rawTab = params.get('tab');
         const focusValue = params.get('focus') ?? params.get('node');
         if (!rawTab && !params.get('section') && !focusValue) {
-          this.activeTab.set('search');
+          this.activeTab.set('overview');
+          this.rulesDrawerOpen.set(false);
           this.activeSettingsSection.set('ai');
           this.activeAiSettingsTab.set('sources');
           return;
@@ -940,7 +955,8 @@ export class HarborAssistantComponent implements OnInit {
         const tab = this.normalizeTab(rawTab);
         if (tab) {
           this.activeTab.set(tab);
-          if (tab === 'chat') {
+          this.rulesDrawerOpen.set(tab === 'rules');
+          if (rawTab?.trim().toLowerCase() === 'chat') {
             this.assistantSession.resultsOpen.set(true);
           }
         }
@@ -1020,9 +1036,7 @@ export class HarborAssistantComponent implements OnInit {
 
   protected selectTab(tabId: HarborAssistantTabId): void {
     this.activeTab.set(tabId);
-    if (tabId === 'chat') {
-      this.assistantSession.resultsOpen.set(true);
-    }
+    this.rulesDrawerOpen.set(tabId === 'rules');
     this.router.navigate([], {
       relativeTo: this.route,
       queryParams: { tab: tabId, section: null, focus: null, node: null },
@@ -1036,7 +1050,12 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected toggleRulesDrawer(): void {
-    this.rulesDrawerOpen.set(!this.rulesDrawerOpen());
+    this.selectTab(this.rulesDrawerOpen() ? 'overview' : 'rules');
+  }
+
+  protected isAiDestination(tabId: AiSettingsTabId): boolean {
+    return this.activeTab() === 'settings' && this.activeSettingsSection() === 'ai'
+      && this.activeAiSettingsTab() === tabId;
   }
 
   protected applyAuditFilters(): void {
@@ -1347,6 +1366,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected selectSettingsSection(sectionId: AssistantSettingsSectionId): void {
+    this.rulesDrawerOpen.set(false);
     this.activeTab.set('settings');
     this.activeSettingsSection.set(sectionId);
     this.router.navigate([], {
@@ -1362,6 +1382,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected selectAiSettingsTab(tabId: AiSettingsTabId): void {
+    this.rulesDrawerOpen.set(false);
     this.activeTab.set('settings');
     this.activeSettingsSection.set('ai');
     this.activeAiSettingsTab.set(tabId);
@@ -6230,6 +6251,9 @@ export class HarborAssistantComponent implements OnInit {
 
   private normalizeTab(tab: string | null): HarborAssistantTabId | null {
     const normalized = (tab ?? '').trim().toLowerCase();
+    if (normalized === 'search' || normalized === 'chat') {
+      return 'overview';
+    }
     return this.tabs.some((candidate) => candidate.id === normalized) ? normalized as HarborAssistantTabId : null;
   }
 

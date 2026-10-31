@@ -336,10 +336,7 @@ class BrowserSmoke:
 
     async def ai_tab(self, name):
         await self.assistant()
-        await self.page.locator('.tab-strip .tab-button').last.click()
-        await self.page.locator('.settings-section-strip .settings-section-button').first.click()
-        index = 1 if name == 'models' else 0
-        await self.page.locator('.ai-settings-subtabs .ai-settings-subtab').nth(index).click()
+        await self.page.locator(f'.workspace-navigation [data-section="{name}"]').click()
         selector = '.model-capability-list' if name == 'models' else '.sources-settings-panel'
         await self.page.locator(selector).first.wait_for()
 
@@ -668,7 +665,7 @@ class BrowserSmoke:
 
     async def multimodal(self):
         await self.assistant()
-        await self.page.locator('.tab-strip .tab-button').nth(2).click()
+        await self.page.locator('.workspace-navigation [data-section="multimodal"]').click()
         await self.page.locator('.assistant-multimodal-tab').wait_for()
 
     async def vision(self):

@@ -35,34 +35,53 @@
     </div>
   }
 
-  <nav
-    class="tab-strip"
-    [attr.aria-label]="'Harbor Assistant sections' | translate"
-  >
-    @for (tab of tabs; track tab.id) {
-      <button
-        type="button"
-        class="tab-button"
-        [attr.aria-current]="isTab(tab.id) ? 'page' : null"
-        [class.active]="isTab(tab.id)"
-        (click)="selectTab(tab.id)"
-      >
-        {{ tab.label | translate }}
-      </button>
-    }
-  </nav>
-
-  <section class="rules-review-entry">
-    <button
-      mat-button
-      type="button"
-      color="primary"
-      (click)="toggleRulesDrawer()"
-    >
-      {{ 'Rules' | translate }} {{ pendingRuleCount() }} {{ 'pending' | translate }}
-    </button>
-  </section>
-
+  <div class="assistant-workspace">
+    <aside class="workspace-sidebar">
+      <nav class="workspace-navigation" [attr.aria-label]="'Harbor Assistant sections' | translate">
+        <div class="workspace-nav-group">
+          <span class="workspace-nav-label">{{ 'Workspace' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="overview"
+            [class.active]="isTab('overview')" [attr.aria-current]="isTab('overview') ? 'page' : null" (click)="selectTab('overview')">
+            {{ 'Overview' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="sources"
+            [class.active]="isAiDestination('sources')" [attr.aria-current]="isAiDestination('sources') ? 'page' : null" (click)="selectAiSettingsTab('sources')">
+            {{ 'Data sources' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="models"
+            [class.active]="isAiDestination('models')" [attr.aria-current]="isAiDestination('models') ? 'page' : null" (click)="selectAiSettingsTab('models')">
+            {{ 'Models' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="messages"
+            [class.active]="isTab('messages')" [attr.aria-current]="isTab('messages') ? 'page' : null" (click)="selectTab('messages')">
+            {{ 'Connections' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="rules"
+            [class.active]="isTab('rules')" [attr.aria-current]="isTab('rules') ? 'page' : null" (click)="selectTab('rules')">
+            <span>{{ 'Rules' | translate }}</span><span class="workspace-nav-count">{{ pendingRuleCount() }}</span>
+          </button>
+        </div>
+        <div class="workspace-nav-group workspace-tools">
+          <span class="workspace-nav-label">{{ 'Tools' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="multimodal"
+            [class.active]="isTab('multimodal')" [attr.aria-current]="isTab('multimodal') ? 'page' : null" (click)="selectTab('multimodal')">
+            {{ 'Multimodal' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="camera"
+            [class.active]="isTab('camera')" [attr.aria-current]="isTab('camera') ? 'page' : null" (click)="selectTab('camera')">
+            {{ 'Camera' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="home-assistant"
+            [class.active]="isTab('home-assistant')" [attr.aria-current]="isTab('home-assistant') ? 'page' : null" (click)="selectTab('home-assistant')">
+            {{ 'Home Assistant' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="settings"
+            [class.active]="isTab('settings') && !isAiDestination('sources') && !isAiDestination('models')"
+            (click)="selectSettingsSection('camera')">{{ 'Settings' | translate }}</button>
+        </div>
+      </nav>
+    </aside>
+    <main class="workspace-content">
   @if (rulesDrawerOpen()) {
     <mat-card class="settings-card native-panel rules-review-drawer">
       <mat-card-header>
@@ -285,15 +304,47 @@
     </mat-card>
   }
 
-  @if (isTab('chat')) {
-    <section class="tab-panel assistant-chat-tab">
-      <mat-card class="settings-card native-panel">
-        <mat-card-content>
-          <h2>{{ 'Chat' | translate }}</h2>
-          <p>{{ 'Use the global Harbor Assistant composer below. Your conversation stays available across pages.' | translate }}</p>
-          <button mat-button type="button" (click)="assistantSession.resultsOpen.set(true)">{{ 'Open conversation' | translate }}</button>
-        </mat-card-content>
-      </mat-card>
+  @if (isTab('overview')) {
+    <section class="workspace-overview" aria-labelledby="assistant-workspace-title">
+      <header class="workspace-heading">
+        <span class="workspace-eyebrow">{{ 'Harbor Assistant' | translate }}</span>
+        <h2 id="assistant-workspace-title">{{ 'Your NAS workspace' | translate }}</h2>
+        <p>{{ 'Find photos, ask about your documents, and keep working with your NAS. Use the composer below from any page.' | translate }}</p>
+      </header>
+      <div class="workspace-readiness">
+        <article class="workspace-status">
+          <h3>{{ 'Data sources' | translate }}</h3>
+          <strong>{{ overviewSources() }}</strong>
+          <p>{{ 'Search uses the NAS folders you have enabled.' | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('sources')">{{ 'Manage data sources' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Models' | translate }}</h3>
+          <strong [ngClass]="'tone-' + aiWorkflowSummary().tone">{{ aiWorkflowSummary().label | translate }}</strong>
+          <p>{{ aiWorkflowSummary().detail | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('models')">{{ 'Manage models' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Connections' | translate }}</h3>
+          @if (gatewayStatus()) {
+            <strong>{{ connectedConnectorCount() }} {{ 'connected' | translate }}</strong>
+            <p>{{ 'Use your connected messaging accounts to reach this workspace.' | translate }}</p>
+          } @else {
+            <strong>{{ loading() ? ('Loading connections' | translate) : ('Connection status unavailable' | translate) }}</strong>
+            <p>{{ 'Open connections to review account availability.' | translate }}</p>
+          }
+          <button mat-button type="button" (click)="selectTab('messages')">{{ 'Manage connections' | translate }}</button>
+        </article>
+      </div>
+      <section class="workspace-context">
+        <div>
+          <h3>{{ 'One conversation, wherever you work' | translate }}</h3>
+          <p>{{ 'Choose folders and search options with + in the composer. Your draft and conversation stay with you as you move between pages.' | translate }}</p>
+        </div>
+        <button mat-button type="button" [disabled]="!assistantSession.hasResults()" (click)="assistantSession.resultsOpen.set(true)">
+          {{ 'Open conversation' | translate }}
+        </button>
+      </section>
     </section>
   }
 
@@ -304,12 +355,6 @@
         [endpointsLoading]="loading()"
         [endpointsError]="endpointError('modelEndpoints')"
       ></ix-harbor-assistant-multimodal>
-    </section>
-  }
-
-  @if (isTab('search')) {
-    <section class="tab-panel assistant-search-tab">
-      <ix-harbor-assistant-search></ix-harbor-assistant-search>
     </section>
   }
 
@@ -2183,4 +2228,6 @@
       }
     </section>
   }
+    </main>
+  </div>
 </section>
