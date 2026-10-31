@@ -58,6 +58,12 @@ describe('HarborAssistantMultimodalComponent', () => {
     return TestbedHarnessEnvironment.loader(spectator.fixture).getHarness(MatButtonHarness.with({ text }));
   }
 
+  it('labels direct upload VLM separately from indexed image search', () => {
+    spectator = createComponent();
+    expect(spectator.element.textContent).toContain('Direct image understanding');
+    expect(spectator.element.textContent).toContain('does not search indexed sources or create citations');
+  });
+
   it('shows true missing runtime blockers without declaring multimodal ready', () => {
     spectator = createComponent();
     expect(spectator.queryAll('.multimodal-status .blocker')).toHaveLength(3);

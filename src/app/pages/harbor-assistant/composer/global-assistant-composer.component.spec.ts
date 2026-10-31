@@ -66,6 +66,49 @@ describe('GlobalAssistantComposerComponent', () => {
     expect(metadata).toHaveText('true');
   });
 
+  it('states when indexed image evidence has no generated answer', () => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    session.turns.set([{
+      query: 'Find an indexed image',
+      response: {
+        total_matches: 1,
+        documents: [],
+        images: [{ path: '/docs/image.png' }],
+        videos: [],
+        reply_pack: { summary: '', citations: [{ path: '/docs/image.png' }] },
+        blockers: [],
+        warnings: [],
+        degraded: false,
+      },
+    } as HarborAssistantSearchResponse]);
+    session.resultsOpen.set(true);
+    spectator.detectChanges();
+    expect(spectator.element.textContent).toContain('Indexed evidence was found, but no generated answer was returned.');
+    expect(spectator.element.textContent).not.toContain('The server returned no answer.');
+  });
+
+  it('states when indexed image evidence has a degraded result', () => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    session.turns.set([{
+      query: 'Find an indexed image',
+      response: {
+        total_matches: 0,
+        documents: [],
+        images: [],
+        videos: [],
+        reply_pack: { summary: '', citations: [] },
+        blockers: ['embedding unavailable'],
+        warnings: [],
+        degraded: true,
+      },
+    } as HarborAssistantSearchResponse]);
+    session.resultsOpen.set(true);
+    spectator.detectChanges();
+    expect(spectator.element.textContent).toContain('Knowledge search returned a degraded result.');
+  });
+
   it('loads source previews through authenticated HttpClient and exposes a real preview failure', () => {
     spectator = createComponent();
     const preview = { opener: null, location: { href: '' }, close: jest.fn() };

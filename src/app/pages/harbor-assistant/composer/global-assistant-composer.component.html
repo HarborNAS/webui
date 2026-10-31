@@ -13,7 +13,11 @@
         <article class="assistant-turn">
           <h3>{{ turn.query }}</h3>
           @if (turn.response; as response) {
-            <p class="assistant-answer">{{ summary(response) }}</p>
+            @if (summary(response); as answer) {
+              <p class="assistant-answer">{{ answer }}</p>
+            } @else {
+              <p class="assistant-warning" role="status">{{ answerNotice(response) | translate }}</p>
+            }
             @if (modelRows(response).length) {
               <dl class="assistant-runtime-metadata">
                 @for (row of modelRows(response); track row.label) {

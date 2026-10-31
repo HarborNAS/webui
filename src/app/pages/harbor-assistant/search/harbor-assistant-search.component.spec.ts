@@ -4,8 +4,8 @@ import { MockComponent } from 'ng-mocks';
 import { of } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantSearchComponent } from 'app/pages/harbor-assistant/search/harbor-assistant-search.component';
-import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
+import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
 describe('Harbor Assistant search component', () => {
   let spectator: Spectator<HarborAssistantSearchComponent>;
@@ -46,6 +46,8 @@ describe('Harbor Assistant search component', () => {
     expect(spectator.element.textContent).not.toContain('Multimodal RAG');
     expect(spectator.element.textContent).not.toContain('Harbor Assistant Search');
     expect(spectator.element.textContent).not.toContain('RAG search');
+    expect(spectator.element.textContent).toContain('Image search uses indexed image sources and citations');
+    expect(spectator.element.textContent).toContain('Use Multimodal for a direct upload');
   });
 
   it('defaults Harbor Assistant search to all knowledge sources', fakeAsync(() => {

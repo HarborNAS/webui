@@ -91,7 +91,17 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
   }
 
   protected summary(response: HarborAssistantSearchResponse): string {
-    return response.reply_pack?.summary || 'The server returned no answer.';
+    return response.reply_pack?.summary?.trim() ?? '';
+  }
+
+  protected answerNotice(response: HarborAssistantSearchResponse): string {
+    if (response.degraded || response.blockers?.length || response.warnings?.length) {
+      return 'Knowledge search returned a degraded result. Review the blockers and indexed evidence before relying on it.';
+    }
+    if (response.total_matches > 0 || response.reply_pack?.citations?.length) {
+      return 'Indexed evidence was found, but no generated answer was returned.';
+    }
+    return 'No indexed evidence or generated answer was returned.';
   }
 
   protected modelRows(response: HarborAssistantSearchResponse): { label: string; value: string }[] {
