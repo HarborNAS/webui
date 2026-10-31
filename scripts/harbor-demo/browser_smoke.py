@@ -91,7 +91,7 @@ def safe_model(value):
         return clipped(value)
     if not isinstance(value, dict):
         return None
-    result = scalar_fields(value, ('name', 'model_name', 'model_endpoint_id', 'model_kind',
+    result = scalar_fields(value, ('name', 'model_name', 'model_endpoint_id', 'model_kind', 'endpoint_kind',
                                   'provider_key', 'status', 'available', 'answer_generation_enabled', 'latency_ms') + SAFE_METADATA)
     metadata = scalar_fields(value.get('metadata'), SAFE_METADATA)
     for fields in (result, metadata):

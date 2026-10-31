@@ -1,7 +1,7 @@
 import copy
 import unittest
 
-from browser_smoke import qualified_model_endpoints
+from browser_smoke import PREFIX, project, qualified_model_endpoints
 
 
 def endpoint(port=11442, model='Qwen3.8-27B-Q8_0.gguf'):
@@ -22,6 +22,15 @@ class CurrentModelTruthTests(unittest.TestCase):
             with self.subTest(port=port):
                 current = endpoint(port)
                 self.assertEqual(qualified_model_endpoints([current]), [current])
+
+    def test_capture_projection_retains_fields_required_for_model_truth(self):
+        current = endpoint()
+        current['metadata']['api_key'] = 'must-not-record'
+        captured = project(PREFIX + '/models/endpoints', {'endpoints': [current]})
+        selected = qualified_model_endpoints(captured['endpoints'], 'Qwen3.8-27B')
+        self.assertEqual(len(selected), 1)
+        self.assertEqual(selected[0]['endpoint_kind'], 'local')
+        self.assertNotIn('api_key', selected[0]['metadata'])
 
     def test_expected_model_cannot_succeed_using_an_old_active_model(self):
         old = endpoint(11435, 'qwen2.5-0.5b.gguf')
