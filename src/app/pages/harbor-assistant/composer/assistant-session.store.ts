@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Subject } from 'rxjs';
 import { finalize } from 'rxjs/operators';
+import { generateUuid } from 'app/helpers/uuid.helper';
 import { KnowledgeSourceRoot } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
@@ -343,6 +344,6 @@ export class AssistantSessionStore {
   }
 
   private newConversationId(): string {
-    return `harbor-web-${crypto.randomUUID()}`;
+    return `harbor-web-${generateUuid()}`;
   }
 }

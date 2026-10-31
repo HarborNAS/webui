@@ -35,6 +35,30 @@ describe('AssistantSessionStore', () => {
     store.bindUser('admin');
   });
 
+  it('initializes and starts conversations when HTTP does not expose crypto.randomUUID', () => {
+    const originalRandomUuid = crypto.randomUUID;
+    (crypto as { randomUUID?: typeof crypto.randomUUID }).randomUUID = undefined;
+    try {
+      const httpStore = TestBed.runInInjectionContext(() => new AssistantSessionStore());
+      const uuid = /^harbor-web-[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const initialId = httpStore.conversationId();
+      expect(initialId).toMatch(uuid);
+      httpStore.bindUser('http-admin');
+      const userId = httpStore.conversationId();
+      expect(userId).toMatch(uuid);
+      expect(userId).not.toBe(initialId);
+      httpStore.updateDraft({ text: 'Retained draft' });
+      httpStore.bindUser('http-admin');
+      expect(httpStore.draft().text).toBe('Retained draft');
+      expect(httpStore.conversationId()).toBe(userId);
+      httpStore.newConversation();
+      expect(httpStore.conversationId()).toMatch(uuid);
+      expect(httpStore.conversationId()).not.toBe(userId);
+    } finally {
+      crypto.randomUUID = originalRandomUuid;
+    }
+  });
+
   it('sends the conversation, retrieval, source, modality and time context to Knowledge Search', () => {
     store.updateDraft({
       text: 'What is in this guide?',
