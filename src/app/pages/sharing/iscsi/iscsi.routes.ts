@@ -9,7 +9,6 @@ import { InitiatorFormComponent } from 'app/pages/sharing/iscsi/initiator/initia
 import { InitiatorListComponent } from 'app/pages/sharing/iscsi/initiator/initiator-list/initiator-list.component';
 import { IscsiComponent } from 'app/pages/sharing/iscsi/iscsi.component';
 import { PortalListComponent } from 'app/pages/sharing/iscsi/portal/portal-list/portal-list.component';
-import { AllTargetsComponent } from 'app/pages/sharing/iscsi/target/all-targets/all-targets.component';
 
 export const iscsiRoutes: Routes = [
   {
@@ -19,13 +18,13 @@ export const iscsiRoutes: Routes = [
     children: [
       {
         path: '',
-        redirectTo: 'targets',
+        redirectTo: 'extents',
         pathMatch: 'full',
       },
       {
         path: 'targets',
-        data: { title: T('Targets'), breadcrumb: T('Targets') },
-        component: AllTargetsComponent,
+        redirectTo: 'extents',
+        pathMatch: 'full',
       },
       {
         path: 'extents',
