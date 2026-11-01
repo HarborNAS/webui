@@ -223,6 +223,71 @@ describe('Harbor Assistant component', () => {
     return policies;
   }
 
+  it.each(['active', 'degraded'])('uses actual %s media endpoint status for managed runtime guidance', (status) => {
+    configurePinnedMediaModels(status);
+    const notice = 'Managed runtime unavailable; connect an external endpoint.';
+    api.getModelCapabilities = jest.fn(() => of({
+      capabilities: ['asr', 'vlm'].map((kind) => ({
+        capability_id: kind,
+        model_kind: kind,
+        status: kind === 'asr' && status === 'degraded' ? 'degraded' : 'ready',
+        required_runtime_profile: 'managed-media-runtime',
+        runtime_installed: false,
+        runtime_next_action: notice,
+        installed_models: [],
+        installable_models: [],
+        download_jobs: [],
+      })),
+    }));
+    api.getModelRuntimes = jest.fn(() => of({
+      runtimes: [{
+        runtime_id: 'managed-media-runtime', installable: true, installed: false, active: false,
+      }],
+    }));
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      workflowRuntimeNotice: (kind: string) => string | null;
+      workflowRuntimeInstallCandidate: (kind: string) => unknown;
+    };
+    expect(component.workflowRuntimeNotice('vlm')).toBeNull();
+    expect(component.workflowRuntimeInstallCandidate('vlm')).toBeNull();
+    if (status === 'active') {
+      expect(component.workflowRuntimeNotice('asr')).toBeNull();
+      expect(component.workflowRuntimeInstallCandidate('asr')).toBeNull();
+      expect(spectator.query('[data-capability="asr"]')).not.toHaveText(notice);
+    } else {
+      expect(component.workflowRuntimeNotice('asr')).toBe(notice);
+      expect(component.workflowRuntimeInstallCandidate('asr')).toBeTruthy();
+      expect(spectator.query('[data-capability="asr"]')).toHaveText(notice);
+    }
+    expect(api.installModelRuntime).not.toHaveBeenCalled();
+  });
+
+  it.each([false, true])('hides the embedding model storage path (catalog=%s)', (catalogKnown) => {
+    const localPath = '/var/lib/harborbeacon-agent-ci/models/jina-embeddings-v2-base-zh';
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      status: 'ready',
+      current_model: {
+        model_endpoint_id: 'embedder-local', model_name: localPath, provider_key: 'local', status: 'active',
+      },
+    })));
+    if (catalogKnown) {
+      api.getLocalModelCatalog = jest.fn(() => of({
+        models: [{
+          model_id: 'jina-zh', display_name: 'Jina Chinese embeddings', local_path: localPath,
+          model_kind: 'embedder', installed: true, status: 'installed',
+        }],
+        download_jobs: [],
+      }));
+    }
+    spectator = createComponent();
+    const cell = spectator.query('[data-capability="embedder"] .model-current-cell');
+    expect(cell).toHaveText(catalogKnown ? 'Jina Chinese embeddings' : 'jina-embeddings-v2-base-zh');
+    expect(cell).not.toHaveText('/var/lib/');
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+  });
+
   it('shows a loading state instead of empty model readiness while projections are pending', () => {
     spectator = createComponent();
     const component = spectator.component as unknown as {

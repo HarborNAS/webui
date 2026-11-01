@@ -2807,32 +2807,38 @@ export class HarborAssistantComponent implements OnInit {
     const policy = this.mediaPolicyForCapability(kind);
     if (typeof policy?.metadata?.['model_endpoint_id'] === 'string') {
       const pinned = this.workflowCurrentEndpoint(kind);
-      return pinned ? this.metadataString(pinned, 'model_label') || pinned.model_name : T('Model status unavailable');
+      return pinned
+        ? this.currentModelDisplayName(this.metadataString(pinned, 'model_label') || pinned.model_name)
+        : T('Model status unavailable');
     }
     const actualModelName = capability?.current_model?.model_name?.trim();
     if (actualModelName) {
-      return actualModelName;
+      return this.currentModelDisplayName(actualModelName);
     }
     if (capability?.selected_model_id) {
       const selected = [
         ...(capability.installed_models ?? []),
         ...(capability.installable_models ?? []),
       ].find((model) => model.model_id === capability.selected_model_id);
-      return selected?.display_name ?? capability.selected_model_id;
+      return this.currentModelDisplayName(selected?.display_name ?? capability.selected_model_id);
     }
     const runtimeModel = capability?.runtime_model_id?.trim();
     if (runtimeModel) {
-      return runtimeModel;
-    }
-    const currentModelName = capability?.current_model?.model_name?.trim();
-    if (currentModelName) {
-      return currentModelName;
+      return this.currentModelDisplayName(runtimeModel);
     }
     const current = this.currentModelCards().find((card) => card.kind === kind);
     if (!current?.endpoint || current.modelName === T('Not configured')) {
       return T('No model selected yet');
     }
-    return current.modelName;
+    return this.currentModelDisplayName(current.modelName);
+  }
+
+  private currentModelDisplayName(modelName: string): string {
+    const catalog = this.catalogModels().find((model) => model.model_id === modelName || model.local_path === modelName);
+    if (catalog?.display_name) {
+      return catalog.display_name;
+    }
+    return modelName.startsWith('/') ? this.pathLabel(modelName) : modelName;
   }
 
   protected workflowCurrentModelDetail(kind: string): string {
@@ -2882,6 +2888,10 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowRuntimeNotice(kind: string): string | null {
+    const endpoint = this.workflowCurrentEndpoint(kind);
+    if (endpoint?.endpoint_kind === 'local' && this.statusTone(endpoint.status) === 'good') {
+      return null;
+    }
     const capability = this.workflowCapabilityForKind(kind);
     if (!capability?.required_runtime_profile || capability.runtime_installed) {
       return null;
@@ -2892,6 +2902,10 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowRuntimeInstallCandidate(kind: string): ModelRuntimeStatus | null {
+    const endpoint = this.workflowCurrentEndpoint(kind);
+    if (endpoint?.endpoint_kind === 'local' && this.statusTone(endpoint.status) === 'good') {
+      return null;
+    }
     const capability = this.workflowCapabilityForKind(kind);
     const profile = capability?.required_runtime_profile;
     if (!profile || capability?.runtime_installed) {

@@ -138,9 +138,9 @@ $hd-space-5: 20px;
 }
 
 @container (max-width: 1050px) {
-  .model-capability-header { display: none; }
-  .model-setting-line,
-  .model-option-row { grid-template-columns: minmax(0, 1fr); }
+  .model-capability-list .model-capability-header { display: none; }
+  .model-capability-list .model-setting-line,
+  .model-capability-list .model-option-row { grid-template-columns: minmax(0, 1fr); }
   .model-current-cell,
   .model-capability-name { min-width: 0; overflow-wrap: anywhere; }
   .model-setting-line > .row-actions { flex-wrap: wrap; }
