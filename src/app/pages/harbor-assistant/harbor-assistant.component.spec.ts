@@ -318,6 +318,18 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('ix-global-assistant-composer')).not.toExist();
   });
 
+  it('normalizes a single-platform Feishu gateway projection into a connected card', () => {
+    api.getGatewayStatus = jest.fn(() => of({
+      status: 'connected', configured: true, connected: true,
+    }));
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({ tab: 'messages' })) })],
+    });
+    spectator.detectChanges();
+    expect(spectator.query('.im-connector-list')).toHaveText('Feishu');
+    expect(spectator.query('.im-connector-list')).toHaveText('Connected');
+  });
+
   it('does not turn a Beacon bridge projection into a live connection count', () => {
     api.getGatewayStatus = jest.fn(() => of({
       status: 'ready', bridge_provider: { platform: 'feishu', configured: true, connected: false },

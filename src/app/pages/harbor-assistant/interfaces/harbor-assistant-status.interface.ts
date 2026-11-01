@@ -389,6 +389,15 @@ export interface GatewayStatusResponse {
   channels?: GatewayPlatformStatus[];
   platforms?: GatewayPlatformStatus[];
   bridge_provider?: BridgeProviderConfig;
+  setup?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+    channels?: GatewayPlatformStatus[];
+  };
+  connectors?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+  };
   feishu?: GatewayPlatformStatus & { rehearsal_ready?: boolean };
   weixin?: GatewayPlatformStatus & {
     rehearsal_ready?: boolean;

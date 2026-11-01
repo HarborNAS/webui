@@ -834,15 +834,10 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly configuredConnectorCount = computed(() => this.connectorCards().filter((card) => card.configured).length);
   protected readonly connectedConnectorCount = computed<number | null>(() => {
     const gateway = this.gatewayStatus();
-    const platforms = [
-      ...(gateway?.feishu ? [{ ...gateway.feishu, platform: 'feishu' }] : []),
-      ...(gateway?.weixin ? [{ ...gateway.weixin, platform: 'weixin' }] : []),
-      ...(gateway?.channels ?? gateway?.platforms ?? []),
-    ].filter((platform) => typeof platform.connected === 'boolean');
-    if (platforms.length === 0) {
+    if (!gateway || !this.hasGatewayPlatformProjection(gateway)) {
       return null;
     }
-    return new Set(platforms.filter((platform) => platform.connected).map((platform) => platform.platform)).size;
+    return this.connectorCards().filter((connector) => connector.connected).length;
   });
 
   protected readonly overviewSources = computed(() => {
@@ -6084,7 +6079,6 @@ export class HarborAssistantComponent implements OnInit {
 
   private buildConnectorCards(): ConnectorCard[] {
     const gateway = this.gatewayStatus();
-    const channels = gateway?.channels ?? gateway?.platforms ?? [];
     const fallbackGateway = this.state()?.account_management?.gateway;
     const fallbackProvider = gateway?.bridge_provider ?? fallbackGateway?.bridge_provider ?? this.state()?.bridge_provider;
 
@@ -6092,18 +6086,63 @@ export class HarborAssistantComponent implements OnInit {
       this.connectorCard(
         'weixin',
         T('WeChat'),
-        gateway?.weixin ?? channels.find((channel) => channel.platform === 'weixin'),
+        this.gatewayPlatform(gateway, 'weixin'),
         gateway,
         fallbackProvider?.platform === 'weixin' ? fallbackProvider : null,
       ),
       this.connectorCard(
         'feishu',
         T('Feishu'),
-        gateway?.feishu ?? channels.find((channel) => channel.platform === 'feishu'),
+        this.gatewayPlatform(gateway, 'feishu'),
         gateway,
         fallbackProvider?.platform === 'feishu' ? fallbackProvider : null,
       ),
     ];
+  }
+
+  private hasGatewayPlatformProjection(gateway: GatewayStatusResponse): boolean {
+    return Boolean(
+      gateway.feishu
+      || gateway.weixin
+      || gateway.setup?.feishu
+      || gateway.setup?.weixin
+      || gateway.connectors?.feishu
+      || gateway.connectors?.weixin
+      || (gateway.channels ?? gateway.platforms ?? gateway.setup?.channels)?.some((channel) => Boolean(channel?.platform))
+      || gateway.platform,
+    );
+  }
+
+  private gatewayPlatform(
+    gateway: GatewayStatusResponse | null,
+    id: 'feishu' | 'weixin',
+  ): GatewayPlatformStatus | null {
+    if (!gateway) {
+      return null;
+    }
+    const channels = gateway.channels ?? gateway.platforms ?? gateway.setup?.channels ?? [];
+    const nested = id === 'feishu'
+      ? [gateway.feishu, gateway.setup?.feishu, gateway.connectors?.feishu]
+      : [gateway.weixin, gateway.setup?.weixin, gateway.connectors?.weixin];
+    const listed = channels.find((channel) => channel.platform?.toLowerCase() === id);
+    const direct = nested.find((value) => value);
+    if (direct || listed) {
+      return direct ?? listed ?? null;
+    }
+    // Some Beacon versions return the live single-platform projection at the
+    // top level instead of a channels/feishu object.
+    if ((gateway.platform ?? '').toLowerCase() === id || (!gateway.platform && id === 'feishu' && typeof gateway.connected === 'boolean')) {
+      return {
+        platform: id,
+        configured: gateway.configured,
+        connected: gateway.connected,
+        status: gateway.status,
+        setup_url: gateway.setup_url,
+        manage_url: gateway.manage_url,
+        last_checked_at: gateway.last_checked_at,
+      };
+    }
+    return null;
   }
 
   private connectorCard(
