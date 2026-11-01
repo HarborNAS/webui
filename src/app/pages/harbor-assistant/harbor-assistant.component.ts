@@ -583,7 +583,6 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly modelChooserCapabilityId = signal<string | null>(null);
   protected readonly manualModelDownloadCapabilityId = signal<string | null>(null);
   private readonly downloadPollInProgress = signal(false);
-  private readonly autoSelectedDownloadJobIds = new Set<string>();
 
   protected readonly protocolOptions: ProtocolOption[] = [
     { label: T('RTSP'), value: 'rtsp' },
@@ -4541,7 +4540,15 @@ export class HarborAssistantComponent implements OnInit {
           : endpoint.model_endpoint_id === current?.model_endpoint_id;
         const switching = selected && capability?.transition_status === 'loading';
         const failed = selected && capability?.transition_status === 'failed';
-        let actionLabel: string = selected ? T('Selected') : T('Select');
+        let confirmed = endpoint.model_endpoint_id === current?.model_endpoint_id;
+        if (capability) {
+          let runtimeReady = capability.runtime_ready ?? capability.current_model?.status === 'active';
+          if (capability.transition_status !== undefined) {
+            runtimeReady = capability.transition_status === 'ready' && Boolean(capability.active_model_id);
+          }
+          confirmed = runtimeReady && endpoint.model_endpoint_id === capability.current_model?.model_endpoint_id;
+        }
+        let actionLabel: string = confirmed ? T('Selected') : T('Select');
         if (switching) {
           actionLabel = T('Selected · switching');
         } else if (failed) {
@@ -4566,7 +4573,7 @@ export class HarborAssistantComponent implements OnInit {
           localPath: null,
           downloadJob: null,
           endpoint,
-          action: selected && !failed ? 'current' as const : 'set-current' as const,
+          action: switching || (confirmed && !failed) ? 'current' as const : 'set-current' as const,
           actionLabel,
           progressLabel: null,
           bytesLabel: null,
@@ -4839,60 +4846,8 @@ export class HarborAssistantComponent implements OnInit {
     return this.isFailedStatus(job.status);
   }
 
-  private isCompletedDownloadJob(job: LocalModelDownloadJob): boolean {
-    return ['completed', 'ready', 'installed'].includes((job.status || '').toLowerCase());
-  }
-
   private isFailedStatus(status: string | null | undefined): boolean {
     return ['failed', 'error', 'canceled', 'cancelled'].includes((status || '').toLowerCase());
-  }
-
-  private completeAutoModelSelections(): void {
-    if (this.isBusy()) {
-      return;
-    }
-    const job = this.downloadJobs().find((candidate) => {
-      return this.isCompletedDownloadJob(candidate)
-        && this.jobMetadataBoolean(candidate, 'auto_select_after_download')
-        && !this.autoSelectedDownloadJobIds.has(candidate.job_id);
-    });
-    if (!job) {
-      return;
-    }
-    const modelId = this.jobMetadataString(job, 'auto_select_model_id') || job.model_id;
-    const capabilityId = this.jobMetadataString(job, 'auto_select_capability_id')
-      || this.jobMetadataString(job, 'capability_id');
-    const card = this.customerModelCards().find((candidate) => {
-      return candidate.modelId === modelId
-        && candidate.section === 'installed'
-        && (!capabilityId || candidate.capabilityId === capabilityId || candidate.capabilities.includes(capabilityId));
-    }) ?? this.installedCapabilityModelCard(modelId, capabilityId);
-    if (!card) {
-      return;
-    }
-    this.autoSelectedDownloadJobIds.add(job.job_id);
-    this.useInstalledModel({
-      ...card,
-      capabilityId: card.capabilityId ?? capabilityId,
-    });
-  }
-
-  private jobMetadataString(job: LocalModelDownloadJob, key: string): string {
-    const value = job.metadata?.[key];
-    return typeof value === 'string' ? value.trim() : '';
-  }
-
-  private jobMetadataBoolean(job: LocalModelDownloadJob, key: string): boolean {
-    return job.metadata?.[key] === true;
-  }
-
-  private installedCapabilityModelCard(modelId: string, capabilityId: string): CustomerModelCard | null {
-    const capability = this.workflowCapabilityForKind(capabilityId);
-    const installedModel = capability?.installed_models?.find((model) => model.model_id === modelId);
-    if (!capability || !installedModel) {
-      return null;
-    }
-    return this.modelCapabilityChoiceCard(capability.capability_id, installedModel, 'installed');
   }
 
   private metadataNumber(metadata: Record<string, unknown> | undefined, key: string): number | null {
@@ -4959,7 +4914,6 @@ export class HarborAssistantComponent implements OnInit {
     ).subscribe({
       next: (downloads) => {
         this.localDownloads.set(downloads);
-        this.completeAutoModelSelections();
         if (!this.hasActiveDownloadJobs(downloads.jobs)) {
           this.loadData();
         }
@@ -5205,7 +5159,6 @@ export class HarborAssistantComponent implements OnInit {
         hardware: payload.hardware.error,
         ...(statusRevision === this.modelStatusRevision ? { rag: payload.rag.error } : {}),
       });
-      this.completeAutoModelSelections();
     });
   }
 
@@ -5342,7 +5295,6 @@ export class HarborAssistantComponent implements OnInit {
     this.patchDvrForm(pageData.dvrSettings.data);
     this.ensureSelectedPolicy();
     this.patchCloudApiForm();
-    this.completeAutoModelSelections();
   }
 
   private clearData(): void {

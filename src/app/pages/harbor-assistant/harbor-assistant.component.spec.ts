@@ -156,6 +156,83 @@ describe('Harbor Assistant component', () => {
     expect(api.updateModelEndpoint).not.toHaveBeenCalled();
   });
 
+  it('keeps a stale desired bootstrap binding selectable while the confirmed runtime is 27B', () => {
+    api.getModelCapabilities = jest.fn(() => of(routerSelectionCapabilities({
+      desired_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      selected_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      active_model_id: 'harbor-qwen38-27b',
+      transition_status: 'ready',
+      current_model: {
+        model_endpoint_id: 'llm-local-qwen38-27b',
+        model_name: 'harbor-qwen38-27b',
+        provider_key: 'local',
+        status: 'active',
+      },
+    })));
+    api.getModelEndpoints = jest.fn(() => of({
+      endpoints: [{
+        ...modelEndpoint('llm-local-openai-compatible', 'llm', '/models/bootstrap-llm') as object,
+        metadata: { catalog_model_id: 'Qwen/Qwen2.5-0.5B-Instruct' },
+      }, modelEndpoint('llm-local-qwen38-27b', 'llm', 'Qwen3.8-27B-Q8_0')],
+    }));
+    api.getModelPolicies = jest.fn(() => of({
+      route_policies: [{
+        ...modelPolicy('semantic.router', 'strict_local', ['local']) as object,
+        metadata: { model_endpoint_id: 'llm-local-qwen38-27b' },
+      }],
+    }));
+    spectator = createComponent();
+    spectator.click('[data-capability="semantic_router"] .row-actions button');
+    const options = spectator.queryAll('[data-capability="semantic_router"] .model-option-row');
+    const small = options.find((row) => row.querySelector('strong')?.textContent?.includes('/models/bootstrap-llm'));
+    const large = options.find((row) => row.querySelector('strong')?.textContent?.includes('Qwen3.8-27B-Q8_0'));
+    expect(small?.querySelector('button')).toHaveText('Select');
+    expect(small?.querySelector('button')).not.toBeDisabled();
+    expect(large?.querySelector('button')).toHaveText('Selected');
+    expect(large?.querySelector('button')).toBeDisabled();
+    expect(spectator.query('[data-capability="semantic_router"] .model-current-cell strong'))
+      .toHaveText('Qwen3.8 27B');
+  });
+
+  it('never replays a historical completed download selection on page load, refresh or polling', fakeAsync(() => {
+    const job = {
+      job_id: 'historical-qwen4b',
+      model_id: 'Qwen/Qwen3.5-4B',
+      status: 'completed',
+      target_path: '/models/qwen4b',
+      metadata: {
+        auto_select_after_download: true,
+        auto_select_capability_id: 'semantic_router',
+        auto_select_model_id: 'Qwen/Qwen3.5-4B',
+      },
+    };
+    api.getModelCapabilities = jest.fn(() => of(routerSelectionCapabilities()));
+    api.getLocalModelCatalog = jest.fn(() => of({
+      models: [qwenCatalogModel({
+        model_kind: 'llm',
+        installed: true,
+        status: 'ready',
+        local_path: '/models/qwen4b',
+        expected_capabilities: ['semantic_router'],
+      })],
+      download_jobs: [job],
+    }));
+    api.getLocalModelDownloads = jest.fn(() => of({ jobs: [job] }));
+    api.selectModelCapability = jest.fn(() => of(routerSelectionCapabilities()));
+    spectator = createComponent();
+    spectator.detectChanges();
+    expect(api.selectModelCapability).not.toHaveBeenCalled();
+    const component = spectator.component as unknown as { refresh: () => void };
+    component.refresh();
+    tick(5000);
+    spectator.fixture.nativeElement.ownerDocument.defaultView.dispatchEvent(new Event('focus'));
+    expect(api.selectModelCapability).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
+    spectator.fixture.destroy();
+    discardPeriodicTasks();
+  }));
+
   it('marks only the desired runtime binding selected when ASR models share an identity', () => {
     configurePinnedMediaModels();
     api.getModelCapabilities = jest.fn(() => of({
