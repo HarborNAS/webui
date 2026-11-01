@@ -4541,7 +4541,7 @@ export class HarborAssistantComponent implements OnInit {
           : endpoint.model_endpoint_id === current?.model_endpoint_id;
         const switching = selected && capability?.transition_status === 'loading';
         const failed = selected && capability?.transition_status === 'failed';
-        let actionLabel = selected ? T('Selected') : T('Select');
+        let actionLabel: string = selected ? T('Selected') : T('Select');
         if (switching) {
           actionLabel = T('Selected · switching');
         } else if (failed) {
