@@ -354,6 +354,8 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
     expect(spectator.query('.settings-tab')).toExist();
     expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('[data-section="models"]')).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('.model-capability-list')).toExist();
     expect(spectator.query('.workspace-tools')).not.toHaveText('Multimodal');
   });
 

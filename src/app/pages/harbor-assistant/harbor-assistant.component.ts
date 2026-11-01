@@ -959,6 +959,10 @@ export class HarborAssistantComponent implements OnInit {
         if (tab) {
           this.activeTab.set(tab);
           this.rulesDrawerOpen.set(tab === 'rules');
+          if (rawTab?.trim().toLowerCase() === 'multimodal') {
+            this.activeSettingsSection.set('ai');
+            this.activeAiSettingsTab.set('models');
+          }
           if (rawTab?.trim().toLowerCase() === 'chat') {
             this.assistantSession.resultsOpen.set(true);
           }
