@@ -476,7 +476,6 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly tabs: HarborAssistantTab[] = [
     { id: 'overview', label: T('Overview'), detail: '' },
     { id: 'rules', label: T('Rules'), detail: '' },
-    { id: 'multimodal', label: T('Multimodal'), detail: '' },
     { id: 'camera', label: T('Camera'), detail: '' },
     { id: 'messages', label: T('Message connections'), detail: '' },
     { id: 'home-assistant', label: T('Home Assistant'), detail: '' },
@@ -6301,6 +6300,9 @@ export class HarborAssistantComponent implements OnInit {
     const normalized = (tab ?? '').trim().toLowerCase();
     if (normalized === 'search' || normalized === 'chat') {
       return 'overview';
+    }
+    if (normalized === 'multimodal') {
+      return 'settings';
     }
     return this.tabs.some((candidate) => candidate.id === normalized) ? normalized as HarborAssistantTabId : null;
   }

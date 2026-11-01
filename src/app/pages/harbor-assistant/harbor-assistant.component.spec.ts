@@ -71,7 +71,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('Harbor Assistant Search / Harbor Assistant Camera');
     expect(spectator.element.textContent).not.toContain('Local capabilities and model recommendations');
     expect(spectator.element.textContent).not.toContain('System diagnostics');
-    expect(spectator.element.textContent?.toLowerCase()).not.toContain('endpoint');
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
     expect(spectator.element.textContent?.toLowerCase()).not.toContain('fallback order');
   });
 
@@ -347,6 +347,16 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.workspace-readiness')).toHaveText('1 connected');
   });
 
+  it('redirects the legacy multimodal tab into Models settings while keeping tools embedded', () => {
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({ tab: 'multimodal' })) })],
+    });
+    spectator.detectChanges();
+    expect(spectator.query('.settings-tab')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.workspace-tools')).not.toHaveText('Multimodal');
+  });
+
   it('uses workspace navigation for management and keeps existing secondary tools', () => {
     spectator = createComponent();
     spectator.detectChanges();
@@ -362,7 +372,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.workspace-navigation')).toHaveText('Models');
     expect(spectator.query('.workspace-navigation')).toHaveText('Connections');
     expect(spectator.query('.workspace-tools')).toHaveText('Camera');
-    expect(spectator.query('.workspace-tools')).toHaveText('Multimodal');
+    expect(spectator.query('.workspace-tools')).not.toHaveText('Multimodal');
     expect(spectator.query('.workspace-tools')).toHaveText('Home Assistant');
     expect(spectator.query('.workspace-tools')).toHaveText('Settings');
     expect(spectator.query('.tab-strip')).not.toExist();
@@ -388,6 +398,10 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.home-assistant-tab')).toExist();
 
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
     expect(spectator.query('.devices-tab')).toExist();
@@ -1673,6 +1687,10 @@ describe('Harbor Assistant component', () => {
       scanDevices: () => void;
     };
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
 
@@ -1723,6 +1741,10 @@ describe('Harbor Assistant component', () => {
       scanDevices: () => void;
     };
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
 
@@ -1780,6 +1802,10 @@ describe('Harbor Assistant component', () => {
       connectScanResult: (result: unknown) => void;
     };
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
 
@@ -1860,6 +1886,10 @@ describe('Harbor Assistant component', () => {
       connectScanResult: (result: unknown) => void;
     };
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
 
@@ -1911,6 +1941,10 @@ describe('Harbor Assistant component', () => {
       selectSettingsSection: (section: 'camera') => void;
     };
     component.selectTab('settings');
+    component.selectSettingsSection('ai');
+    spectator.detectChanges();
+    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+
     component.selectSettingsSection('camera');
     spectator.detectChanges();
 

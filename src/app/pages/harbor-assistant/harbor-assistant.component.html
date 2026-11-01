@@ -63,10 +63,6 @@
         </div>
         <div class="workspace-nav-group workspace-tools">
           <span class="workspace-nav-label">{{ 'Tools' | translate }}</span>
-          <button type="button" class="workspace-nav-item" data-section="multimodal"
-            [class.active]="isTab('multimodal')" [attr.aria-current]="isTab('multimodal') ? 'page' : null" (click)="selectTab('multimodal')">
-            {{ 'Multimodal' | translate }}
-          </button>
           <button type="button" class="workspace-nav-item" data-section="camera"
             [class.active]="isTab('camera')" [attr.aria-current]="isTab('camera') ? 'page' : null" (click)="selectTab('camera')">
             {{ 'Camera' | translate }}
@@ -345,16 +341,6 @@
           {{ 'Open conversation' | translate }}
         </button>
       </section>
-    </section>
-  }
-
-  @if (isTab('multimodal')) {
-    <section class="tab-panel assistant-multimodal-tab">
-      <ix-harbor-assistant-multimodal
-        [endpoints]="modelEndpoints()"
-        [endpointsLoading]="loading()"
-        [endpointsError]="endpointError('modelEndpoints')"
-      ></ix-harbor-assistant-multimodal>
     </section>
   }
 
@@ -1611,6 +1597,20 @@
           </div>
         }
       </details>
+
+      <section class="integrated-multimodal-panel" aria-label="Multimodal tools">
+        <div class="section-heading">
+          <div>
+            <h2>{{ 'Multimodal tools' | translate }}</h2>
+            <p class="muted">{{ 'Test direct image understanding, speech-to-text, and text-to-speech with the configured endpoints.' | translate }}</p>
+          </div>
+        </div>
+        <ix-harbor-assistant-multimodal
+          [endpoints]="modelEndpoints()"
+          [endpointsLoading]="loading()"
+          [endpointsError]="endpointError('models')"
+        ></ix-harbor-assistant-multimodal>
+      </section>
     </section>
       }
 
