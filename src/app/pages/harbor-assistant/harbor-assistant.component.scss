@@ -137,6 +137,15 @@ $hd-space-5: 20px;
   button { flex-shrink: 0; }
 }
 
+@container (max-width: 1050px) {
+  .model-capability-header { display: none; }
+  .model-setting-line,
+  .model-option-row { grid-template-columns: minmax(0, 1fr); }
+  .model-current-cell,
+  .model-capability-name { min-width: 0; overflow-wrap: anywhere; }
+  .model-setting-line > .row-actions { flex-wrap: wrap; }
+}
+
 @container (max-width: 640px) {
   .workspace-readiness { grid-template-columns: 1fr; gap: 18px; }
   .workspace-status,
@@ -1407,56 +1416,6 @@ $hd-space-5: 20px;
   grid-column: 1 / -1;
 }
 
-.ai-settings-subtabs {
-  align-items: flex-end;
-  border-bottom: 1px solid $hd-border-subtle;
-  display: flex;
-  gap: $hd-space-2;
-  min-height: 46px;
-  overflow-x: auto;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.ai-settings-subtab {
-  background: transparent;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  color: var(--fg1);
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-height: 46px;
-  min-width: 0;
-  padding: 6px $hd-space-4 9px;
-  text-align: left;
-
-  strong,
-  span {
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  span {
-    color: var(--fg2);
-    font-size: 12px;
-  }
-
-  &:hover {
-    background: $hd-bg-hover;
-  }
-
-  &.active {
-    border-bottom-color: var(--primary);
-  }
-}
-
 .ai-settings-panel {
   display: flex;
   flex-direction: column;
@@ -1466,6 +1425,15 @@ $hd-space-5: 20px;
 .model-capability-list {
   gap: 0;
 }
+
+.cloud-model-settings {
+  border-top: 1px solid $hd-border-subtle;
+  margin-top: $hd-space-5;
+
+  > summary { cursor: pointer; font-weight: 600; padding: $hd-space-4 0; }
+}
+
+.model-device { overflow-wrap: anywhere; }
 
 .model-store-panel {
   border: 1px solid $hd-border-subtle;
@@ -1682,41 +1650,6 @@ $hd-space-5: 20px;
   p {
     flex-basis: 100%;
   }
-}
-
-.ai-status-toolbar {
-  align-items: center;
-  background: $hd-bg-canvas;
-  border: 1px solid $hd-border-subtle;
-  border-left: 4px solid var(--fg2);
-  border-radius: 8px;
-  display: flex;
-  gap: $hd-space-4;
-  justify-content: space-between;
-  padding: $hd-space-3 $hd-space-4;
-
-  strong {
-    display: block;
-    font-size: 18px;
-    line-height: 1.25;
-    margin-top: 4px;
-  }
-
-  p {
-    margin-top: 4px;
-  }
-}
-
-.ai-status-toolbar.tone-good {
-  border-left-color: var(--green);
-}
-
-.ai-status-toolbar.tone-warn {
-  border-left-color: var(--orange);
-}
-
-.ai-status-toolbar.tone-danger {
-  border-left-color: var(--red);
 }
 
 .source-roots-card {
@@ -2284,7 +2217,6 @@ $hd-space-5: 20px;
   .action-grid,
   .validation-status-grid,
   .validation-count-row,
-  .ai-settings-subtabs,
   .settings-section-strip,
   .model-recommendation-panel,
   .runtime-card-grid,
@@ -2327,7 +2259,6 @@ $hd-space-5: 20px;
     grid-template-columns: 1fr;
   }
 
-  .ai-status-toolbar,
   .runtime-manager-heading,
   .audit-pagination-row,
   .app-status-line,
@@ -2360,16 +2291,6 @@ $hd-space-5: 20px;
 @media (max-width: 767px) {
   .tab-button,
   .settings-section-button { flex-shrink: 0; }
-
-  .ai-settings-subtabs {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ai-settings-subtab {
-    strong,
-    span { overflow: visible; text-overflow: clip; white-space: normal; }
-  }
 
   .section-heading {
     flex-wrap: wrap;

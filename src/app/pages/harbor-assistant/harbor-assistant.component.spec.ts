@@ -54,26 +54,148 @@ describe('Harbor Assistant component', () => {
     };
   });
 
-  it('renders the AI settings subtabs without technical routing copy', () => {
+  it('renders flat settings navigation with Models first and no duplicate tools', () => {
     spectator = createComponent();
     spectator.detectChanges();
 
     expect(spectator.query('.harbor-assistant-page')).toExist();
     expect(spectator.query('.harbor-assistant-intro')).not.toExist();
     expect(spectator.query('.ai-settings-card')).toExist();
-    expect(spectator.query('.ai-status-toolbar')).toExist();
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('Data sources');
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('Model');
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('Cloud API');
+    expect(spectator.query('.ai-status-toolbar')).not.toExist();
+    expect(spectator.query('.settings-section-strip')).toHaveText('Models');
+    expect(spectator.query('.settings-section-strip')).toHaveText('Data sources');
+    expect(spectator.query('.settings-section-strip')).toHaveText('Connections');
+    expect(spectator.query('.settings-section-strip')).toHaveText('Camera settings');
+    expect(spectator.query('.settings-section-strip')).toHaveText('Diagnostics');
+    expect(spectator.query('.ai-settings-subtabs')).not.toExist();
     expect(spectator.query('.workflow-stepper')).not.toExist();
     expect(spectator.query('.model-library-card')).not.toExist();
     expect(spectator.element.textContent).not.toContain('Harbor AI Settings');
     expect(spectator.element.textContent).not.toContain('Harbor Assistant Search / Harbor Assistant Camera');
     expect(spectator.element.textContent).not.toContain('Local capabilities and model recommendations');
     expect(spectator.element.textContent).not.toContain('System diagnostics');
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
     expect(spectator.element.textContent?.toLowerCase()).not.toContain('fallback order');
   });
+
+  it.each([
+    [{ tab: 'settings' }, 'models'],
+    [{ tab: 'models' }, 'models'],
+    [{ tab: 'settings', section: 'models' }, 'models'],
+    [{ tab: 'settings', section: 'sources' }, 'sources'],
+    [{ tab: 'settings', section: 'connections' }, 'connections'],
+    [{ tab: 'messages' }, 'connections'],
+    [{ tab: 'settings', section: 'camera' }, 'camera'],
+    [{ tab: 'settings', section: 'diagnostics' }, 'diagnostics'],
+    [{ tab: 'settings', section: 'ai', focus: 'sources' }, 'sources'],
+  ])('restores the flat settings destination from %o', (params, destination) => {
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap(params)) })],
+    });
+    expect(spectator.query(`[data-settings-section="${destination}"]`)).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('[data-section="settings"]')).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('.workspace-navigation [data-section="models"]')).not.toExist();
+    expect(spectator.query('.workspace-navigation [data-section="sources"]')).not.toExist();
+    expect(spectator.query('.workspace-navigation [data-section="messages"]')).not.toExist();
+    expect(spectator.query('.ai-settings-subtabs')).not.toExist();
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
+    expect(api.createModelEndpoint).not.toHaveBeenCalled();
+  });
+
+  it('shows pinned media models and existing choices without rendering model test forms', () => {
+    configurePinnedMediaModels();
+    spectator = createComponent();
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Whisper 780M');
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Radeon 780M');
+    expect(spectator.query('[data-capability="tts"]')).toHaveText('Piper bilingual');
+    expect(spectator.query('[data-capability="vlm"]')).toHaveText('Qwen3.8 27B');
+    expect(spectator.query('[data-capability="photo_verification_careful"]')).toHaveText('Qwen2.5 VL 7B');
+    expect(spectator.query('.model-capability-list form')).not.toExist();
+    expect(spectator.query('ix-harbor-assistant-multimodal')).not.toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
+    expect(spectator.queryAll('.model-capability-list button').map((button) => button.textContent?.trim()))
+      .not.toContain('Test');
+    expect(spectator.query('[data-capability="tts"]')).not.toHaveText('More models');
+    spectator.click('[data-capability="photo_verification_careful"] .row-actions button');
+    expect(spectator.query('[data-capability="photo_verification_careful"] .inline-model-panel'))
+      .toHaveText('Qwen2.5 VL 7B');
+    expect(spectator.query('[data-capability="photo_verification_careful"] .inline-model-panel'))
+      .toHaveText('Qwen3.8 27B');
+    const component = spectator.component as unknown as { workflowCurrentModelMetadata: (kind: string) => string };
+    expect(component.workflowCurrentModelMetadata('asr')).toContain('11443');
+    expect(spectator.query('[data-capability="asr"] .model-current-cell')).not.toHaveText('127.0.0.1');
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(api.testModelEndpoint).not.toHaveBeenCalled();
+  });
+
+  it('selects an existing photo model through its own policy without changing other endpoints or policies', () => {
+    const policies = configurePinnedMediaModels();
+    spectator = createComponent();
+    spectator.click('[data-capability="photo_verification_careful"] .row-actions button');
+    const option = spectator.queryAll('[data-capability="photo_verification_careful"] .model-option-row')
+      .find((row) => row.textContent?.includes('Qwen3.8 27B'));
+    spectator.click(option?.querySelector('button') as HTMLButtonElement);
+    expect(api.saveModelPolicies).toHaveBeenCalledTimes(1);
+    const written = api.saveModelPolicies?.mock.calls[0][0].route_policies as Record<string, unknown>[];
+    expect(written.find((policy) => policy['route_policy_id'] === 'photo_verification_careful'))
+      .toEqual({ ...policies[1], metadata: { ...policies[1].metadata, model_endpoint_id: 'vision-27b' } });
+    expect(written.filter((policy) => policy['route_policy_id'] !== 'photo_verification_careful'))
+      .toEqual(policies.filter((policy) => policy.route_policy_id !== 'photo_verification_careful'));
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(api.createModelEndpoint).not.toHaveBeenCalled();
+    expect(api.selectModelCapability).not.toHaveBeenCalled();
+  });
+
+  it('does not replace an unavailable explicit ASR pin with the first active CPU endpoint', () => {
+    configurePinnedMediaModels('disabled');
+    spectator = createComponent();
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Model status unavailable');
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Unavailable');
+    expect(spectator.query('[data-capability="asr"]')).not.toHaveText('Whisper CPU');
+  });
+
+  it('shows the actual degraded pinned model status without claiming it is Ready', () => {
+    configurePinnedMediaModels('degraded');
+    spectator = createComponent();
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Whisper 780M');
+    expect(spectator.query('[data-capability="asr"]')).toHaveText('Needs check');
+    expect(spectator.query('[data-capability="asr"] .pill')).not.toHaveText('Ready');
+    expect(spectator.query('[data-capability="photo_verification_careful"]'))
+      .not.toHaveText('Choose an installed model below');
+  });
+
+  function configurePinnedMediaModels(asrStatus = 'active'): {
+    route_policy_id: string; metadata: Record<string, unknown>;
+  }[] {
+    const mediaEndpoint = (id: string, kind: string, name: string, port: number, device: string): object => ({
+      ...modelEndpoint(id, kind, name) as object,
+      metadata: { base_url: `http://127.0.0.1:${port}`, runtime_device: device },
+    });
+    const mediaPolicy = (id: string, metadata: Record<string, string>): {
+      route_policy_id: string; metadata: Record<string, string>;
+    } => ({ ...modelPolicy(id, 'strict_local', ['local']) as { route_policy_id: string }, metadata });
+    const endpoints = [
+      mediaEndpoint('asr-cpu', 'asr', 'Whisper CPU', 11438, 'CPU'),
+      { ...mediaEndpoint('asr-780m', 'asr', 'Whisper 780M', 11443, 'Radeon 780M'), status: asrStatus },
+      mediaEndpoint('vision-7b', 'vlm', 'Qwen2.5 VL 7B', 11444, 'W7900'),
+      mediaEndpoint('vision-27b', 'vlm', 'Qwen3.8 27B', 11442, 'W7900'),
+      mediaEndpoint('tts-local', 'tts', 'Piper bilingual', 11439, 'CPU'),
+    ];
+    const policies = [
+      mediaPolicy('retrieval.vision_summary', { model_endpoint_id: 'vision-27b' }),
+      mediaPolicy('photo_verification_careful', {
+        model_endpoint_id: 'vision-7b', fallback_endpoint_id: 'vision-27b',
+      }),
+      mediaPolicy('retrieval.asr', { model_endpoint_id: 'asr-780m' }),
+      mediaPolicy('assistant.tts', { model_endpoint_id: 'tts-local' }),
+    ];
+    api.selectModelCapability = jest.fn();
+    api.getModelEndpoints = jest.fn(() => of({ endpoints }));
+    api.getModelCapabilities = jest.fn(() => of({ capabilities: [], blockers: [], warnings: [] }));
+    api.getModelPolicies = jest.fn(() => of({ route_policies: policies }));
+    return policies;
+  }
 
   it('shows a loading state instead of empty model readiness while projections are pending', () => {
     spectator = createComponent();
@@ -153,18 +275,18 @@ describe('Harbor Assistant component', () => {
     spectator = createComponent({ providers: [{ provide: HarborAssistantContentApiService, useValue: content }] });
     const session = spectator.inject(AssistantSessionStore);
     session.bindUser('cold-embedder-test');
-    expect(spectator.query('.ai-status-toolbar')).toHaveText('Vector search model required');
+    expect(spectator.query('[data-capability="embedder"]')).not.toHaveText('Available');
     const previousSettingsCalls = api.getKnowledgeSettings?.mock.calls.length;
     session.updateDraft({ text: 'Read the indexed guide', retrievalMode: 'on' });
     session.send();
     spectator.detectChanges();
-    expect(spectator.query('.ai-status-toolbar')).toHaveText('Loading model status');
-    expect(spectator.query('.ai-settings-subtabs')).not.toHaveText('4/4 Ready');
+    expect(spectator.query('[data-testid="model-projection-loading"]')).toExist();
+    expect(spectator.query('.ai-settings-subtabs')).not.toExist();
     warmedCapabilities$.next(modelCapabilitiesWithEmbedder({ status: 'ready', runtime_ready: true }));
     warmedCapabilities$.complete();
     spectator.detectChanges();
-    expect(spectator.query('.ai-status-toolbar')).not.toHaveText('Vector search model required');
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('3/4 Ready');
+    expect(spectator.query('[data-capability="embedder"]')).toHaveText('Available');
+    expect(spectator.query('.ai-status-toolbar')).not.toExist();
     expect(api.getState).toHaveBeenCalledTimes(1);
     expect(api.getKnowledgeIndexStatus).toHaveBeenCalledTimes(1);
     expect(api.getKnowledgeSettings).toHaveBeenCalledTimes(previousSettingsCalls ?? 0);
@@ -208,8 +330,8 @@ describe('Harbor Assistant component', () => {
     expect(component.modelCapabilitiesResponse().capabilities.find((item) => item.capability_id === 'embedder')?.status)
       .toBe('ready');
     expect(component.rag().embedding_model.status).toBe('ready');
-    expect(spectator.query('.ai-status-toolbar')).not.toHaveText('Vector search model required');
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('3/4 Ready');
+    expect(spectator.query('[data-capability="embedder"]')).toHaveText('Available');
+    expect(spectator.query('.ai-status-toolbar')).not.toExist();
     expect(api.getState).toHaveBeenCalledTimes(1);
   });
 
@@ -266,20 +388,21 @@ describe('Harbor Assistant component', () => {
     spectator = createComponent({
       providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({})) })],
     });
-    spectator.click('[data-section="sources"]');
+    spectator.click('[data-section="settings"]');
+    spectator.click('[data-settings-section="sources"]');
     expect(spectator.query('.sources-settings-panel')).toExist();
-    expect(spectator.query('[data-section="sources"]')).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('[data-settings-section="sources"]')).toHaveAttribute('aria-current', 'page');
     expect(router.navigate).toHaveBeenLastCalledWith([], expect.objectContaining({
       queryParams: {
-        tab: 'settings', section: 'ai', focus: 'sources', node: null,
+        tab: 'settings', section: 'sources', focus: null, node: null,
       },
     }));
-    spectator.click('[data-section="models"]');
+    spectator.click('[data-settings-section="models"]');
     expect(spectator.query('.model-capability-list')).toExist();
-    expect(spectator.query('[data-section="models"]')).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('[data-settings-section="models"]')).toHaveAttribute('aria-current', 'page');
     expect(router.navigate).toHaveBeenLastCalledWith([], expect.objectContaining({
       queryParams: {
-        tab: 'settings', section: 'ai', focus: 'models', node: null,
+        tab: 'settings', section: 'models', focus: null, node: null,
       },
     }));
     spectator.click('[data-section="rules"]');
@@ -347,14 +470,14 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.workspace-readiness')).toHaveText('1 connected');
   });
 
-  it('redirects the legacy multimodal tab into Models settings while keeping tools embedded', () => {
+  it('redirects the legacy multimodal tab into Models settings while keeping model choices', () => {
     spectator = createComponent({
       providers: [mockProvider(ActivatedRoute, { queryParamMap: of(convertToParamMap({ tab: 'multimodal' })) })],
     });
     spectator.detectChanges();
     expect(spectator.query('.settings-tab')).toExist();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
-    expect(spectator.query('[data-section="models"]')).toHaveAttribute('aria-current', 'page');
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
+    expect(spectator.query('[data-settings-section="models"]')).toHaveAttribute('aria-current', 'page');
     expect(spectator.query('.model-capability-list')).toExist();
     expect(spectator.query('.workspace-tools')).not.toHaveText('Multimodal');
   });
@@ -370,9 +493,10 @@ describe('Harbor Assistant component', () => {
     };
 
     expect(spectator.query('.workspace-navigation')).toHaveText('Overview');
-    expect(spectator.query('.workspace-navigation')).toHaveText('Data sources');
-    expect(spectator.query('.workspace-navigation')).toHaveText('Models');
-    expect(spectator.query('.workspace-navigation')).toHaveText('Connections');
+    expect(spectator.query('.workspace-navigation')).not.toHaveText('Data sources');
+    expect(spectator.query('.workspace-navigation')).not.toHaveText('Models');
+    expect(spectator.query('.workspace-navigation')).not.toHaveText('Connections');
+    expect(spectator.query('.workspace-navigation')).toHaveText('Rules');
     expect(spectator.query('.workspace-tools')).toHaveText('Camera');
     expect(spectator.query('.workspace-tools')).not.toHaveText('Multimodal');
     expect(spectator.query('.workspace-tools')).toHaveText('Home Assistant');
@@ -402,7 +526,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -478,6 +602,11 @@ describe('Harbor Assistant component', () => {
     });
     spectator.detectChanges();
 
+    const component = spectator.component as unknown as {
+      modelsAdvancedOpen: { set: (value: boolean) => void };
+    };
+    component.modelsAdvancedOpen.set(true);
+    spectator.detectChanges();
     expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toExist();
     expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toHaveText('Routing status');
     expect(spectator.query('[data-testid="harbor-assistant-routing-status"]')).toHaveText('HarborOS System Domain');
@@ -1013,7 +1142,7 @@ describe('Harbor Assistant component', () => {
   it('opens the model subtab and shows product capability names', () => {
     spectator = createComponent();
 
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const panel = spectator.query('.model-capability-list');
@@ -1029,7 +1158,9 @@ describe('Harbor Assistant component', () => {
     expect(panel).not.toHaveText('Event detection');
     expect(panel?.textContent?.toLowerCase()).not.toContain('detector');
     expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({
-      queryParams: { tab: 'settings', section: 'ai', focus: 'models', node: null },
+      queryParams: {
+        tab: 'settings', section: 'models', focus: null, node: null,
+      },
     }));
   });
 
@@ -1082,10 +1213,10 @@ describe('Harbor Assistant component', () => {
     });
     expect(component.workflowCurrentModelName('semantic_router')).toBe('harbor-local-chat');
     expect(component.workflowCurrentModelDetail('semantic_router')).toBe('模型服务需要检查');
-    expect(spectator.query('.ai-settings-subtabs')).toHaveText('0/4 Ready');
-    expect(spectator.query('.ai-settings-subtabs')).not.toHaveText('4/4 Configured');
+    expect(component.aiSettingsTabs().find((tab) => tab.id === 'models')?.summary).toBe('0/4 Ready');
+    expect(spectator.query('.ai-settings-subtabs')).not.toExist();
 
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const questionRow = spectator.queryAll('.model-capability-row')[0];
@@ -1097,7 +1228,7 @@ describe('Harbor Assistant component', () => {
   it('shows installed models only after opening the vector retrieval model chooser', () => {
     spectator = createComponent();
 
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1132,7 +1263,7 @@ describe('Harbor Assistant component', () => {
     }));
     spectator = createComponent();
 
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1211,6 +1342,7 @@ describe('Harbor Assistant component', () => {
       ],
     });
 
+    spectator.click('[data-settings-section="sources"]');
     spectator.click(spectator.query('.source-roots-card .table-row button'));
     spectator.detectChanges();
 
@@ -1237,7 +1369,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     expect(spectator.query('.model-library-card')).not.toExist();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1276,7 +1408,7 @@ describe('Harbor Assistant component', () => {
     api.getLocalModelDownloads = jest.fn(() => of({ jobs: [failedJob] }));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1327,7 +1459,7 @@ describe('Harbor Assistant component', () => {
     api.getLocalModelDownloads = jest.fn(() => of({ jobs: [oldFailedJob, latestJob] }));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1388,7 +1520,7 @@ describe('Harbor Assistant component', () => {
     }));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1400,7 +1532,8 @@ describe('Harbor Assistant component', () => {
 
     const panel = spectator.query('.model-capability-row .inline-model-panel');
     expect(panel).toHaveText('Qwen3.5 4B');
-    expect(panel).toHaveText('/mnt/models/qwen3.5-4b');
+    expect(panel).toHaveText('Qwen/Qwen3.5-4B');
+    expect(panel).not.toHaveText('/mnt/models/qwen3.5-4b');
     expect(panel).toHaveText('Select');
   });
 
@@ -1439,7 +1572,7 @@ describe('Harbor Assistant component', () => {
     })));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1485,7 +1618,7 @@ describe('Harbor Assistant component', () => {
     api.selectModelCapability = jest.fn();
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1590,7 +1723,7 @@ describe('Harbor Assistant component', () => {
     }));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1646,7 +1779,7 @@ describe('Harbor Assistant component', () => {
     }));
 
     spectator = createComponent();
-    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.click('[data-settings-section="models"]');
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
@@ -1691,7 +1824,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -1745,7 +1878,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -1806,7 +1939,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -1890,7 +2023,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -1945,7 +2078,7 @@ describe('Harbor Assistant component', () => {
     component.selectTab('settings');
     component.selectSettingsSection('ai');
     spectator.detectChanges();
-    expect(spectator.query('.integrated-multimodal-panel')).toExist();
+    expect(spectator.query('.integrated-multimodal-panel')).not.toExist();
 
     component.selectSettingsSection('camera');
     spectator.detectChanges();
@@ -1968,11 +2101,12 @@ describe('Harbor Assistant component', () => {
     expect(api.deleteDevice).toHaveBeenCalledWith('cam-tp1');
   });
 
-  it('shows cloud API settings only in the cloud subtab', () => {
+  it('keeps Cloud API configuration collapsed within Models and restores its legacy focus', () => {
     spectator = createComponent();
     spectator.detectChanges();
 
-    expect(spectator.query('[formcontrolname="baseUrl"]')).not.toExist();
+    expect(spectator.query('details.cloud-model-settings')).not.toHaveAttribute('open');
+    expect(spectator.query('.model-capability-list')).toExist();
 
     const component = spectator.component as unknown as {
       selectAiSettingsTab: (tab: 'cloud-api') => void;

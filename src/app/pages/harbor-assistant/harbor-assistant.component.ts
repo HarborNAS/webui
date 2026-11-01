@@ -26,12 +26,6 @@ import { catchError, finalize, map, retry, switchMap, timeout } from 'rxjs/opera
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
-import { HarborAssistantMultimodalComponent } from 'app/pages/harbor-assistant/multimodal/harbor-assistant-multimodal.component';
-import {
-  HarborAssistantFolderBrowserDialogComponent,
-  HarborAssistantFolderBrowserDialogData,
-  HarborAssistantFolderBrowserDialogResult,
-} from 'app/pages/harbor-assistant/shared/harbor-assistant-folder-browser-dialog.component';
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
@@ -110,6 +104,11 @@ import {
   RoutingStatusResponse,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
+import {
+  HarborAssistantFolderBrowserDialogComponent,
+  HarborAssistantFolderBrowserDialogData,
+  HarborAssistantFolderBrowserDialogResult,
+} from 'app/pages/harbor-assistant/shared/harbor-assistant-folder-browser-dialog.component';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
 import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
@@ -251,6 +250,7 @@ interface CustomerModelCard {
   evidence: string[];
   section: CustomerModelSection;
   catalogModel: LocalModelCatalogItem | null;
+  configuredEndpoint?: boolean;
 }
 
 interface RagValidationStat {
@@ -270,6 +270,7 @@ interface RagSourceRootSummary {
 
 type AiSettingsTabId = 'sources' | 'models' | 'cloud-api';
 type AssistantSettingsSectionId = 'ai' | 'camera' | 'diagnostics';
+type SettingsDestination = 'models' | 'sources' | 'connections' | 'camera' | 'diagnostics';
 type CloudUsageMode = 'local_only' | 'local_first_cloud' | 'selected_capabilities';
 type CloudCapabilityId = 'semantic_router' | 'retrieval_answer';
 
@@ -281,7 +282,7 @@ interface AiSettingsTab {
 }
 
 interface AssistantSettingsSection {
-  id: AssistantSettingsSectionId;
+  id: SettingsDestination;
   label: string;
   detail: string;
 }
@@ -453,7 +454,6 @@ export const harborAssistantI18nMarkers = [
     NgClass,
     HarborAssistantCameraComponent,
     HarborAssistantHomeAssistantComponent,
-    HarborAssistantMultimodalComponent,
     PageHeaderComponent,
     ReactiveFormsModule,
     RouterLink,
@@ -483,7 +483,9 @@ export class HarborAssistantComponent implements OnInit {
   ];
 
   protected readonly settingsSections: AssistantSettingsSection[] = [
-    { id: 'ai', label: T('AI settings'), detail: '' },
+    { id: 'models', label: T('Models'), detail: '' },
+    { id: 'sources', label: T('Data sources'), detail: '' },
+    { id: 'connections', label: T('Connections'), detail: '' },
     { id: 'camera', label: T('Camera settings'), detail: '' },
     { id: 'diagnostics', label: T('Diagnostics'), detail: '' },
   ];
@@ -568,7 +570,7 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly scanCredentialCandidateId = signal<string | null>(null);
   protected readonly scanCredentialError = signal<string | null>(null);
   protected readonly scanCredentialPasswordVisible = signal(false);
-  protected readonly activeAiSettingsTab = signal<AiSettingsTabId>('sources');
+  protected readonly activeAiSettingsTab = signal<AiSettingsTabId>('models');
   protected readonly modelEndpointEditingId = signal<string | null>(null);
   protected readonly modelsAdvancedOpen = signal(false);
   protected readonly modelLibraryOpen = signal(false);
@@ -952,14 +954,14 @@ export class HarborAssistantComponent implements OnInit {
           this.activeTab.set('overview');
           this.rulesDrawerOpen.set(false);
           this.activeSettingsSection.set('ai');
-          this.activeAiSettingsTab.set('sources');
+          this.activeAiSettingsTab.set('models');
           return;
         }
         const tab = this.normalizeTab(rawTab);
         if (tab) {
           this.activeTab.set(tab);
           this.rulesDrawerOpen.set(tab === 'rules');
-          if (rawTab?.trim().toLowerCase() === 'multimodal') {
+          if (['multimodal', 'models'].includes(rawTab?.trim().toLowerCase() ?? '')) {
             this.activeSettingsSection.set('ai');
             this.activeAiSettingsTab.set('models');
           }
@@ -967,10 +969,16 @@ export class HarborAssistantComponent implements OnInit {
             this.assistantSession.resultsOpen.set(true);
           }
         }
+        if (params.get('section')?.toLowerCase() === 'connections') {
+          this.activeTab.set('messages');
+        }
         const settingsSection = this.normalizeSettingsSection(params.get('section'));
         if (settingsSection) {
           this.activeTab.set('settings');
           this.activeSettingsSection.set(settingsSection);
+          if (settingsSection === 'ai') {
+            this.activeAiSettingsTab.set(['sources', 'data-sources', 'data', 'rag'].includes(params.get('section') ?? '') ? 'sources' : 'models');
+          }
         }
         const settingsFocus = this.normalizeAiSettingsTab(focusValue);
         if (settingsFocus && this.shouldApplyAiFocus(rawTab, params.get('section'))) {
@@ -1372,6 +1380,35 @@ export class HarborAssistantComponent implements OnInit {
     }
   }
 
+  protected selectSettingsDestination(destination: SettingsDestination): void {
+    this.rulesDrawerOpen.set(false);
+    this.activeTab.set(destination === 'connections' ? 'messages' : 'settings');
+    if (destination === 'models' || destination === 'sources') {
+      this.activeSettingsSection.set('ai');
+      this.activeAiSettingsTab.set(destination);
+    } else if (destination !== 'connections') {
+      this.activeSettingsSection.set(destination);
+    }
+    this.router.navigate([], {
+      relativeTo: this.route,
+      queryParams: {
+        tab: 'settings', section: destination, focus: null, node: null,
+      },
+      queryParamsHandling: 'merge',
+      replaceUrl: true,
+    });
+  }
+
+  protected isSettingsDestination(destination: SettingsDestination): boolean {
+    if (destination === 'connections') {
+      return this.isTab('messages');
+    }
+    if (destination === 'models') {
+      return this.isAiDestination('models') || this.isAiDestination('cloud-api');
+    }
+    return destination === 'sources' ? this.isAiDestination('sources') : this.isSettingsSection(destination);
+  }
+
   protected selectSettingsSection(sectionId: AssistantSettingsSectionId): void {
     this.rulesDrawerOpen.set(false);
     this.activeTab.set('settings');
@@ -1385,7 +1422,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected isSettingsSection(sectionId: AssistantSettingsSectionId): boolean {
-    return this.activeSettingsSection() === sectionId;
+    return this.isTab('settings') && this.activeSettingsSection() === sectionId;
   }
 
   protected selectAiSettingsTab(tabId: AiSettingsTabId): void {
@@ -2000,6 +2037,8 @@ export class HarborAssistantComponent implements OnInit {
 
   protected modelRecommendationLabel(card: CustomerModelCard): string {
     switch (card.recommendationGroup) {
+      case 'configured':
+        return T('Available');
       case 'lightweight_local':
         return T('Lightweight local');
       case 'installed_not_recommended':
@@ -2188,6 +2227,22 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected useInstalledModel(card: CustomerModelCard): void {
+    if (card.configuredEndpoint && card.endpoint) {
+      const policy = this.mediaPolicyForCapability(card.capabilityId ?? card.kind);
+      if (!policy) {
+        this.actionError.set(T('This capability has no configurable model policy.'));
+        return;
+      }
+      const routePolicies = this.modelPolicies().map((candidate) => (candidate === policy
+        ? { ...candidate, metadata: { ...candidate.metadata, model_endpoint_id: card.endpoint?.model_endpoint_id } }
+        : candidate));
+      this.runAction(
+        `model-endpoint-select:${card.modelId}`,
+        this.harborAssistantApi.saveModelPolicies({ route_policies: routePolicies }),
+        T('Model selected.'),
+      );
+      return;
+    }
     const externalRuntimeOnly = this.modelUsesExternalRuntime(card.runtimeProfiles)
       && !this.modelUsesManagedRuntime(card.runtimeProfiles);
     if (card.capabilityId && !externalRuntimeOnly) {
@@ -2267,6 +2322,8 @@ export class HarborAssistantComponent implements OnInit {
         return 'ocr-local-tesseract';
       case 'asr':
         return 'asr-local-openai-compatible';
+      case 'tts':
+        return 'tts-local';
       case 'llm':
       case 'chat':
       default:
@@ -2700,6 +2757,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowModelChoices(kind: string): CustomerModelCard[] {
+    const endpointChoices = this.configuredEndpointChoices(kind);
     const capability = this.workflowCapabilityForKind(kind);
     if (capability) {
       const matchKind = capability.model_kind || kind;
@@ -2718,6 +2776,7 @@ export class HarborAssistantComponent implements OnInit {
         .map((card) => this.withCapabilityContext(card, capability.capability_id))
         .slice(0, installed.length || catalogInstalled.length ? 4 : 8);
       return this.uniqueModelCards([
+        ...endpointChoices,
         ...installed,
         ...catalogInstalled,
         ...available,
@@ -2731,8 +2790,9 @@ export class HarborAssistantComponent implements OnInit {
     const available = this.customerModelCards()
       .filter((card) => card.section === 'available' && this.modelCardMatchesWorkflowKind(card, kind))
       .slice(0, 6);
-    return this.uniqueModelCards([...installed, ...available, ...this.workflowCloudModelChoices(kind)])
-      .slice(0, 12);
+    return this.uniqueModelCards([
+      ...endpointChoices, ...installed, ...available, ...this.workflowCloudModelChoices(kind),
+    ]).slice(0, 12);
   }
 
   protected workflowCurrentModelName(kind: string): string {
@@ -2744,6 +2804,15 @@ export class HarborAssistantComponent implements OnInit {
     }
 
     const capability = this.workflowCapabilityForKind(kind);
+    const policy = this.mediaPolicyForCapability(kind);
+    if (typeof policy?.metadata?.['model_endpoint_id'] === 'string') {
+      const pinned = this.workflowCurrentEndpoint(kind);
+      return pinned ? this.metadataString(pinned, 'model_label') || pinned.model_name : T('Model status unavailable');
+    }
+    const actualModelName = capability?.current_model?.model_name?.trim();
+    if (actualModelName) {
+      return actualModelName;
+    }
     if (capability?.selected_model_id) {
       const selected = [
         ...(capability.installed_models ?? []),
@@ -2777,28 +2846,22 @@ export class HarborAssistantComponent implements OnInit {
     if (capability) {
       return this.modelCapabilityUserStatus(capability);
     }
-    const current = this.currentModelCards().find((card) => card.kind === kind);
-    if (!current?.endpoint) {
+    const current = this.workflowCurrentEndpoint(kind);
+    if (!current) {
       return T('Choose an installed model below, or open more models to download one.');
     }
-    if (current.localPath) {
-      return current.localPath;
-    }
     return T('Local model service');
+  }
+
+  protected workflowCurrentModelDevice(kind: string): string {
+    return this.metadataString(this.workflowCurrentEndpoint(kind), 'runtime_device');
   }
 
   protected workflowCurrentModelMetadata(kind: string): string {
     if (this.modelProjectionLoading() || this.modelProjectionIncomplete()) {
       return '';
     }
-    const capability = this.workflowCapabilityForKind(kind);
-    const endpoint = capability?.current_model?.model_endpoint_id
-      ? this.modelEndpoints().find((candidate) => candidate.model_endpoint_id === capability.current_model?.model_endpoint_id)
-        ?? this.workflowCurrentEndpoint(kind)
-      : this.currentModelCards().find((card) => {
-        const endpointKind = ['semantic_router', 'retrieval_answer'].includes(kind) ? 'llm' : kind;
-        return card.kind === endpointKind;
-      })?.endpoint ?? this.workflowCurrentEndpoint(kind);
+    const endpoint = this.workflowCurrentEndpoint(kind);
     if (!endpoint) {
       return '';
     }
@@ -2842,7 +2905,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected workflowCurrentEndpoint(kind: string): ModelEndpointRecord | null {
-    return this.currentModelCards().find((card) => card.kind === kind)?.endpoint ?? null;
+    return this.configuredEndpointForCapability(kind);
   }
 
   protected workflowCapabilityStatusLabel(kind: string): string {
@@ -2853,24 +2916,26 @@ export class HarborAssistantComponent implements OnInit {
       return T('Unavailable');
     }
     const capability = this.workflowCapabilityForKind(kind);
+    if (this.mediaPolicyForCapability(kind)?.metadata?.['model_endpoint_id'] && !this.workflowCurrentEndpoint(kind)) {
+      return T('Unavailable');
+    }
     if (capability) {
       return this.userStatusLabel(capability.status);
     }
-    return this.workflowCurrentEndpoint(kind) ? T('Ready') : T('No model selected yet');
+    const endpoint = this.workflowCurrentEndpoint(kind);
+    return endpoint ? this.userStatusLabel(endpoint.status) : T('No model selected yet');
   }
 
   protected workflowCapabilityToneClass(kind: string): string {
     return `tone-${this.modelCapabilityTone(kind)}`;
   }
 
-  protected workflowTestEndpoint(kind: string): ModelEndpointRecord | null {
-    const capability = this.workflowCapabilityForKind(kind);
-    const endpointId = capability?.current_model?.model_endpoint_id;
-    if (endpointId) {
-      return this.modelEndpoints().find((endpoint) => endpoint.model_endpoint_id === endpointId)
-        ?? this.workflowCurrentEndpoint(kind);
+  protected canBrowseCapabilityModels(kind: string): boolean {
+    if (kind === 'photo_verification_careful') {
+      return false;
     }
-    return this.workflowCurrentEndpoint(kind);
+    return kind !== 'tts' || this.workflowAvailableModelChoices(kind).length > 0
+      || this.workflowDownloadingModelChoices(kind).length > 0;
   }
 
   protected modelCapabilityChooserOpen(capabilityId: string): boolean {
@@ -3674,6 +3739,15 @@ export class HarborAssistantComponent implements OnInit {
         cloudCapability: null,
       },
       {
+        id: 'photo-verification',
+        capabilityId: 'photo_verification_careful',
+        label: T('Photo verification'),
+        detail: T('Check the visible content of photos when using Careful responses.'),
+        kind: 'vlm',
+        optional: true,
+        cloudCapability: null,
+      },
+      {
         id: 'ocr',
         capabilityId: 'ocr',
         label: T('Text recognition'),
@@ -3688,6 +3762,15 @@ export class HarborAssistantComponent implements OnInit {
         label: T('Speech-to-text'),
         detail: T('Extract speech text from audio and video.'),
         kind: 'asr',
+        optional: true,
+        cloudCapability: null,
+      },
+      {
+        id: 'tts',
+        capabilityId: 'tts',
+        label: T('Text-to-speech'),
+        detail: T('Read replies aloud with the configured voice model.'),
+        kind: 'tts',
         optional: true,
         cloudCapability: null,
       },
@@ -3826,6 +3909,9 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private modelCapabilityHasVisibleChoices(kind: string): boolean {
+    if (this.mediaPolicyForCapability(kind)?.metadata?.['model_endpoint_id']) {
+      return true;
+    }
     const capability = this.workflowCapabilityForKind(kind);
     if (capability) {
       return Boolean(
@@ -3912,6 +3998,9 @@ export class HarborAssistantComponent implements OnInit {
       return 'danger';
     }
     const capability = this.workflowCapabilityForKind(kind);
+    if (this.mediaPolicyForCapability(kind)?.metadata?.['model_endpoint_id'] && !this.workflowCurrentEndpoint(kind)) {
+      return 'danger';
+    }
     if (capability) {
       switch (capability.status) {
         case 'ready':
@@ -3925,9 +4014,9 @@ export class HarborAssistantComponent implements OnInit {
           return 'danger';
       }
     }
-    const current = this.currentModelCards().find((card) => card.kind === kind);
+    const current = this.workflowCurrentEndpoint(kind);
     const installedChoices = this.workflowModelChoices(kind);
-    const configured = current && current.tone === 'good';
+    const configured = current && this.statusTone(current.status) === 'good';
     return configured ? 'good' : installedChoices.length > 0 ? 'warn' : 'danger';
   }
 
@@ -4139,7 +4228,7 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private buildCurrentModelCards(): CurrentModelCard[] {
-    return ['llm', 'vlm', 'embedder', 'ocr', 'asr'].map((kind) => {
+    return ['llm', 'vlm', 'embedder', 'ocr', 'asr', 'tts'].map((kind) => {
       const endpoint = this.currentEndpointByKind(kind);
       const catalogModel = endpoint ? this.catalogModelForEndpoint(endpoint) : null;
       const endpointModelName = endpoint?.model_name ?? '';
@@ -4287,8 +4376,89 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private currentEndpointByKind(kind: string): ModelEndpointRecord | null {
-    const endpoints = this.modelEndpoints().filter((endpoint) => this.endpointKindMatches(endpoint, kind));
-    return endpoints.find((endpoint) => this.statusTone(endpoint.status) === 'good') ?? endpoints[0] ?? null;
+    return this.configuredEndpointForCapability(kind);
+  }
+
+  private mediaPolicyForCapability(kind: string): ModelRoutePolicyRecord | null {
+    const policies: Record<string, string> = {
+      vlm: 'retrieval.vision_summary',
+      photo_verification_careful: 'photo_verification_careful',
+      asr: 'retrieval.asr',
+      tts: 'assistant.tts',
+    };
+    return this.modelPolicies().find((policy) => policy.route_policy_id === policies[kind]) ?? null;
+  }
+
+  private endpointKindForCapability(kind: string): string {
+    if (kind === 'photo_verification_careful') {
+      return 'vlm';
+    }
+    return ['semantic_router', 'retrieval_answer'].includes(kind) ? 'llm' : kind;
+  }
+
+  private configuredEndpointForCapability(kind: string): ModelEndpointRecord | null {
+    const modelKind = this.endpointKindForCapability(kind);
+    const endpoints = this.modelEndpoints().filter((endpoint) => this.endpointKindMatches(endpoint, modelKind));
+    const policy = this.mediaPolicyForCapability(kind);
+    if (kind === 'photo_verification_careful' && !policy) {
+      return null;
+    }
+    const pin = policy?.metadata?.['model_endpoint_id'];
+    if (typeof pin === 'string' && pin.trim()) {
+      return endpoints.find((endpoint) => endpoint.model_endpoint_id === pin && endpoint.status !== 'disabled'
+        && (!endpoint.workspace_id || endpoint.workspace_id === policy?.workspace_id)) ?? null;
+    }
+    const currentId = this.workflowCapabilityForKind(kind)?.current_model?.model_endpoint_id;
+    return endpoints.find((endpoint) => endpoint.model_endpoint_id === currentId)
+      ?? endpoints.find((endpoint) => this.statusTone(endpoint.status) === 'good') ?? endpoints[0] ?? null;
+  }
+
+  private configuredEndpointChoices(kind: string): CustomerModelCard[] {
+    const modelKind = this.endpointKindForCapability(kind);
+    const current = this.configuredEndpointForCapability(kind);
+    const policy = this.mediaPolicyForCapability(kind);
+    if (!policy) {
+      return [];
+    }
+    return this.modelEndpoints().filter((endpoint) => this.endpointKindMatches(endpoint, modelKind)
+      && endpoint.endpoint_kind === 'local' && endpoint.status === 'active'
+      && (!policy || !endpoint.workspace_id || endpoint.workspace_id === policy.workspace_id)
+      && (Boolean(policy) || endpoint.model_endpoint_id === current?.model_endpoint_id))
+      .map((endpoint) => {
+        const selected = endpoint.model_endpoint_id === current?.model_endpoint_id;
+        return {
+          key: `configured-endpoint:${kind}:${endpoint.model_endpoint_id}`,
+          modelId: endpoint.model_endpoint_id,
+          capabilityId: kind,
+          displayName: this.metadataString(endpoint, 'model_label') || endpoint.model_name,
+          providerKey: endpoint.provider_key,
+          kind: modelKind,
+          source: this.metadataString(endpoint, 'runtime_backend_kind') || endpoint.provider_key,
+          capabilities: [modelKind],
+          sizeHint: '',
+          hardware: this.metadataString(endpoint, 'runtime_device'),
+          hardwareFit: 'compatible',
+          fitReason: '',
+          recommendationGroup: 'configured',
+          status: endpoint.status,
+          tone: 'good' as HarborAssistantStatusTone,
+          localPath: null,
+          downloadJob: null,
+          endpoint,
+          action: selected ? 'current' as const : 'set-current' as const,
+          actionLabel: selected ? T('Selected') : T('Select'),
+          progressLabel: null,
+          bytesLabel: null,
+          speedLabel: null,
+          errorMessage: null,
+          runtimeGuidance: null,
+          runtimeProfiles: [],
+          evidence: [],
+          section: 'installed' as const,
+          catalogModel: null,
+          configuredEndpoint: true,
+        };
+      });
   }
 
   private endpointForModel(model: LocalModelCatalogItem): ModelEndpointRecord | null {
@@ -6307,7 +6477,7 @@ export class HarborAssistantComponent implements OnInit {
     if (normalized === 'search' || normalized === 'chat') {
       return 'overview';
     }
-    if (normalized === 'multimodal') {
+    if (normalized === 'multimodal' || normalized === 'models') {
       return 'settings';
     }
     return this.tabs.some((candidate) => candidate.id === normalized) ? normalized as HarborAssistantTabId : null;
@@ -6320,6 +6490,7 @@ export class HarborAssistantComponent implements OnInit {
       case 'rag':
       case 'data':
       case 'sources':
+      case 'data-sources':
         return 'ai';
       case 'camera':
       case 'cameras':
