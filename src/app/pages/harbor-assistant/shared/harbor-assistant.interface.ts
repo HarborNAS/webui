@@ -48,6 +48,9 @@ export interface HarborAssistantSearchReplyPack {
 
 export interface HarborAssistantSearchResponse {
   model?: string | Record<string, unknown> | null;
+  verification_status?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: { status?: string; [key: string]: unknown };
   conversation_id?: string;
   query: string;
   roots: string[];

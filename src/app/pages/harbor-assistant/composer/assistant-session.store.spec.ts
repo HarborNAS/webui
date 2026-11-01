@@ -158,6 +158,16 @@ describe('AssistantSessionStore', () => {
     expect(api.search).not.toHaveBeenCalled();
   });
 
+  it('defaults new and legacy drafts to fast while preserving an explicit automatic preference', () => {
+    expect(store.draft().responsePreference).toBe('fast');
+    sessionStorage.setItem('harborAssistant.composer.v1:legacy', JSON.stringify({ draft: { responsePreference: 'invalid' } }));
+    store.bindUser('legacy');
+    expect(store.draft().responsePreference).toBe('fast');
+    sessionStorage.setItem('harborAssistant.composer.v1:automatic', JSON.stringify({ draft: { responsePreference: 'auto' } }));
+    store.bindUser('automatic');
+    expect(store.draft().responsePreference).toBe('auto');
+  });
+
   it('opens server history and never fabricates a local history success', () => {
     api.conversations.mockReturnValue(throwError(() => new Error('404 Not Found')));
     store.refreshHistory();

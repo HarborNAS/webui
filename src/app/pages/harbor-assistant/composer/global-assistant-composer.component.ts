@@ -183,6 +183,20 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
     return response.reply_pack?.summary?.trim() ?? '';
   }
 
+  protected verificationNotice(response: HarborAssistantSearchResponse): string | null {
+    const status = response.verification_status ?? response.image_verification?.status;
+    if (status === 'skipped') {
+      return 'Indexed results · not visually verified';
+    }
+    if (status === 'completed') {
+      return 'Visual verification completed';
+    }
+    if (status === 'degraded' || status === 'failed') {
+      return 'Visual verification incomplete · review the blockers';
+    }
+    return null;
+  }
+
   protected answerNotice(response: HarborAssistantSearchResponse): string {
     if (response.degraded || response.blockers?.length || response.warnings?.length) {
       return 'Knowledge search returned a degraded result. Review the blockers and indexed evidence before relying on it.';

@@ -4,7 +4,7 @@ import { MatButtonHarness } from '@angular/material/button/testing';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
 import { of, Subject, throwError } from 'rxjs';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
-import { ModelEndpointRecord } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
+import { ModelEndpointRecord, ModelRoutePolicyRecord } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantMultimodalApiService } from 'app/pages/harbor-assistant/multimodal/harbor-assistant-multimodal-api.service';
 import { HarborAssistantMultimodalComponent } from 'app/pages/harbor-assistant/multimodal/harbor-assistant-multimodal.component';
 
@@ -89,6 +89,18 @@ describe('HarborAssistantMultimodalComponent', () => {
     expect(spectator.element.textContent).toContain('active · piper');
     expect(spectator.element.textContent).toContain('Persistent: true');
     expect(spectator.queryAll('.multimodal-status .blocker')).toHaveLength(2);
+  });
+
+  it('shows the active ASR policy pin instead of an earlier active CPU fallback', () => {
+    const cpu = { model_endpoint_id: 'asr-local', model_kind: 'asr', status: 'active', model_name: 'CPU fallback' } as ModelEndpointRecord;
+    const igpu = { model_endpoint_id: 'asr-local-whisper-igpu', model_kind: 'asr', status: 'active', model_name: '780M ASR' } as ModelEndpointRecord;
+    const policy = { route_policy_id: 'retrieval.asr', status: 'active', metadata: { model_endpoint_id: igpu.model_endpoint_id } } as ModelRoutePolicyRecord;
+    spectator = createComponent({ props: { endpoints: [cpu, igpu], routePolicies: [policy] } });
+    expect(spectator.element.textContent).toContain('780M ASR');
+    expect(spectator.element.textContent).not.toContain('CPU fallback');
+    spectator.setInput('routePolicies', [{ ...policy, metadata: { model_endpoint_id: 'missing' } }]);
+    expect(spectator.queryAll('.multimodal-status .blocker')).toHaveLength(3);
+    expect(spectator.element.textContent).not.toContain('CPU fallback');
   });
 
   it('rejects invalid or oversized image and audio files before any endpoint request', () => {

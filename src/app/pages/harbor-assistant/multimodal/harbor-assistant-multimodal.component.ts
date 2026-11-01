@@ -6,7 +6,7 @@ import { MatButton } from '@angular/material/button';
 import { TranslateModule } from '@ngx-translate/core';
 import { finalize } from 'rxjs/operators';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
-import { ModelEndpointRecord } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
+import { ModelEndpointRecord, ModelRoutePolicyRecord } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import {
   AssistantAudioLanguage,
   AssistantMultimodalKind,
@@ -38,14 +38,22 @@ export class HarborAssistantMultimodalComponent {
   private speechSequence = 0;
 
   readonly endpoints = input<readonly ModelEndpointRecord[]>([]);
+  readonly routePolicies = input<readonly ModelRoutePolicyRecord[]>([]);
   readonly endpointsLoading = input(false);
   readonly endpointsError = input<string | null>(null);
   protected readonly statuses = computed<MultimodalStatus[]>(() => {
-    return (['vlm', 'asr', 'tts'] as const).map((kind) => ({
-      kind,
-      endpoint: this.endpoints().find((endpoint) => endpoint.model_kind === kind && endpoint.status === 'active')
-        ?? this.endpoints().find((endpoint) => endpoint.model_kind === kind),
-    }));
+    const policies = { vlm: 'retrieval.vision_summary', asr: 'retrieval.asr', tts: 'assistant.tts' };
+    return (['vlm', 'asr', 'tts'] as const).map((kind) => {
+      const policy = this.routePolicies().find((candidate) => candidate.route_policy_id === policies[kind]);
+      const pin = policy?.metadata?.['model_endpoint_id'];
+      const endpoint = typeof pin === 'string' && pin.trim()
+        ? policy?.status === 'active'
+          ? this.endpoints().find((candidate) => candidate.model_endpoint_id === pin && candidate.model_kind === kind && candidate.status === 'active')
+          : undefined
+        : this.endpoints().find((candidate) => candidate.model_kind === kind && candidate.status === 'active')
+          ?? this.endpoints().find((candidate) => candidate.model_kind === kind);
+      return { kind, endpoint };
+    });
   });
 
   protected readonly imageName = signal('');

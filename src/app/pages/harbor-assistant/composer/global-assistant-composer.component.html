@@ -18,6 +18,9 @@
             } @else {
               <p class="assistant-warning" role="status">{{ answerNotice(response) | translate }}</p>
             }
+            @if (verificationNotice(response); as notice) {
+              <p class="assistant-verification-status" role="status">{{ notice | translate }}</p>
+            }
             @if (response.images?.length) {
               <section class="assistant-photo-grid" aria-label="Photo results">
                 @for (image of response.images; track image.path; let photoIndex = $index) {
