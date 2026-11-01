@@ -109,13 +109,6 @@
             <option value="off">{{ 'Ordinary chat' | translate }}</option>
           </select>
         </label>
-        <label>{{ 'Response preference' | translate }}
-          <select [ngModel]="session.draft().responsePreference" (ngModelChange)="setResponsePreference($event)">
-            <option value="auto">{{ 'Automatic' | translate }}</option>
-            <option value="fast">{{ 'Fast · indexed results first' | translate }}</option>
-            <option value="careful">{{ 'Careful · visual verification' | translate }}</option>
-          </select>
-        </label>
         <strong>{{ 'Knowledge folders' | translate }}</strong>
         @if (session.sources().length === 0) { <p>{{ 'No enabled knowledge folders are configured.' | translate }}</p> }
         @for (source of session.sources(); track source.root_id) {
@@ -165,12 +158,27 @@
         <button mat-menu-item type="button" [disabled]="session.busy()" (click)="session.newConversation()">{{ 'New conversation' | translate }}</button>
         <button mat-menu-item type="button" (click)="openOptions('history')">{{ 'Conversation history' | translate }}</button>
       </mat-menu>
+      <button class="assistant-response-preference" type="button" [matMenuTriggerFor]="responsePreferences"
+        [attr.aria-label]="('Response preference' | translate) + ': ' + (responsePreferenceLabel() | translate)">
+        <span>{{ responsePreferenceLabel() | translate }}</span><span class="assistant-menu-caret" aria-hidden="true">▾</span>
+      </button>
+      <mat-menu #responsePreferences="matMenu" yPosition="above">
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'fast'" (click)="setResponsePreference('fast')">
+          {{ 'Fast · indexed results first' | translate }}
+        </button>
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'careful'" (click)="setResponsePreference('careful')">
+          {{ 'Careful · visual verification' | translate }}
+        </button>
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'auto'" (click)="setResponsePreference('auto')">
+          {{ 'Automatic · match the request' | translate }}
+        </button>
+      </mat-menu>
       <div class="assistant-context-chips">
         @if (session.draft().retrievalMode !== 'auto') {
           <button type="button" (click)="session.updateDraft({retrievalMode: 'auto'})">{{ session.draft().retrievalMode === 'off' ? ('Ordinary chat' | translate) : ('Force retrieval' | translate) }} ×</button>
-        }
-        @if (session.draft().responsePreference !== 'auto') {
-          <button type="button" (click)="session.updateDraft({responsePreference: 'auto'})">{{ session.draft().responsePreference === 'fast' ? ('Fast' | translate) : ('Careful' | translate) }} ×</button>
         }
         @for (source of session.sources(); track source.root_id) {
           @if (session.draft().sourceRootIds.includes(source.root_id)) { <button type="button" (click)="session.toggleSource(source.root_id)">{{ source.label || source.path }} ×</button> }

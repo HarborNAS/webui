@@ -162,6 +162,16 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
     this.session.updateDraft({ retrievalMode: value as AssistantRetrievalMode });
   }
 
+  protected responsePreferenceLabel(): string {
+    if (this.session.draft().responsePreference === 'fast') {
+      return 'Fast';
+    }
+    if (this.session.draft().responsePreference === 'careful') {
+      return 'Careful';
+    }
+    return 'Automatic';
+  }
+
   protected setResponsePreference(value: string): void {
     this.session.updateDraft({ responsePreference: value as AssistantResponsePreference });
   }

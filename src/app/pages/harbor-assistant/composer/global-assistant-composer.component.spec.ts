@@ -202,6 +202,44 @@ describe('GlobalAssistantComposerComponent', () => {
     expect(api.search).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['fast', 'Fast'],
+    ['careful', 'Careful'],
+    ['auto', 'Automatic'],
+  ] as const)('keeps the %s response preference visible outside removable context chips', (preference, label) => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    session.updateDraft({ responsePreference: preference });
+    spectator.detectChanges();
+    expect(spectator.query('.assistant-response-preference')).toHaveText(label);
+    expect(spectator.query('.assistant-response-preference')).toHaveAttribute('aria-label', `Response preference: ${label}`);
+    expect(spectator.query('.assistant-context-chips')?.textContent).not.toContain(label);
+    expect(api.search).not.toHaveBeenCalled();
+  });
+
+  it('changes the response preference through its persistent menu without sending a request', async () => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    const loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+    const menu = await loader.getHarness(MatMenuHarness.with({ selector: '.assistant-response-preference' }));
+    await menu.open();
+    const items = await menu.getItems();
+    expect(await Promise.all(items.map((item) => item.getText()))).toEqual([
+      'Fast · indexed results first', 'Careful · visual verification', 'Automatic · match the request',
+    ]);
+    await items[1].click();
+    spectator.detectChanges();
+    expect(session.draft().responsePreference).toBe('careful');
+    expect(spectator.query('.assistant-response-preference')).toHaveText('Careful');
+    await menu.open();
+    await (await menu.getItems())[2].click();
+    spectator.detectChanges();
+    expect(session.draft().responsePreference).toBe('auto');
+    expect(spectator.query('.assistant-response-preference')).toHaveText('Automatic');
+    expect(api.search).not.toHaveBeenCalled();
+    expect(session.turns()).toEqual([]);
+  });
+
   it('labels fast indexed photo results as not visually verified', () => {
     spectator = createComponent();
     const session = spectator.inject(AssistantSessionStore);
@@ -323,9 +361,9 @@ describe('GlobalAssistantComposerComponent', () => {
     ]);
     await items[0].click();
     spectator.detectChanges();
-    const preference = spectator.query('select option[value="fast"]');
-    expect(preference).toExist();
-    expect(spectator.query('select option[value="careful"]')).toExist();
+    expect(spectator.query('.assistant-response-preference')).toExist();
+    expect(spectator.query('select option[value="fast"]')).not.toExist();
+    expect(spectator.query('select option[value="careful"]')).not.toExist();
     expect(spectator.query('input[type="datetime-local"]')).not.toExist();
     expect(api.search).not.toHaveBeenCalled();
     expect(TestBed.inject(AssistantSessionStore).turns()).toEqual([]);

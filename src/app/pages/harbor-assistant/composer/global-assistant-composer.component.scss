@@ -44,9 +44,35 @@
 }
 
 .assistant-composer-heading { font-size: 12px; }
-.assistant-context-chips { display: flex; flex: 1; flex-wrap: wrap; gap: 4px; overflow: auto; }
+.assistant-composer-toolbar { flex-wrap: wrap; gap: 8px; }
+.assistant-context-chips { display: flex; flex: 1; flex-wrap: wrap; gap: 4px; min-width: 0; overflow: auto; }
 .assistant-context-chips button { border-radius: 12px; font-size: 11px; }
-.assistant-add { border-radius: 50%; font-size: 24px; height: 32px; width: 32px; }
+.assistant-add {
+  align-items: center;
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 32px;
+  font-size: 24px;
+  height: 32px;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+}
+
+.assistant-response-preference {
+  align-items: center;
+  border-radius: 16px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  font: inherit;
+  font-size: 12px;
+  gap: 6px;
+  min-height: 32px;
+  white-space: nowrap;
+}
+
+.assistant-menu-caret { font-size: 10px; }
 .assistant-model { font-size: 12px; }
 
 button {
