@@ -1972,6 +1972,8 @@ describe('Harbor Assistant component', () => {
     spectator.click('[data-capability="embedder"] .row-actions button');
     const option = spectator.queryAll('[data-capability="embedder"] .model-option-row')
       .find((row) => row.textContent?.includes('Qwen3 Embedding 0.6B'));
+    expect(option).toHaveText('Requires a configured compatible runtime. Select the model when it is ready.');
+    expect(option).not.toHaveText('configure the endpoint automatically');
     spectator.click(option?.querySelector('button') as HTMLButtonElement);
     expect(api.selectModelCapability).toHaveBeenCalledWith('embedder', installedModel.model_id);
     expect(api.updateModelEndpoint).not.toHaveBeenCalled();
@@ -2114,6 +2116,10 @@ describe('Harbor Assistant component', () => {
     const bge = component.workflowAvailableModelChoices('embedder')[0];
     expect((bge as { actionLabel: string }).actionLabel).toBe('Select');
     component.handleModelCardAction(bge);
+    spectator.detectChanges();
+    expect(spectator.element.textContent)
+      .toContain('Select the model after completion when a compatible runtime is available.');
+    expect(spectator.element.textContent).not.toContain('will select and enable it automatically');
 
     expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
       model_id: 'bge-m3',

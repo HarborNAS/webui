@@ -2243,7 +2243,7 @@ export class HarborAssistantComponent implements OnInit {
           hf_endpoint: card.catalogModel?.default_hf_endpoint ?? null,
         },
       }),
-      T('Model download started. Harbor Assistant will select and enable it automatically when it is ready.'),
+      T('Model download started. Select the model after completion when a compatible runtime is available.'),
     );
   }
 
@@ -4226,7 +4226,7 @@ export class HarborAssistantComponent implements OnInit {
         || normalized.includes('sglang');
     });
     return externalOnly
-      ? T('Uses an OpenAI-compatible runtime. Harbor Assistant will configure the endpoint automatically when selected.')
+      ? T('Requires a configured compatible runtime. Select the model when it is ready.')
       : null;
   }
 
