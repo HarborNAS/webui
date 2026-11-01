@@ -1,15 +1,16 @@
-import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
-import { MatDialog } from '@angular/material/dialog';
-import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
-import { MockComponent } from 'ng-mocks';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { discardPeriodicTasks, fakeAsync, tick } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
+import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
+import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
+import { MockComponent } from 'ng-mocks';
 import { of, Subject, throwError } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { AssistantSessionStore } from 'app/pages/harbor-assistant/composer/assistant-session.store';
-import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
 import { HarborAssistantComponent } from 'app/pages/harbor-assistant/harbor-assistant.component';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
+import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
 
 describe('Harbor Assistant component', () => {
   let spectator: Spectator<HarborAssistantComponent>;
@@ -155,22 +156,42 @@ describe('Harbor Assistant component', () => {
     expect(api.updateModelEndpoint).not.toHaveBeenCalled();
   });
 
-  it('selects an existing photo model through its own policy without changing other endpoints or policies', () => {
-    const policies = configurePinnedMediaModels();
+  it('marks only the desired runtime binding selected when ASR models share an identity', () => {
+    configurePinnedMediaModels();
+    api.getModelCapabilities = jest.fn(() => of({
+      capabilities: [{
+        capability_id: 'asr',
+        model_kind: 'asr',
+        status: 'ready',
+        desired_model_id: 'asr-780m',
+        active_model_id: 'whisper-small-multilingual',
+        transition_status: 'ready',
+        current_model: { model_endpoint_id: 'asr-780m', model_name: 'whisper-small-multilingual', status: 'active' },
+      }],
+    }));
+    spectator = createComponent();
+    spectator.click('[data-capability="asr"] .row-actions button');
+    const options = spectator.queryAll('[data-capability="asr"] .model-option-row');
+    const cpu = options.find((row) => row.textContent?.includes('Whisper CPU'));
+    const igpu = options.find((row) => row.textContent?.includes('Whisper 780M'));
+    expect(cpu?.querySelector('button')).toHaveText('Select');
+    expect(cpu?.querySelector('button')).not.toBeDisabled();
+    expect(igpu?.querySelector('button')).toHaveText('Selected');
+    expect(igpu?.querySelector('button')).toBeDisabled();
+  });
+
+  it('selects an existing photo runtime through the shared capability selection API', () => {
+    configurePinnedMediaModels();
+    api.selectModelCapability = jest.fn(() => of({ capabilities: [] }));
     spectator = createComponent();
     spectator.click('[data-capability="photo_verification_careful"] .row-actions button');
     const option = spectator.queryAll('[data-capability="photo_verification_careful"] .model-option-row')
       .find((row) => row.textContent?.includes('Qwen3.8 27B'));
     spectator.click(option?.querySelector('button') as HTMLButtonElement);
-    expect(api.saveModelPolicies).toHaveBeenCalledTimes(1);
-    const written = api.saveModelPolicies?.mock.calls[0][0].route_policies as Record<string, unknown>[];
-    expect(written.find((policy) => policy['route_policy_id'] === 'photo_verification_careful'))
-      .toEqual({ ...policies[1], metadata: { ...policies[1].metadata, model_endpoint_id: 'vision-27b' } });
-    expect(written.filter((policy) => policy['route_policy_id'] !== 'photo_verification_careful'))
-      .toEqual(policies.filter((policy) => policy.route_policy_id !== 'photo_verification_careful'));
+    expect(api.selectModelCapability).toHaveBeenCalledWith('photo_verification_careful', 'vision-27b', 'vision-27b');
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
     expect(api.updateModelEndpoint).not.toHaveBeenCalled();
     expect(api.createModelEndpoint).not.toHaveBeenCalled();
-    expect(api.selectModelCapability).not.toHaveBeenCalled();
   });
 
   it('does not replace an unavailable explicit ASR pin with the first active CPU endpoint', () => {
@@ -1570,6 +1591,176 @@ describe('Harbor Assistant component', () => {
     expect(rows[0]).not.toHaveText('old hf-mirror 404');
   });
 
+  it('shows an accepted model selection immediately while retaining the actual running model', () => {
+    const selection$ = new Subject<unknown>();
+    const status$ = new Subject<unknown>();
+    api.getModelCapabilities = jest.fn()
+      .mockReturnValueOnce(of(routerSelectionCapabilities()))
+      .mockReturnValue(status$);
+    api.selectModelCapability = jest.fn(() => selection$);
+    spectator = createComponent();
+    const settingsCalls = api.getKnowledgeSettings?.mock.calls.length;
+    spectator.click('[data-capability="semantic_router"] .row-actions button');
+    const option = spectator.queryAll('[data-capability="semantic_router"] .model-option-row')
+      .find((row) => row.textContent?.includes('Qwen2.5 0.5B'));
+    spectator.click(option?.querySelector('button') as HTMLButtonElement);
+    selection$.next(routerSelectionCapabilities({
+      desired_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      selected_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      transition_status: 'loading',
+    }));
+    selection$.complete();
+    spectator.detectChanges();
+
+    const row = spectator.query('[data-capability="semantic_router"]');
+    expect(row).toHaveText('Selected model: Qwen2.5 0.5B');
+    expect(row).toHaveText('Currently running: Qwen3.8 27B');
+    expect(row).toHaveText('Switching model');
+    expect(row).toHaveText('Selected · switching');
+    expect(row?.querySelector('.pill')).toHaveText('Switching');
+    expect(row?.querySelector('.pill')).not.toHaveText('Ready');
+    expect(spectator.query('[data-testid="model-projection-loading"]')).not.toExist();
+    expect(api.getKnowledgeSettings?.mock.calls.length).toBe(settingsCalls);
+    expect(api.selectModelCapability).toHaveBeenCalledWith('semantic_router', 'Qwen/Qwen2.5-0.5B-Instruct');
+    expect(spectator.query('[data-capability="retrieval_answer"]')).not.toHaveText('Selected model: Qwen2.5');
+  });
+
+  it('shows a failed desired model without replacing the actual running model or hiding retry', () => {
+    api.getModelCapabilities = jest.fn(() => of(routerSelectionCapabilities({
+      desired_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      selected_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      transition_status: 'failed',
+      last_error: 'The selected runtime could not start.',
+    })));
+    spectator = createComponent();
+    spectator.click('[data-capability="semantic_router"] .row-actions button');
+    const row = spectator.query('[data-capability="semantic_router"]');
+    expect(row).toHaveText('Selected model: Qwen2.5 0.5B');
+    expect(row).toHaveText('Currently running: Qwen3.8 27B');
+    expect(row).toHaveText('Model switch failed');
+    expect(row?.querySelector('.pill')).toHaveText('Switch failed');
+    expect(row).toHaveText('The selected runtime could not start.');
+    const option = spectator.queryAll('[data-capability="semantic_router"] .model-option-row')
+      .find((candidate) => candidate.textContent?.includes('Qwen2.5 0.5B'));
+    expect(option?.querySelector('button')).toHaveText('Retry');
+    expect(option?.querySelector('button')).not.toBeDisabled();
+  });
+
+  it('refreshes shared model settings every five seconds only while Models is visible and on focus', fakeAsync(() => {
+    api.getModelCapabilities = jest.fn(() => of(routerSelectionCapabilities()));
+    spectator = createComponent();
+    spectator.detectChanges();
+    const initialCalls = api.getModelCapabilities.mock.calls.length;
+    const settingsCalls = api.getKnowledgeSettings?.mock.calls.length;
+    tick(5000);
+    expect(api.getModelCapabilities.mock.calls).toHaveLength(initialCalls + 1);
+    spectator.fixture.nativeElement.ownerDocument.defaultView.dispatchEvent(new Event('focus'));
+    expect(api.getModelCapabilities.mock.calls).toHaveLength(initialCalls + 2);
+    spectator.click('[data-settings-section="sources"]');
+    spectator.detectChanges();
+    tick(10000);
+    spectator.fixture.nativeElement.ownerDocument.defaultView.dispatchEvent(new Event('focus'));
+    expect(api.getModelCapabilities.mock.calls).toHaveLength(initialCalls + 2);
+    expect(api.getKnowledgeSettings?.mock.calls.length).toBe(settingsCalls);
+    spectator.fixture.destroy();
+    discardPeriodicTasks();
+  }));
+
+  it('keeps the confirmed model and reports a rejected selection without creating endpoints', () => {
+    api.getModelCapabilities = jest.fn(() => of(routerSelectionCapabilities()));
+    api.selectModelCapability = jest.fn(() => throwError(() => new Error('Selection rejected by policy')));
+    spectator = createComponent();
+    const settingsCalls = api.getKnowledgeSettings?.mock.calls.length;
+    spectator.click('[data-capability="semantic_router"] .row-actions button');
+    const option = spectator.queryAll('[data-capability="semantic_router"] .model-option-row')
+      .find((row) => row.textContent?.includes('Qwen2.5 0.5B'));
+    spectator.click(option?.querySelector('button') as HTMLButtonElement);
+    expect(spectator.query('[data-capability="semantic_router"] .model-current-cell')).toHaveText('Qwen3.8 27B');
+    expect(spectator.query('[data-capability="semantic_router"] .model-current-cell'))
+      .not.toHaveText('Selected model: Qwen2.5');
+    expect(spectator.element.textContent).toContain('Selection rejected by policy');
+    expect(spectator.element.textContent).not.toContain('Selecting model...');
+    expect(api.createModelEndpoint).not.toHaveBeenCalled();
+    expect(api.getKnowledgeSettings?.mock.calls.length).toBe(settingsCalls);
+  });
+
+  it('deduplicates installed and catalog entries while keeping separate runtime bindings', () => {
+    const response = routerSelectionCapabilities() as { capabilities: Record<string, unknown>[] };
+    const routerCapability = response.capabilities.find((capability) => capability['capability_id'] === 'semantic_router');
+    if (routerCapability) {
+      routerCapability['installable_models'] = routerCapability['installed_models'];
+    }
+    api.getModelCapabilities = jest.fn(() => of(response));
+    api.getLocalModelCatalog = jest.fn(() => of({
+      models: [{
+        model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+        model_kind: 'llm',
+        display_name: 'Qwen2.5 0.5B',
+        status: 'available',
+      }],
+      download_jobs: [],
+    }));
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      workflowModelChoices: (kind: string) => { modelId: string; section: string }[];
+    };
+    const choices = component.workflowModelChoices('semantic_router')
+      .filter((card) => card.modelId === 'Qwen/Qwen2.5-0.5B-Instruct');
+    expect(choices).toHaveLength(1);
+    expect(choices[0].section).toBe('installed');
+  });
+
+  it('does not let an older full-page snapshot erase an accepted selection or its actual runtime', () => {
+    const oldPage$ = new Subject<unknown>();
+    const newStatus$ = new Subject<unknown>();
+    api.getGatewayStatus = jest.fn().mockReturnValueOnce(of({})).mockReturnValue(oldPage$);
+    api.getModelCapabilities = jest.fn()
+      .mockReturnValueOnce(of(routerSelectionCapabilities()))
+      .mockReturnValueOnce(of(routerSelectionCapabilities()))
+      .mockReturnValue(newStatus$);
+    api.selectModelCapability = jest.fn(() => of(routerSelectionCapabilities({
+      desired_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      selected_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+      transition_status: 'loading',
+    })));
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      refresh: () => void;
+      useInstalledModel: (card: { modelId: string; capabilityId: string; runtimeProfiles: string[] }) => void;
+    };
+    component.refresh();
+    component.useInstalledModel({
+      modelId: 'Qwen/Qwen2.5-0.5B-Instruct', capabilityId: 'semantic_router', runtimeProfiles: [],
+    });
+    oldPage$.next({});
+    oldPage$.complete();
+    spectator.detectChanges();
+    expect(spectator.query('[data-capability="semantic_router"]')).toHaveText('Selected model: Qwen2.5 0.5B');
+    expect(spectator.query('[data-capability="semantic_router"]')).toHaveText('Currently running: Qwen3.8 27B');
+  });
+
+  it('shows a server-side card selection on the next poll without waiting for unrelated model health', fakeAsync(() => {
+    const slowHealth$ = new Subject<unknown>();
+    api.selectModelCapability = jest.fn();
+    api.getInferenceHealth = jest.fn().mockReturnValueOnce(of({ status: 'ready' })).mockReturnValue(slowHealth$);
+    api.getModelCapabilities = jest.fn().mockReturnValueOnce(of(routerSelectionCapabilities()))
+      .mockReturnValue(of(routerSelectionCapabilities({
+        desired_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+        selected_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+        active_model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+        transition_status: 'ready',
+      })));
+    spectator = createComponent();
+    spectator.detectChanges();
+    tick(5000);
+    spectator.detectChanges();
+    expect(spectator.query('[data-capability="semantic_router"] .model-current-cell')).toHaveText('Qwen2.5 0.5B');
+    expect(spectator.query('[data-capability="semantic_router"] .model-current-cell')).not.toHaveText('Qwen3.8 27B');
+    expect(api.selectModelCapability).not.toHaveBeenCalled();
+    spectator.fixture.destroy();
+    discardPeriodicTasks();
+  }));
+
   it('offers downloaded local models as selectable installed choices', () => {
     const installedModel = {
       model_id: 'Qwen/Qwen3.5-4B',
@@ -1681,7 +1872,7 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('compatible runtime');
   });
 
-  it('auto-configures an OpenAI-compatible installed model when selected', () => {
+  it('uses backend selection for an external installed asset without inventing an active endpoint', () => {
     const installedModel = {
       model_id: 'Qwen/Qwen3-Embedding-0.6B',
       display_name: 'Qwen3 Embedding 0.6B',
@@ -1689,60 +1880,26 @@ describe('Harbor Assistant component', () => {
       model_kind: 'embedder',
       status: 'ready',
       installed: true,
-      local_path: '/mnt/software/harborbeacon-agent-ci/model-store/qwen-qwen3-embedding-0.6b',
-      source_kind: 'huggingface',
-      repo_id: 'Qwen/Qwen3-Embedding-0.6B',
-      file_policy: 'runtime_snapshot',
-      expected_capabilities: ['embedder'],
+      local_path: '/mnt/models/qwen-embedding',
       runtime_profiles: ['openai-compatible-embedding'],
     };
-    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
-      status: 'installed_not_running',
-      current_model: {
-        model_endpoint_id: 'embedder-local',
-        model_name: '/models/old-embed.gguf',
-        provider_key: 'local',
-        status: 'active',
-      },
-      installed_models: [installedModel],
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({ installed_models: [installedModel] })));
+    api.selectModelCapability = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      desired_model_id: installedModel.model_id,
+      selected_model_id: installedModel.model_id,
+      active_model_id: null,
+      transition_status: 'failed',
+      last_error: 'No matching runtime is available.',
     })));
-    api.selectModelCapability = jest.fn();
-
     spectator = createComponent();
-    spectator.click('[data-settings-section="models"]');
-    spectator.detectChanges();
-
-    const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
-      toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
-    };
-    component.toggleModelCapabilityChooser(component.aiModelCapabilities()[1]);
-    spectator.detectChanges();
-
-    const panel = spectator.query('.model-capability-row .inline-model-panel');
-    expect(panel).toHaveText('Qwen3 Embedding 0.6B');
-    expect(panel).toHaveText('Select');
-    expect(panel).not.toHaveText('Configure endpoint');
-
-    spectator.click(spectator.query('.model-capability-row .inline-model-panel button'));
-    spectator.detectChanges();
-
-    expect(api.selectModelCapability).not.toHaveBeenCalled();
-    expect(api.updateModelEndpoint).toHaveBeenCalledWith('embedder-local', expect.objectContaining({
-      model_kind: 'embedder',
-      endpoint_kind: 'local',
-      model_name: 'Qwen/Qwen3-Embedding-0.6B',
-      status: 'active',
-      metadata: expect.objectContaining({
-        auto_configured_by: 'harbor-assistant-select',
-        base_url: 'http://127.0.0.1:4174/api/inference/v1',
-        catalog_model_id: 'Qwen/Qwen3-Embedding-0.6B',
-        healthz_url: 'http://127.0.0.1:4174/api/inference/healthz',
-        local_path: '/mnt/software/harborbeacon-agent-ci/model-store/qwen-qwen3-embedding-0.6b',
-        runtime_profiles: ['openai-compatible-embedding'],
-      }),
-    }));
-    expect(spectator.element.textContent).toContain('Model selected');
+    spectator.click('[data-capability="embedder"] .row-actions button');
+    const option = spectator.queryAll('[data-capability="embedder"] .model-option-row')
+      .find((row) => row.textContent?.includes('Qwen3 Embedding 0.6B'));
+    spectator.click(option?.querySelector('button') as HTMLButtonElement);
+    expect(api.selectModelCapability).toHaveBeenCalledWith('embedder', installedModel.model_id);
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(api.createModelEndpoint).not.toHaveBeenCalled();
+    expect(spectator.element.textContent).toContain('No matching runtime is available.');
   });
 
   it('groups installed 4B as not recommended and keeps FlashV4 visible as cloud backup', () => {
@@ -3003,5 +3160,49 @@ function harborOsService(id: string): unknown {
     label: id,
     status: 'ready',
     detail: 'ready',
+  };
+}
+
+function routerSelectionCapabilities(overrides: Record<string, unknown> = {}): object {
+  const response = modelCapabilitiesWithEmbedder({});
+  return {
+    ...response,
+    capabilities: response.capabilities.map((capability) => {
+      if (capability.capability_id !== 'semantic_router') {
+        return capability;
+      }
+      return {
+        ...capability,
+        desired_model_id: 'harbor-qwen38-27b',
+        selected_model_id: 'harbor-qwen38-27b',
+        active_model_id: 'harbor-qwen38-27b',
+        transition_status: 'ready',
+        last_error: null,
+        current_model: {
+          model_endpoint_id: 'llm-27b',
+          model_name: 'harbor-qwen38-27b',
+          provider_key: 'local',
+          status: 'active',
+        },
+        installed_models: [{
+          model_id: 'Qwen/Qwen2.5-0.5B-Instruct',
+          display_name: 'Qwen2.5 0.5B',
+          provider_key: 'qwen',
+          model_kind: 'llm',
+          status: 'ready',
+          installed: true,
+          local_path: '/models/qwen05',
+        }, {
+          model_id: 'harbor-qwen38-27b',
+          display_name: 'Qwen3.8 27B',
+          provider_key: 'local',
+          model_kind: 'llm',
+          status: 'ready',
+          installed: true,
+          local_path: '/models/qwen27',
+        }],
+        ...overrides,
+      };
+    }),
   };
 }

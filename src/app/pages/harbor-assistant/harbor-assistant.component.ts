@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
-import { NgClass } from '@angular/common';
+import { DOCUMENT, NgClass } from '@angular/common';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatAnchor, MatButton, MatIconButton } from '@angular/material/button';
@@ -22,7 +22,7 @@ import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateModule } from '@ngx-translate/core';
 import { TnIconComponent } from '@truenas/ui-components';
 import { Observable, Subscription, forkJoin, of, timer } from 'rxjs';
-import { catchError, finalize, map, retry, switchMap, timeout } from 'rxjs/operators';
+import { catchError, finalize, map, retry, switchMap, tap, timeout } from 'rxjs/operators';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantCameraComponent } from 'app/pages/harbor-assistant/camera/harbor-assistant-camera.component';
 import { HarborAssistantHomeAssistantComponent } from 'app/pages/harbor-assistant/home-assistant/harbor-assistant-home-assistant.component';
@@ -153,9 +153,11 @@ interface HarborAssistantPageData {
 }
 
 type AssistantModelStatusData = Pick<HarborAssistantPageData,
-  'modelCapabilities' | 'modelRuntimes' | 'modelEndpoints' | 'inferenceHealth' | 'localDownloads' | 'rag'>;
+  'modelCapabilities' | 'modelRuntimes' | 'modelEndpoints' | 'modelPolicies' | 'inferenceHealth' | 'localDownloads' | 'rag'>;
 
-const modelStatusErrorKeys = ['models', 'modelCapabilities', 'modelRuntimes', 'inference', 'localDownloads', 'rag'];
+const modelStatusErrorKeys = [
+  'models', 'modelCapabilities', 'modelRuntimes', 'modelPolicies', 'inference', 'localDownloads', 'rag',
+];
 
 type DeviceEvidenceEntry = readonly [string, DeviceEvidenceResponse | null, string | null];
 
@@ -466,8 +468,10 @@ export class HarborAssistantComponent implements OnInit {
   protected readonly assistantSession = inject(AssistantSessionStore);
   private fb = inject(NonNullableFormBuilder);
   private destroyRef = inject(DestroyRef);
+  private document = inject(DOCUMENT);
   private modelStatusSubscription?: Subscription;
   private modelStatusRevision = 0;
+  private modelSelectionRevision = 0;
   private pageLoadRevision = 0;
   private route = inject(ActivatedRoute);
   private router = inject(Router);
@@ -943,6 +947,24 @@ export class HarborAssistantComponent implements OnInit {
     const bundle = this.evtEvidenceBundle();
     return bundle ? JSON.stringify(bundle, null, 2) : '';
   });
+
+  constructor() {
+    effect((onCleanup) => {
+      if (!this.isSettingsDestination('models')) {
+        return;
+      }
+      const poll = timer(5000, 5000).subscribe(() => this.refreshVisibleModelStatus());
+      const refresh = (): void => this.refreshVisibleModelStatus();
+      const browserWindow = this.document.defaultView;
+      browserWindow?.addEventListener('focus', refresh);
+      this.document.addEventListener('visibilitychange', refresh);
+      onCleanup(() => {
+        poll.unsubscribe();
+        browserWindow?.removeEventListener('focus', refresh);
+        this.document.removeEventListener('visibilitychange', refresh);
+      });
+    });
+  }
 
   ngOnInit(): void {
     this.route.queryParamMap
@@ -2227,30 +2249,18 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   protected useInstalledModel(card: CustomerModelCard): void {
-    if (card.configuredEndpoint && card.endpoint) {
-      const policy = this.mediaPolicyForCapability(card.capabilityId ?? card.kind);
-      if (!policy) {
-        this.actionError.set(T('This capability has no configurable model policy.'));
-        return;
+    if (card.capabilityId) {
+      let request$: Observable<ModelCapabilitiesResponse>;
+      if (card.configuredEndpoint && card.endpoint) {
+        request$ = this.harborAssistantApi.selectModelCapability(
+          card.capabilityId,
+          card.modelId,
+          card.endpoint.model_endpoint_id,
+        );
+      } else {
+        request$ = this.harborAssistantApi.selectModelCapability(card.capabilityId, card.modelId);
       }
-      const routePolicies = this.modelPolicies().map((candidate) => (candidate === policy
-        ? { ...candidate, metadata: { ...candidate.metadata, model_endpoint_id: card.endpoint?.model_endpoint_id } }
-        : candidate));
-      this.runAction(
-        `model-endpoint-select:${card.modelId}`,
-        this.harborAssistantApi.saveModelPolicies({ route_policies: routePolicies }),
-        T('Model selected.'),
-      );
-      return;
-    }
-    const externalRuntimeOnly = this.modelUsesExternalRuntime(card.runtimeProfiles)
-      && !this.modelUsesManagedRuntime(card.runtimeProfiles);
-    if (card.capabilityId && !externalRuntimeOnly) {
-      this.runAction(
-        `model-capability-select:${card.capabilityId}`,
-        this.harborAssistantApi.selectModelCapability(card.capabilityId, card.modelId),
-        this.modelSelectionSuccessMessage(card),
-      );
+      this.selectCapabilityModel(card, request$);
       return;
     }
     if (!card.localPath) {
@@ -2266,6 +2276,43 @@ export class HarborAssistantComponent implements OnInit {
       forkJoin(requests),
       T('Model selected. Harbor Assistant configured the endpoint automatically.'),
     );
+  }
+
+  private selectCapabilityModel(card: CustomerModelCard, request$: Observable<ModelCapabilitiesResponse>): void {
+    const revision = ++this.modelSelectionRevision;
+    ++this.modelStatusRevision;
+    this.modelStatusSubscription?.unsubscribe();
+    this.modelStatusRefreshing.set(false);
+    this.actionInProgress.set(`model-capability-select:${card.capabilityId}`);
+    this.actionError.set(null);
+    this.actionMessage.set(T('Selecting model...'));
+    request$.pipe(
+      finalize(() => this.actionInProgress.set(null)),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe({
+      next: (response) => {
+        if (revision !== this.modelSelectionRevision) {
+          return;
+        }
+        ++this.modelStatusRevision;
+        this.modelStatusSubscription?.unsubscribe();
+        this.modelCapabilitiesResponse.set(response);
+        this.actionMessage.set(null);
+        const capability = response.capabilities.find((candidate) => candidate.capability_id === card.capabilityId);
+        if (capability?.transition_status === 'failed') {
+          this.actionError.set(capability.last_error || T('Model switch failed.'));
+        } else {
+          this.actionMessage.set(capability?.transition_status === 'ready'
+            ? T('Model is selected and running.')
+            : T('Model startup has been requested. Refreshing runtime status.'));
+        }
+        this.refreshModelStatus(false);
+      },
+      error: (error: unknown) => {
+        this.actionMessage.set(null);
+        this.actionError.set(this.getErrorMessage(error));
+      },
+    });
   }
 
   private upsertEndpointForSelectedModel(kind: string, card: CustomerModelCard): Observable<ModelEndpointsResponse> {
@@ -2804,6 +2851,11 @@ export class HarborAssistantComponent implements OnInit {
     }
 
     const capability = this.workflowCapabilityForKind(kind);
+    if (capability?.active_model_id !== undefined) {
+      return capability.active_model_id
+        ? this.capabilityModelDisplayName(capability, capability.active_model_id)
+        : T('No confirmed running model');
+    }
     const policy = this.mediaPolicyForCapability(kind);
     if (typeof policy?.metadata?.['model_endpoint_id'] === 'string') {
       const pinned = this.workflowCurrentEndpoint(kind);
@@ -2831,6 +2883,44 @@ export class HarborAssistantComponent implements OnInit {
       return T('No model selected yet');
     }
     return this.currentModelDisplayName(current.modelName);
+  }
+
+  protected workflowDesiredModelName(kind: string): string | null {
+    const capability = this.workflowCapabilityForKind(kind);
+    const desired = capability?.desired_model_id ?? capability?.selected_model_id;
+    if (!capability || !desired) {
+      return null;
+    }
+    if (capability.transition_status === 'ready'
+      && (desired === capability.active_model_id || desired === capability.current_model?.model_endpoint_id)) {
+      return null;
+    }
+    return this.capabilityModelDisplayName(capability, desired);
+  }
+
+  protected workflowSelectionNotice(kind: string): string | null {
+    switch (this.workflowCapabilityForKind(kind)?.transition_status) {
+      case 'loading':
+        return T('Switching model');
+      case 'failed':
+        return T('Model switch failed');
+      case 'unknown':
+        return T('Waiting for runtime confirmation');
+      default:
+        return null;
+    }
+  }
+
+  protected workflowSelectionError(kind: string): string | null {
+    return this.workflowCapabilityForKind(kind)?.last_error || null;
+  }
+
+  private capabilityModelDisplayName(capability: ModelCapabilityStatus, modelId: string): string {
+    const model = [...(capability.installed_models ?? []), ...(capability.installable_models ?? [])]
+      .find((candidate) => candidate.model_id === modelId || candidate.local_path === modelId);
+    const endpoint = this.modelEndpoints().find((candidate) => candidate.model_endpoint_id === modelId);
+    return model?.display_name || (endpoint && (this.metadataString(endpoint, 'model_label') || endpoint.model_name))
+      || this.currentModelDisplayName(modelId);
   }
 
   private currentModelDisplayName(modelName: string): string {
@@ -2931,6 +3021,15 @@ export class HarborAssistantComponent implements OnInit {
       return T('Unavailable');
     }
     const capability = this.workflowCapabilityForKind(kind);
+    if (capability?.transition_status === 'loading') {
+      return T('Switching');
+    }
+    if (capability?.transition_status === 'failed') {
+      return T('Switch failed');
+    }
+    if (capability?.transition_status === 'unknown') {
+      return T('Awaiting confirmation');
+    }
     if (this.mediaPolicyForCapability(kind)?.metadata?.['model_endpoint_id'] && !this.workflowCurrentEndpoint(kind)) {
       return T('Unavailable');
     }
@@ -3001,7 +3100,9 @@ export class HarborAssistantComponent implements OnInit {
   private uniqueModelCards(cards: CustomerModelCard[]): CustomerModelCard[] {
     const seen = new Set<string>();
     return cards.filter((card) => {
-      const key = `${card.section}:${card.modelId}:${card.endpoint?.model_endpoint_id ?? ''}`;
+      const key = card.configuredEndpoint && card.endpoint
+        ? `binding:${card.capabilityId}:${card.endpoint.model_endpoint_id}`
+        : `asset:${card.catalogModel?.model_id ?? card.modelId}`;
       if (seen.has(key)) {
         return false;
       }
@@ -3801,12 +3902,20 @@ export class HarborAssistantComponent implements OnInit {
     const catalogModel = this.catalogModels().find((item) => item.model_id === model.model_id) ?? null;
     const capability = this.workflowCapabilityForKind(capabilityId);
     const runtimeActive = this.capabilityRuntimeMatchesModel(capability, model.model_id, model.local_path ?? catalogModel?.local_path ?? null);
-    const selected = capability?.selected_model_id === model.model_id;
-    const isCurrent = runtimeActive;
+    const selected = (capability?.desired_model_id ?? capability?.selected_model_id) === model.model_id;
+    const isCurrent = capability?.transition_status !== 'failed'
+      && ((runtimeActive && (!capability?.desired_model_id || selected))
+        || (selected && capability?.transition_status === 'loading'));
     const runtimeProfiles = model.runtime_profiles ?? catalogModel?.runtime_profiles ?? [];
     const action: CustomerModelAction = section === 'installed'
       ? (isCurrent ? 'current' : 'set-current')
       : this.isFailedStatus(model.status) ? 'retry' : 'download';
+    let actionLabel = this.modelActionLabel(action);
+    if (action === 'current' && selected && !runtimeActive) {
+      actionLabel = T('Selected · switching');
+    } else if (action === 'set-current' && selected) {
+      actionLabel = capability?.transition_status === 'failed' ? T('Retry') : T('Start selected model');
+    }
     return {
       key: `${capabilityId}:${section}:${model.model_id}`,
       modelId: model.model_id,
@@ -3827,13 +3936,7 @@ export class HarborAssistantComponent implements OnInit {
       downloadJob: null,
       endpoint: null,
       action,
-      actionLabel: action === 'current'
-        ? T('Selected')
-        : action === 'set-current'
-          ? (selected ? T('Restart') : T('Select'))
-          : action === 'retry'
-            ? T('Download again')
-            : T('Select'),
+      actionLabel,
       progressLabel: null,
       bytesLabel: null,
       speedLabel: null,
@@ -4013,6 +4116,12 @@ export class HarborAssistantComponent implements OnInit {
       return 'danger';
     }
     const capability = this.workflowCapabilityForKind(kind);
+    if (capability?.transition_status === 'failed') {
+      return 'danger';
+    }
+    if (capability?.transition_status === 'loading' || capability?.transition_status === 'unknown') {
+      return 'warn';
+    }
     if (this.mediaPolicyForCapability(kind)?.metadata?.['model_endpoint_id'] && !this.workflowCurrentEndpoint(kind)) {
       return 'danger';
     }
@@ -4130,26 +4239,6 @@ export class HarborAssistantComponent implements OnInit {
     });
   }
 
-  private modelUsesExternalRuntime(runtimeProfiles?: string[] | null): boolean {
-    return (runtimeProfiles ?? []).some((profile) => {
-      const normalized = profile.toLowerCase();
-      return normalized.includes('openai-compatible')
-        || normalized.includes('vllm')
-        || normalized.includes('sglang');
-    });
-  }
-
-  private modelSelectionSuccessMessage(card: CustomerModelCard): string {
-    return this.modelCardRuntimeIsActive(card)
-      ? T('Model is selected and running.')
-      : T('Model startup has been requested. Refreshing runtime status.');
-  }
-
-  private modelCardRuntimeIsActive(card: CustomerModelCard): boolean {
-    const capability = card.capabilityId ? this.workflowCapabilityForKind(card.capabilityId) : null;
-    return this.capabilityRuntimeMatchesModel(capability, card.modelId, card.localPath);
-  }
-
   private capabilityRuntimeMatchesModel(
     capability: ModelCapabilityStatus | null | undefined,
     modelId: string,
@@ -4158,8 +4247,11 @@ export class HarborAssistantComponent implements OnInit {
     if (!capability) {
       return false;
     }
-    const runtimeModel = capability.runtime_model_id?.trim()
-      || (capability.runtime_ready ? capability.current_model?.model_name?.trim() : '');
+    let runtimeModel = capability.active_model_id?.trim();
+    if (capability.active_model_id === undefined) {
+      runtimeModel = capability.runtime_model_id?.trim()
+        || (capability.runtime_ready ? capability.current_model?.model_name?.trim() : '');
+    }
     if (!runtimeModel) {
       return false;
     }
@@ -4396,6 +4488,8 @@ export class HarborAssistantComponent implements OnInit {
 
   private mediaPolicyForCapability(kind: string): ModelRoutePolicyRecord | null {
     const policies: Record<string, string> = {
+      semantic_router: 'semantic.router',
+      retrieval_answer: 'retrieval.answer',
       vlm: 'retrieval.vision_summary',
       photo_verification_careful: 'photo_verification_careful',
       asr: 'retrieval.asr',
@@ -4440,7 +4534,19 @@ export class HarborAssistantComponent implements OnInit {
       && (!policy || !endpoint.workspace_id || endpoint.workspace_id === policy.workspace_id)
       && (Boolean(policy) || endpoint.model_endpoint_id === current?.model_endpoint_id))
       .map((endpoint): CustomerModelCard => {
-        const selected = endpoint.model_endpoint_id === current?.model_endpoint_id;
+        const capability = this.workflowCapabilityForKind(kind);
+        const desired = capability?.desired_model_id ?? capability?.selected_model_id;
+        const selected = desired
+          ? desired === endpoint.model_endpoint_id || this.endpointMatchesModel(endpoint, undefined, desired)
+          : endpoint.model_endpoint_id === current?.model_endpoint_id;
+        const switching = selected && capability?.transition_status === 'loading';
+        const failed = selected && capability?.transition_status === 'failed';
+        let actionLabel = selected ? T('Selected') : T('Select');
+        if (switching) {
+          actionLabel = T('Selected · switching');
+        } else if (failed) {
+          actionLabel = T('Retry');
+        }
         return {
           key: `configured-endpoint:${kind}:${endpoint.model_endpoint_id}`,
           modelId: endpoint.model_endpoint_id,
@@ -4460,8 +4566,8 @@ export class HarborAssistantComponent implements OnInit {
           localPath: null,
           downloadJob: null,
           endpoint,
-          action: selected ? 'current' as const : 'set-current' as const,
-          actionLabel: selected ? T('Selected') : T('Select'),
+          action: selected && !failed ? 'current' as const : 'set-current' as const,
+          actionLabel,
           progressLabel: null,
           bytesLabel: null,
           speedLabel: null,
@@ -4905,14 +5011,30 @@ export class HarborAssistantComponent implements OnInit {
     });
   }
 
-  private refreshModelStatus(): void {
+  private refreshVisibleModelStatus(): void {
+    if (!this.isSettingsDestination('models') || this.document.visibilityState === 'hidden'
+      || this.loading() || this.isBusy()
+      || (this.modelStatusSubscription && !this.modelStatusSubscription.closed)) {
+      return;
+    }
+    this.refreshModelStatus(false);
+  }
+
+  private refreshModelStatus(showLoading = true): void {
     const revision = ++this.modelStatusRevision;
     this.modelStatusSubscription?.unsubscribe();
-    this.modelStatusRefreshing.set(true);
+    this.modelStatusRefreshing.set(showLoading);
     this.modelStatusSubscription = forkJoin({
-      modelCapabilities: this.statusResult('model-capabilities', this.harborAssistantApi.getModelCapabilities()),
+      modelCapabilities: this.statusResult('model-capabilities', this.harborAssistantApi.getModelCapabilities()).pipe(
+        tap((result) => {
+          if (revision === this.modelStatusRevision && result.data) {
+            this.modelCapabilitiesResponse.set(result.data);
+          }
+        }),
+      ),
       modelRuntimes: this.statusResult('model-runtimes', this.harborAssistantApi.getModelRuntimes()),
       modelEndpoints: this.statusResult('models', this.harborAssistantApi.getModelEndpoints()),
+      modelPolicies: this.statusResult('model-policies', this.harborAssistantApi.getModelPolicies()),
       inferenceHealth: this.statusResult('inference', this.harborAssistantApi.getInferenceHealth()),
       localDownloads: this.statusResult('local-downloads', this.harborAssistantApi.getLocalModelDownloads()),
       rag: this.statusResult('rag', this.harborAssistantApi.getRagReadiness()),
@@ -4936,6 +5058,7 @@ export class HarborAssistantComponent implements OnInit {
 
   private applyModelStatus(payload: AssistantModelStatusData): void {
     this.modelEndpointsResponse.set(payload.modelEndpoints.data);
+    this.modelPoliciesResponse.set(payload.modelPolicies.data);
     this.modelCapabilitiesResponse.set(payload.modelCapabilities.data);
     this.modelRuntimeManagerResponse.set(
       payload.modelRuntimes.data ?? payload.modelCapabilities.data?.runtime_manager ?? null,
@@ -5135,7 +5258,6 @@ export class HarborAssistantComponent implements OnInit {
     if (applyModelStatus) {
       this.applyModelStatus(pageData);
     }
-    this.modelPoliciesResponse.set(pageData.modelPolicies.data);
     this.localCatalog.set(pageData.localCatalog.data);
     this.hardware.set(pageData.hardware.data);
     this.knowledgeSettings.set(pageData.knowledgeSettings.data);

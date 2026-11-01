@@ -364,10 +364,14 @@ export class HarborAssistantApiService {
     return this.http.put<ModelStoreStatusResponse>(this.apiUrl('/models/store'), { path });
   }
 
-  selectModelCapability(capabilityId: string, modelId: string): Observable<ModelCapabilitiesResponse> {
+  selectModelCapability(
+    capabilityId: string,
+    modelId: string,
+    modelEndpointId?: string,
+  ): Observable<ModelCapabilitiesResponse> {
     return this.http.post<ModelCapabilitiesResponse>(
       this.apiUrl(`/models/capabilities/${encodeURIComponent(capabilityId)}/selection`),
-      { model_id: modelId },
+      { model_id: modelId, ...(modelEndpointId ? { model_endpoint_id: modelEndpointId } : {}) },
     );
   }
 
