@@ -205,7 +205,16 @@ describe('GlobalAssistantComposerComponent', () => {
   it('labels fast indexed photo results as not visually verified', () => {
     spectator = createComponent();
     const session = spectator.inject(AssistantSessionStore);
-    session.turns.set([{ query: 'Find photos', response: { reply_pack: { summary: 'Found photos.', citations: [] }, verification_status: 'skipped', images: [], blockers: [], warnings: [] } as unknown as HarborAssistantSearchResponse }]);
+    session.turns.set([{
+      query: 'Find photos',
+      response: {
+        reply_pack: { summary: 'Found photos.', citations: [] },
+        verification_status: 'skipped',
+        images: [],
+        blockers: [],
+        warnings: [],
+      } as unknown as HarborAssistantSearchResponse,
+    }]);
     session.resultsOpen.set(true);
     spectator.detectChanges();
     expect(spectator.query('.assistant-verification-status')).toHaveText('Indexed results · not visually verified');

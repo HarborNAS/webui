@@ -46,12 +46,19 @@ export class HarborAssistantMultimodalComponent {
     return (['vlm', 'asr', 'tts'] as const).map((kind) => {
       const policy = this.routePolicies().find((candidate) => candidate.route_policy_id === policies[kind]);
       const pin = policy?.metadata?.['model_endpoint_id'];
-      const endpoint = typeof pin === 'string' && pin.trim()
-        ? policy?.status === 'active'
-          ? this.endpoints().find((candidate) => candidate.model_endpoint_id === pin && candidate.model_kind === kind && candidate.status === 'active')
-          : undefined
-        : this.endpoints().find((candidate) => candidate.model_kind === kind && candidate.status === 'active')
+      let endpoint: ModelEndpointRecord | undefined;
+      if (typeof pin === 'string' && pin.trim()) {
+        if (policy?.status === 'active') {
+          endpoint = this.endpoints().find(
+            (candidate) => candidate.model_endpoint_id === pin
+              && candidate.model_kind === kind
+              && candidate.status === 'active',
+          );
+        }
+      } else {
+        endpoint = this.endpoints().find((candidate) => candidate.model_kind === kind && candidate.status === 'active')
           ?? this.endpoints().find((candidate) => candidate.model_kind === kind);
+      }
       return { kind, endpoint };
     });
   });

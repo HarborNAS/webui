@@ -113,7 +113,9 @@ describe('AssistantSessionStore', () => {
   });
 
   it('keeps the same root store and draft when a page binds the same signed-in user', () => {
-    store.updateDraft({ text: 'Unsaved question', sourceRootIds: ['docs'], retrievalMode: 'off', responsePreference: 'careful' });
+    store.updateDraft({
+      text: 'Unsaved question', sourceRootIds: ['docs'], retrievalMode: 'off', responsePreference: 'careful',
+    });
     const id = store.conversationId();
     store.bindUser('admin');
     expect(TestBed.inject(AssistantSessionStore)).toBe(store);
@@ -140,7 +142,10 @@ describe('AssistantSessionStore', () => {
 
   it('restores per-user draft and conversation id from session storage', () => {
     sessionStorage.setItem('harborAssistant.composer.v1:other', JSON.stringify({
-      conversationId: 'saved-draft', draft: { text: 'Retained', retrievalMode: 'on', responsePreference: 'fast', sourceRootIds: ['docs'] },
+      conversationId: 'saved-draft',
+      draft: {
+        text: 'Retained', retrievalMode: 'on', responsePreference: 'fast', sourceRootIds: ['docs'],
+      },
     }));
     store.bindUser('other');
     expect(store.draft().text).toBe('Retained');

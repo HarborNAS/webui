@@ -6111,7 +6111,9 @@ export class HarborAssistantComponent implements OnInit {
       || gateway.setup?.weixin
       || gateway.connectors?.feishu
       || gateway.connectors?.weixin
-      || (gateway.channels ?? gateway.platforms ?? gateway.setup?.channels)?.some((channel) => Boolean(channel?.platform))
+      || (gateway.channels ?? gateway.platforms ?? gateway.setup?.channels)?.some(
+        (channel) => Boolean(channel?.platform),
+      )
       || gateway.platform,
     );
   }

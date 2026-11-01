@@ -92,8 +92,12 @@ describe('HarborAssistantMultimodalComponent', () => {
   });
 
   it('shows the active ASR policy pin instead of an earlier active CPU fallback', () => {
-    const cpu = { model_endpoint_id: 'asr-local', model_kind: 'asr', status: 'active', model_name: 'CPU fallback' } as ModelEndpointRecord;
-    const igpu = { model_endpoint_id: 'asr-local-whisper-igpu', model_kind: 'asr', status: 'active', model_name: '780M ASR' } as ModelEndpointRecord;
+    const cpu = {
+      model_endpoint_id: 'asr-local', model_kind: 'asr', status: 'active', model_name: 'CPU fallback',
+    } as ModelEndpointRecord;
+    const igpu = {
+      model_endpoint_id: 'asr-local-whisper-igpu', model_kind: 'asr', status: 'active', model_name: '780M ASR',
+    } as ModelEndpointRecord;
     const policy = { route_policy_id: 'retrieval.asr', status: 'active', metadata: { model_endpoint_id: igpu.model_endpoint_id } } as ModelRoutePolicyRecord;
     spectator = createComponent({ props: { endpoints: [cpu, igpu], routePolicies: [policy] } });
     expect(spectator.element.textContent).toContain('780M ASR');
