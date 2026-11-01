@@ -440,7 +440,7 @@ class BrowserSmoke:
     async def mode(self, mode, source=None):
         await self.choose_tool(0)
         options = self.page.locator('.assistant-options')
-        await options.locator('select').first.select_option(mode)
+        await options.get_by_label('Conversation mode', exact=True).select_option(mode)
         checkboxes = options.locator('.assistant-source input[type="checkbox"]')
         for index in range(await checkboxes.count()):
             await checkboxes.nth(index).uncheck()
@@ -448,7 +448,7 @@ class BrowserSmoke:
             source_label = options.locator('.assistant-source').filter(has_text='Demo Documents')
             assert await source_label.count() == 1, 'The synthetic Demo Documents source is not configured'
             await source_label.locator('input').check()
-        await options.locator('select').nth(1).select_option('text' if source else 'all')
+        await options.get_by_label('Result type', exact=True).select_option('text' if source else 'all')
         await self.close_options()
 
     async def draft_persistence(self):
