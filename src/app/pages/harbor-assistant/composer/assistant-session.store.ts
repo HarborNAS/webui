@@ -35,7 +35,7 @@ export interface AssistantConversation {
 }
 
 const emptyDraft = (): AssistantDraft => ({
-  text: '', sourceRootIds: [], retrievalMode: 'auto', responsePreference: 'auto', filter: 'all', from: '', to: '',
+  text: '', sourceRootIds: [], retrievalMode: 'auto', responsePreference: 'fast', filter: 'all', from: '', to: '',
 });
 
 @Injectable({ providedIn: 'root' })
@@ -308,7 +308,7 @@ export class AssistantSessionStore {
           : 'auto',
         responsePreference: ['auto', 'fast', 'careful'].includes(String(draft['responsePreference']))
           ? draft['responsePreference'] as AssistantResponsePreference
-          : 'auto',
+          : 'fast',
         filter: ['all', 'text', 'images', 'videos'].includes(String(draft['filter']))
           ? draft['filter'] as AssistantResultFilter
           : 'all',
