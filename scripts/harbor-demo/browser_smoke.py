@@ -675,9 +675,9 @@ class BrowserSmoke:
                 'screenshot': await self.screenshot('history-restored-after-reload')}
 
     async def multimodal(self):
-        await self.assistant()
-        await self.page.locator('.workspace-navigation [data-section="multimodal"]').click()
-        await self.page.locator('.assistant-multimodal-tab').wait_for()
+        await self.ai_tab('models')
+        await expect(self.page.locator('.workspace-navigation [data-section="models"]')).to_have_attribute('aria-current', 'page')
+        await self.page.locator('.integrated-multimodal-panel').wait_for()
 
     async def vision(self):
         await self.multimodal()
