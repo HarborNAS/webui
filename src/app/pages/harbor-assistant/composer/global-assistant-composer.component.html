@@ -38,6 +38,9 @@
                       }
                     </button>
                     <figcaption><span class="assistant-photo-number">{{ photoIndex + 1 }}</span>{{ image.title || ('Photo' | translate) }}</figcaption>
+                    @if (image.snippet) {
+                      <p class="assistant-photo-description" [attr.title]="image.snippet">{{ photoDescription(image.snippet) }}</p>
+                    }
                     <button class="assistant-photo-open" type="button" (click)="openImage(image.path)">
                       {{ 'Open image preview' | translate }}
                     </button>

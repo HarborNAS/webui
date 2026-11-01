@@ -69,6 +69,23 @@ describe('GlobalAssistantComposerComponent', () => {
     expect(spectator.element.classList.contains('assistant-results-open')).toBe(true);
   });
 
+  it('shows original indexed photo descriptions with uncertainty and a bounded plain-text preview', () => {
+    spectator = createComponent();
+    const session = spectator.inject(AssistantSessionStore);
+    const response = imageResponse(['/nas/a.jpg']);
+    const original = '无法确认拍摄季节。' + '花园中的花朵与叶片。'.repeat(30);
+    response.images[0].snippet = original;
+    response.verification_status = 'skipped';
+    session.turns.set([{ query: 'Photos', response }]);
+    session.resultsOpen.set(true);
+    spectator.detectChanges();
+    const description = spectator.query('.assistant-photo-description');
+    expect(description).toHaveText(Array.from(original).slice(0, 220).join(''));
+    expect(description).toHaveAttribute('title', original);
+    expect(description?.textContent).toContain('无法确认拍摄季节。');
+    expect(spectator.query('.assistant-verification-status')).toHaveText('Indexed results · not visually verified');
+  });
+
   it('retains result order when image requests finish out of order', () => {
     const first$ = new Subject<Blob>();
     const second$ = new Subject<Blob>();

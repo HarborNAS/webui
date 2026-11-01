@@ -124,6 +124,10 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
     }
   }
 
+  protected photoDescription(snippet: string): string {
+    return Array.from(snippet).slice(0, 220).join('');
+  }
+
   protected imagePreviewFailed(path: string): void {
     if (!this.imageRequests.has(path)) {
       return;
