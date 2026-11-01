@@ -129,6 +129,32 @@ describe('Harbor Assistant component', () => {
     expect(api.testModelEndpoint).not.toHaveBeenCalled();
   });
 
+  it('distinguishes configured ASR choices by their reported device when model names are identical', () => {
+    configurePinnedMediaModels();
+    api.getModelEndpoints = jest.fn(() => of({
+      endpoints: [
+        {
+          ...modelEndpoint('asr-cpu', 'asr', 'whisper-small-multilingual') as object,
+          metadata: { runtime_device: 'CPU' },
+        },
+        {
+          ...modelEndpoint('asr-780m', 'asr', 'whisper-small-multilingual') as object,
+          metadata: { runtime_device: 'Radeon 780M' },
+        },
+      ],
+    }));
+    spectator = createComponent();
+    spectator.click('[data-capability="asr"] .row-actions button');
+    const choices = spectator.query('[data-capability="asr"] .inline-model-panel');
+    expect(choices).toHaveText('whisper-small-multilingual');
+    expect(choices).toHaveText('CPU');
+    expect(choices).toHaveText('Radeon 780M');
+    expect(choices).not.toHaveText('asr-cpu');
+    expect(choices).not.toHaveText('asr-780m');
+    expect(api.saveModelPolicies).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+  });
+
   it('selects an existing photo model through its own policy without changing other endpoints or policies', () => {
     const policies = configurePinnedMediaModels();
     spectator = createComponent();

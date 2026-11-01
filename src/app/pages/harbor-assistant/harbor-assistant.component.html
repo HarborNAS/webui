@@ -915,7 +915,7 @@
                           <article class="model-option-row">
                             <div>
                               <strong>{{ card.displayName }}</strong>
-                              <p class="muted">{{ card.modelId }}</p>
+                              <p class="muted">{{ card.configuredEndpoint ? (card.hardware || card.source) : card.modelId }}</p>
                               <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
                               @if (card.fitReason) {
                                 <p class="muted warn">{{ card.fitReason | translate }}</p>

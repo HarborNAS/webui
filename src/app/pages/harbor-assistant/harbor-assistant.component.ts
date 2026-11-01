@@ -4424,7 +4424,7 @@ export class HarborAssistantComponent implements OnInit {
       && endpoint.endpoint_kind === 'local' && endpoint.status === 'active'
       && (!policy || !endpoint.workspace_id || endpoint.workspace_id === policy.workspace_id)
       && (Boolean(policy) || endpoint.model_endpoint_id === current?.model_endpoint_id))
-      .map((endpoint) => {
+      .map((endpoint): CustomerModelCard => {
         const selected = endpoint.model_endpoint_id === current?.model_endpoint_id;
         return {
           key: `configured-endpoint:${kind}:${endpoint.model_endpoint_id}`,
