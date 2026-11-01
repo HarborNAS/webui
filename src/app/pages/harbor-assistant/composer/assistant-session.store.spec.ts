@@ -64,6 +64,7 @@ describe('AssistantSessionStore', () => {
       text: 'What is in this guide?',
       sourceRootIds: ['docs'],
       retrievalMode: 'on',
+      responsePreference: 'fast',
       filter: 'text',
       from: '2026-10-29T10:00',
       to: '2026-10-30T10:00',
@@ -74,6 +75,7 @@ describe('AssistantSessionStore', () => {
       query: 'What is in this guide?',
       conversation_id: id,
       retrieval_mode: 'on',
+      response_preference: 'fast',
       source_root_ids: ['docs'],
       filter: 'text',
       include_audio: true,
@@ -111,13 +113,14 @@ describe('AssistantSessionStore', () => {
   });
 
   it('keeps the same root store and draft when a page binds the same signed-in user', () => {
-    store.updateDraft({ text: 'Unsaved question', sourceRootIds: ['docs'], retrievalMode: 'off' });
+    store.updateDraft({ text: 'Unsaved question', sourceRootIds: ['docs'], retrievalMode: 'off', responsePreference: 'careful' });
     const id = store.conversationId();
     store.bindUser('admin');
     expect(TestBed.inject(AssistantSessionStore)).toBe(store);
     expect(store.draft().text).toBe('Unsaved question');
     expect(store.conversationId()).toBe(id);
     expect(store.draft().retrievalMode).toBe('off');
+    expect(store.draft().responsePreference).toBe('careful');
   });
 
   it('preserves a pending request across page changes and sends it only once', () => {
@@ -137,12 +140,22 @@ describe('AssistantSessionStore', () => {
 
   it('restores per-user draft and conversation id from session storage', () => {
     sessionStorage.setItem('harborAssistant.composer.v1:other', JSON.stringify({
-      conversationId: 'saved-draft', draft: { text: 'Retained', retrievalMode: 'on', sourceRootIds: ['docs'] },
+      conversationId: 'saved-draft', draft: { text: 'Retained', retrievalMode: 'on', responsePreference: 'fast', sourceRootIds: ['docs'] },
     }));
     store.bindUser('other');
     expect(store.draft().text).toBe('Retained');
     expect(store.conversationId()).toBe('saved-draft');
+    expect(store.draft().responsePreference).toBe('fast');
     expect(store.draft().sourceRootIds).toEqual(['docs']);
+  });
+
+  it('persists response preference across a new conversation without sending a request', () => {
+    store.updateDraft({ text: 'Fast photo lookup', responsePreference: 'fast' });
+    const before = store.conversationId();
+    store.newConversation();
+    expect(store.conversationId()).not.toBe(before);
+    expect(store.draft().responsePreference).toBe('fast');
+    expect(api.search).not.toHaveBeenCalled();
   });
 
   it('opens server history and never fabricates a local history success', () => {

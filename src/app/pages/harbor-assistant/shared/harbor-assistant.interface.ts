@@ -1,10 +1,12 @@
 export type HarborAssistantSearchResultFilter = 'all' | 'images' | 'text' | 'videos';
 export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'all';
+export type HarborAssistantResponsePreference = 'auto' | 'fast' | 'careful';
 
 export interface HarborAssistantSearchRequest {
   query: string;
   conversation_id?: string;
   retrieval_mode?: 'auto' | 'on' | 'off';
+  response_preference?: HarborAssistantResponsePreference;
   source_root_ids?: string[];
   filter?: HarborAssistantSearchResultFilter;
   limit?: number;

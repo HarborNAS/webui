@@ -286,9 +286,12 @@ describe('GlobalAssistantComposerComponent', () => {
     expect(await Promise.all(items.map((item) => item.getText()))).toEqual([
       'Sources and search options', 'Time range', 'New conversation', 'Conversation history',
     ]);
-    await items[1].click();
+    await items[0].click();
     spectator.detectChanges();
-    expect(spectator.query('input[type="datetime-local"]')).toExist();
+    const preference = spectator.query('select option[value="fast"]');
+    expect(preference).toExist();
+    expect(spectator.query('select option[value="careful"]')).toExist();
+    expect(spectator.query('input[type="datetime-local"]')).not.toExist();
     expect(api.search).not.toHaveBeenCalled();
     expect(TestBed.inject(AssistantSessionStore).turns()).toEqual([]);
   });

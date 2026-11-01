@@ -9,7 +9,7 @@ import { TranslateModule } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { WINDOW } from 'app/helpers/window.helper';
 import { AuthService } from 'app/modules/auth/auth.service';
-import { AssistantSessionStore, AssistantRetrievalMode, AssistantResultFilter } from 'app/pages/harbor-assistant/composer/assistant-session.store';
+import { AssistantResponsePreference, AssistantSessionStore, AssistantRetrievalMode, AssistantResultFilter } from 'app/pages/harbor-assistant/composer/assistant-session.store';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
 import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
@@ -156,6 +156,10 @@ export class GlobalAssistantComposerComponent implements AfterViewInit, OnDestro
 
   protected setRetrievalMode(value: string): void {
     this.session.updateDraft({ retrievalMode: value as AssistantRetrievalMode });
+  }
+
+  protected setResponsePreference(value: string): void {
+    this.session.updateDraft({ responsePreference: value as AssistantResponsePreference });
   }
 
   protected setFilter(value: string): void {

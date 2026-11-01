@@ -6,15 +6,17 @@ import { generateUuid } from 'app/helpers/uuid.helper';
 import { KnowledgeSourceRoot } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
-import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
+import { HarborAssistantResponsePreference, HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
 export type AssistantRetrievalMode = 'auto' | 'on' | 'off';
 export type AssistantResultFilter = 'all' | 'text' | 'images' | 'videos';
+export type AssistantResponsePreference = HarborAssistantResponsePreference;
 
 export interface AssistantDraft {
   text: string;
   sourceRootIds: string[];
   retrievalMode: AssistantRetrievalMode;
+  responsePreference: AssistantResponsePreference;
   filter: AssistantResultFilter;
   from: string;
   to: string;
@@ -33,7 +35,7 @@ export interface AssistantConversation {
 }
 
 const emptyDraft = (): AssistantDraft => ({
-  text: '', sourceRootIds: [], retrievalMode: 'auto', filter: 'all', from: '', to: '',
+  text: '', sourceRootIds: [], retrievalMode: 'auto', responsePreference: 'auto', filter: 'all', from: '', to: '',
 });
 
 @Injectable({ providedIn: 'root' })
@@ -144,6 +146,7 @@ export class AssistantSessionStore {
       query,
       conversation_id: conversationId,
       retrieval_mode: draft.retrievalMode,
+      response_preference: draft.responsePreference,
       source_root_ids: [...draft.sourceRootIds],
       source_scope: 'all',
       filter: draft.filter,
@@ -302,6 +305,9 @@ export class AssistantSessionStore {
           : [],
         retrievalMode: ['auto', 'on', 'off'].includes(String(draft['retrievalMode']))
           ? draft['retrievalMode'] as AssistantRetrievalMode
+          : 'auto',
+        responsePreference: ['auto', 'fast', 'careful'].includes(String(draft['responsePreference']))
+          ? draft['responsePreference'] as AssistantResponsePreference
           : 'auto',
         filter: ['all', 'text', 'images', 'videos'].includes(String(draft['filter']))
           ? draft['filter'] as AssistantResultFilter
