@@ -2834,7 +2834,8 @@ export class HarborAssistantComponent implements OnInit {
   }
 
   private currentModelDisplayName(modelName: string): string {
-    const catalog = this.catalogModels().find((model) => model.model_id === modelName || model.local_path === modelName);
+    const catalog = this.catalogModels()
+      .find((model) => model.model_id === modelName || model.local_path === modelName);
     if (catalog?.display_name) {
       return catalog.display_name;
     }
