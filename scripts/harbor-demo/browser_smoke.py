@@ -469,37 +469,44 @@ class BrowserSmoke:
     async def initial_loading(self):
         held, release = asyncio.Event(), asyncio.Event()
         attempts = 0
-        fetch_failure = None
+        route_failure = None
+        active_handlers = set()
+
         async def intercept(route):
-            nonlocal attempts, fetch_failure
+            nonlocal attempts, route_failure
+            handler = asyncio.current_task()
+            active_handlers.add(handler)
             attempts += 1
-            if attempts == 1:
-                self.report['injections'].append({'path': CAPABILITIES, 'status': 500, 'purpose': 'transient retry'})
-                await route.fulfill(status=500, content_type='application/json',
-                                    headers={'x-harbor-smoke': 'transient-capabilities'},
-                                    body=json.dumps({'error': 'Browser smoke transient failure'}))
-            else:
-                try:
-                    response = await route.fetch(timeout=self.args.timeout * 1000)
+            try:
+                if attempts == 1:
+                    self.report['injections'].append({'path': CAPABILITIES, 'status': 500, 'purpose': 'transient retry'})
+                    await route.fulfill(status=500, content_type='application/json',
+                                        headers={'x-harbor-smoke': 'transient-capabilities'},
+                                        body=json.dumps({'error': 'Browser smoke transient failure'}))
+                else:
+                    # Hold the real retry before sending it, then let Chrome
+                    # receive the original response. Each route is handled once.
                     held.set()
                     await asyncio.wait_for(release.wait(), timeout=30)
-                    await route.fulfill(response=response)
-                except Exception as error:
-                    fetch_failure = type(error).__name__
-                    held.set()
-                    await route.abort('failed')
+                    await route.continue_()
+            except Exception as error:
+                route_failure = self.redact(error)
+                held.set()
+            finally:
+                active_handlers.discard(handler)
+
         pattern = '**' + CAPABILITIES
         await self.page.route(pattern, intercept)
         try:
             await self.page.goto(self.url('harbor-assistant?tab=settings&section=ai&focus=models'),
                                  wait_until='domcontentloaded')
             await asyncio.wait_for(held.wait(), timeout=min(30, self.args.timeout))
-            assert not fetch_failure, 'The actual capability response failed: ' + str(fetch_failure)
+            assert not route_failure, 'The capability retry route failed: ' + str(route_failure)
             toolbar = self.page.locator('.ai-settings-subtabs')
             await toolbar.wait_for()
             pending = await toolbar.inner_text()
             assert not re.search(r'0\s*/\s*4\s+ready', pending, re.I), 'False 0/4 Ready during API loading'
-            assert re.search(r'loading', pending, re.I), 'Missing loading label while real capability response is held'
+            assert re.search(r'loading', pending, re.I), 'Missing loading label while real capability request is held'
             screenshot = await self.screenshot('loading-retry-before-capabilities')
             async with self.page.expect_response(lambda response: urlsplit(response.url).path == CAPABILITIES
                                                   and response.status == 200,
@@ -507,12 +514,15 @@ class BrowserSmoke:
                 release.set()
             actual = await completed.value
             await actual.body()
+            assert not route_failure, 'The capability retry route failed: ' + str(route_failure)
             await expect(toolbar).not_to_contain_text('Loading', timeout=self.args.timeout * 1000)
             return {'attempts': attempts, 'injected_500': True, 'actual_response_delayed': True,
                     'loading_text': pending, 'screenshot': screenshot}
         finally:
             release.set()
             await self.page.unroute(pattern, intercept)
+            if active_handlers:
+                await asyncio.wait_for(asyncio.gather(*list(active_handlers), return_exceptions=True), timeout=10)
 
     async def model_truth(self):
         await self.ai_tab('models')
@@ -538,7 +548,8 @@ class BrowserSmoke:
 
     async def data_sources(self):
         await self.ai_tab('sources')
-        await expect(self.page.locator('.sources-settings-panel')).to_contain_text('Demo Documents')
+        await expect(self.page.locator('.sources-settings-panel')).to_contain_text(
+            'Demo Documents', timeout=self.args.timeout * 1000)
         text = await self.page.locator('.sources-settings-panel').inner_text()
         return {'synthetic_source_visible': True, 'status_text': clipped(text, 1800),
                 'screenshot': await self.screenshot('data-sources-readiness')}
