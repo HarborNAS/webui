@@ -1,0 +1,192 @@
+@if (session.resultsOpen()) {
+  <aside class="assistant-results" aria-label="Harbor Assistant results">
+    <header>
+      <strong>{{ 'Harbor Assistant' | translate }}</strong>
+      <button type="button" aria-label="Close assistant results" (click)="session.resultsOpen.set(false)">×</button>
+    </header>
+    <div class="assistant-result-stream" aria-live="polite">
+      @if (citationError()) { <p class="assistant-error" role="alert">{{ citationError() | translate }}</p> }
+      @if (session.turns().length === 0) {
+        <p>{{ 'Ask a question or open a saved conversation.' | translate }}</p>
+      }
+      @for (turn of session.turns(); track $index) {
+        <article class="assistant-turn">
+          <h3>{{ turn.query }}</h3>
+          @if (turn.response; as response) {
+            @if (summary(response); as answer) {
+              <p class="assistant-answer">{{ answer }}</p>
+            } @else {
+              <p class="assistant-warning" role="status">{{ answerNotice(response) | translate }}</p>
+            }
+            @if (verificationNotice(response); as notice) {
+              <p class="assistant-verification-status" role="status">{{ notice | translate }}</p>
+            }
+            @if (response.images?.length) {
+              <section class="assistant-photo-grid" aria-label="Photo results">
+                @for (image of response.images; track image.path; let photoIndex = $index) {
+                  <figure class="assistant-photo-card">
+                    <button class="assistant-photo-preview" type="button"
+                      [attr.aria-label]="('Open image preview' | translate) + ' ' + (photoIndex + 1)"
+                      (click)="openImage(image.path)">
+                      @if (imagePreviewUrls()[image.path]; as photoUrl) {
+                        <img loading="lazy" [src]="photoUrl"
+                          [alt]="image.title || (('Photo' | translate) + ' ' + (photoIndex + 1))" (error)="imagePreviewFailed(image.path)" />
+                      } @else if (imagePreviewErrors()[image.path]) {
+                        <span class="assistant-photo-error" role="status">{{ 'Image preview unavailable' | translate }}</span>
+                      } @else {
+                        <span class="assistant-photo-loading" role="status">{{ 'Loading image' | translate }}…</span>
+                      }
+                    </button>
+                    <figcaption><span class="assistant-photo-number">{{ photoIndex + 1 }}</span>{{ image.title || ('Photo' | translate) }}</figcaption>
+                    @if (image.snippet) {
+                      <p class="assistant-photo-description" [attr.title]="image.snippet">{{ photoDescription(image.snippet) }}</p>
+                    }
+                    <button class="assistant-photo-open" type="button" (click)="openImage(image.path)">
+                      {{ 'Open image preview' | translate }}
+                    </button>
+                  </figure>
+                }
+              </section>
+            }
+            @if (modelRows(response).length) {
+              <dl class="assistant-runtime-metadata">
+                @for (row of modelRows(response); track row.label) {
+                  <dt>{{ row.label | translate }}</dt><dd>{{ row.value }}</dd>
+                }
+              </dl>
+            }
+            <a routerLink="/harbor-assistant" [queryParams]="{tab: 'settings', section: 'ai', focus: 'models'}"
+              (click)="session.resultsOpen.set(false)">
+              {{ 'View model status' | translate }}
+            </a>
+            @if (response.reply_pack?.citations?.length) {
+              <section class="assistant-citations" aria-label="Answer sources">
+                <strong>{{ 'Sources' | translate }}</strong>
+                @for (citation of response.reply_pack.citations; track $index) {
+                  @if (citationUrl(citation); as url) {
+                    <button class="assistant-citation-link" type="button" (click)="openCitation(url)">{{ citationLabel(citation) }}</button>
+                  } @else {
+                    <span>{{ citationLabel(citation) }}</span>
+                  }
+                }
+              </section>
+            }
+            @for (blocker of response.blockers; track blocker) {
+              <p class="assistant-warning">{{ blocker }}</p>
+            }
+            @for (warning of response.warnings; track warning) {
+              <p class="assistant-warning">{{ warning }}</p>
+            }
+          } @else if (turn.error) {
+            <p class="assistant-error" role="alert">{{ turn.error | translate }}</p>
+          } @else {
+            <p>{{ 'Thinking...' | translate }}</p>
+          }
+        </article>
+      }
+    </div>
+  </aside>
+}
+
+<section #composer class="assistant-composer" aria-label="Global Harbor Assistant">
+  <div class="assistant-composer-heading">
+    <span>{{ 'Harbor Assistant' | translate }}</span>
+    <button type="button" [attr.aria-expanded]="session.resultsOpen()" (click)="session.resultsOpen.set(!session.resultsOpen())">
+      {{ session.resultsOpen() ? ('Show page' | translate) : ('Results' | translate) }}
+    </button>
+  </div>
+  @if (session.error()) {
+    <p class="assistant-error" role="status">{{ session.error() | translate }}</p>
+  }
+  @if (options(); as option) {
+    <section class="assistant-options" [attr.aria-label]="option + ' options'">
+      <button class="assistant-options-close" type="button" aria-label="Close conversation options" (click)="options.set(null)">×</button>
+      @if (option === 'sources') {
+        <label>{{ 'Conversation mode' | translate }}
+          <select [ngModel]="session.draft().retrievalMode" (ngModelChange)="setRetrievalMode($event)">
+            <option value="auto">{{ 'Automatic' | translate }}</option>
+            <option value="on">{{ 'Force retrieval' | translate }}</option>
+            <option value="off">{{ 'Ordinary chat' | translate }}</option>
+          </select>
+        </label>
+        <strong>{{ 'Knowledge folders' | translate }}</strong>
+        @if (session.sources().length === 0) { <p>{{ 'No enabled knowledge folders are configured.' | translate }}</p> }
+        @for (source of session.sources(); track source.root_id) {
+          <label class="assistant-source">
+            <input type="checkbox" [checked]="session.draft().sourceRootIds.includes(source.root_id)" (change)="session.toggleSource(source.root_id)" />
+            {{ source.label || source.path }}
+          </label>
+        }
+        <label>{{ 'Result type' | translate }}
+          <select [ngModel]="session.draft().filter" (ngModelChange)="setFilter($event)">
+            <option value="all">{{ 'All' | translate }}</option>
+            <option value="text">{{ 'Text' | translate }}</option>
+            <option value="images">{{ 'Image' | translate }}</option>
+            <option value="videos">{{ 'Video' | translate }}</option>
+          </select>
+        </label>
+      }
+      @if (option === 'time') {
+        <strong>{{ 'Time range' | translate }}</strong>
+        <p>{{ 'File modified time' | translate }}</p>
+        <label>{{ 'From' | translate }}<input type="datetime-local" [ngModel]="session.draft().from" (ngModelChange)="session.updateDraft({from: $event})" /></label>
+        <label>{{ 'To' | translate }}<input type="datetime-local" [ngModel]="session.draft().to" (ngModelChange)="session.updateDraft({to: $event})" /></label>
+        <button mat-button type="button" (click)="session.updateDraft({from: '', to: ''})">{{ 'Clear time range' | translate }}</button>
+      }
+      @if (option === 'history') {
+        <strong>{{ 'Conversation history' | translate }}</strong>
+        @if (session.historyLoading()) { <p>{{ 'Loading' | translate }}…</p> }
+        @else if (session.historyError()) { <p class="assistant-warning">{{ session.historyError() | translate }}</p> }
+        @else if (session.history().length === 0) { <p>{{ 'No conversation history yet.' | translate }}</p> }
+        @for (conversation of session.history(); track conversation.conversation_id) {
+          <button class="assistant-history-item" type="button" [disabled]="session.busy()" (click)="session.loadConversation(conversation.conversation_id); options.set(null)">
+            {{ conversation.title }} <small>{{ conversation.turn_count }} {{ 'messages' | translate }}</small>
+          </button>
+        }
+      }
+    </section>
+  }
+  <form (submit)="send($event)">
+    <textarea aria-label="Ask Harbor Assistant" rows="2" name="assistantPrompt" [ngModel]="session.draft().text"
+      [placeholder]="'Ask Harbor Assistant' | translate" (ngModelChange)="session.updateDraft({text: $event})"
+      (keydown)="onKeydown($event)"></textarea>
+    <div class="assistant-composer-toolbar">
+      <button class="assistant-add" type="button" aria-label="Add to conversation" [matMenuTriggerFor]="conversationTools">+</button>
+      <mat-menu #conversationTools="matMenu" yPosition="above">
+        <button mat-menu-item type="button" (click)="openOptions('sources')">{{ 'Sources and search options' | translate }}</button>
+        <button mat-menu-item type="button" (click)="openOptions('time')">{{ 'Time range' | translate }}</button>
+        <button mat-menu-item type="button" [disabled]="session.busy()" (click)="session.newConversation()">{{ 'New conversation' | translate }}</button>
+        <button mat-menu-item type="button" (click)="openOptions('history')">{{ 'Conversation history' | translate }}</button>
+      </mat-menu>
+      <button class="assistant-response-preference" type="button" [matMenuTriggerFor]="responsePreferences"
+        [attr.aria-label]="('Response preference' | translate) + ': ' + (responsePreferenceLabel() | translate)">
+        <span>{{ responsePreferenceLabel() | translate }}</span><span class="assistant-menu-caret" aria-hidden="true">▾</span>
+      </button>
+      <mat-menu #responsePreferences="matMenu" yPosition="above">
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'fast'" (click)="setResponsePreference('fast')">
+          {{ 'Fast · indexed results first' | translate }}
+        </button>
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'careful'" (click)="setResponsePreference('careful')">
+          {{ 'Careful · visual verification' | translate }}
+        </button>
+        <button mat-menu-item type="button" role="menuitemradio"
+          [attr.aria-checked]="session.draft().responsePreference === 'auto'" (click)="setResponsePreference('auto')">
+          {{ 'Automatic · match the request' | translate }}
+        </button>
+      </mat-menu>
+      <div class="assistant-context-chips">
+        @if (session.draft().retrievalMode !== 'auto') {
+          <button type="button" (click)="session.updateDraft({retrievalMode: 'auto'})">{{ session.draft().retrievalMode === 'off' ? ('Ordinary chat' | translate) : ('Force retrieval' | translate) }} ×</button>
+        }
+        @for (source of session.sources(); track source.root_id) {
+          @if (session.draft().sourceRootIds.includes(source.root_id)) { <button type="button" (click)="session.toggleSource(source.root_id)">{{ source.label || source.path }} ×</button> }
+        }
+        @if (session.draft().from || session.draft().to) { <button type="button" (click)="session.updateDraft({from: '', to: ''})">{{ 'Time range' | translate }} ×</button> }
+      </div>
+      <span class="assistant-model" title="The server chooses the answer model">{{ 'Automatic' | translate }}</span>
+      <button mat-button type="submit" [disabled]="session.busy() || !session.draft().text.trim()">{{ session.busy() ? ('Sending...' | translate) : ('Send' | translate) }}</button>
+    </div>
+  </form>
+</section>

@@ -38,6 +38,15 @@ describe('Harbor Assistant API service', () => {
     expect(result.devices).toEqual([]);
   });
 
+  it('preserves runtime binding identity when selecting an existing model endpoint', async () => {
+    const promise = firstValueFrom(spectator.service.selectModelCapability('asr', 'whisper-small', 'asr-780m'));
+    const req = httpMock.expectOne('/api/harbor-beacon/models/capabilities/asr/selection');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ model_id: 'whisper-small', model_endpoint_id: 'asr-780m' });
+    req.flush({ capabilities: [] });
+    await promise;
+  });
+
   it('keeps device management actions under /api/harbor-beacon', async () => {
     const deviceId = 'cam 1/left';
 

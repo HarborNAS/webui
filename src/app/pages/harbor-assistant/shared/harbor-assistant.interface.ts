@@ -1,9 +1,16 @@
 export type HarborAssistantSearchResultFilter = 'all' | 'images' | 'text' | 'videos';
 export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'all';
+export type HarborAssistantResponsePreference = 'auto' | 'fast' | 'careful';
 
 export interface HarborAssistantSearchRequest {
   query: string;
+  conversation_id?: string;
+  retrieval_mode?: 'auto' | 'on' | 'off';
+  response_preference?: HarborAssistantResponsePreference;
+  source_root_ids?: string[];
+  filter?: HarborAssistantSearchResultFilter;
   limit?: number;
+  include_audio?: boolean;
   include_documents: boolean;
   include_images: boolean;
   include_videos: boolean;
@@ -40,6 +47,11 @@ export interface HarborAssistantSearchReplyPack {
 }
 
 export interface HarborAssistantSearchResponse {
+  model?: string | Record<string, unknown> | null;
+  verification_status?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: { status?: string; [key: string]: unknown };
+  conversation_id?: string;
   query: string;
   roots: string[];
   total_matches: number;

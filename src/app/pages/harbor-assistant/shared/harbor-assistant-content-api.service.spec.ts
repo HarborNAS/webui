@@ -31,6 +31,8 @@ describe('Harbor Assistant content API service', () => {
     const promise = firstValueFrom(spectator.service.search({
       query: '找到和春天相关的照片',
       limit: 24,
+      filter: 'images',
+      include_audio: false,
       include_documents: true,
       include_images: true,
       include_videos: true,
@@ -41,6 +43,8 @@ describe('Harbor Assistant content API service', () => {
     expect(req.request.body).toEqual({
       query: '找到和春天相关的照片',
       limit: 24,
+      filter: 'images',
+      include_audio: false,
       include_documents: true,
       include_images: true,
       include_videos: true,
@@ -78,6 +82,45 @@ describe('Harbor Assistant content API service', () => {
     expect(response.images[0].content_source_kinds).toEqual(['vlm']);
     expect(response.images[0].filename_match_used).toBe(false);
     expect(response.images[0].content_match_used).toBe(true);
+  });
+
+  it('unwraps conversation search results while preserving the answer and runtime metadata', async () => {
+    const response = firstValueFrom(spectator.service.search({
+      query: 'spring photos', include_documents: false, include_images: true, include_videos: false,
+    }));
+    httpMock.expectOne('/api/harbor-beacon/knowledge/search').flush({
+      conversation_id: 'photo-conversation',
+      reply_pack: { summary: 'Matching photos', citations: [] },
+      model: { model_name: 'actual-model' },
+      degraded: true,
+      blockers: ['answer unavailable'],
+      search: {
+        query: 'spring photos',
+        images: [{ path: '/photos/001.jpg', title: '001.jpg' }],
+        documents: [],
+        videos: [],
+        total_matches: 1,
+        reply_pack: { summary: 'retrieval summary', citations: [] },
+        degraded: false,
+      },
+    });
+
+    const result = await response;
+    expect(result.images[0].path).toBe('/photos/001.jpg');
+    expect(result.total_matches).toBe(1);
+    expect(result.reply_pack.summary).toBe('Matching photos');
+    expect(result.model).toEqual({ model_name: 'actual-model' });
+    expect(result.conversation_id).toBe('photo-conversation');
+    expect(result.degraded).toBe(true);
+  });
+
+  it('loads previews through HttpClient so user session authentication is applied', async () => {
+    const preview = firstValueFrom(spectator.service.preview('/photos/001.jpg'));
+    const request = httpMock.expectOne('/api/harbor-beacon/knowledge/preview?path=%2Fphotos%2F001.jpg');
+    expect(request.request.responseType).toBe('blob');
+    const image = new Blob(['image'], { type: 'image/jpeg' });
+    request.flush(image);
+    expect(await preview).toBe(image);
   });
 
   it('builds encoded same-origin preview URLs', () => {

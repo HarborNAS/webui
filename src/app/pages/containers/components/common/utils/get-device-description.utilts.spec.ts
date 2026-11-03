@@ -154,7 +154,7 @@ describe('getDeviceDescription', () => {
       expect(result).toBe('AMD GPU (0000:1a:00.0)');
     });
 
-    it('should return GPU description with type and PCI address for Intel', () => {
+    it('should label Intel GPU devices as Arc/dGPU targets', () => {
       const device: ContainerDevice = {
         dtype: ContainerDeviceType.Gpu,
         gpu_type: containerGpuType.Intel,
@@ -162,7 +162,7 @@ describe('getDeviceDescription', () => {
       } as ContainerGpuDevice;
 
       const result = getDeviceDescription(mockTranslate as TranslateService, device);
-      expect(result).toBe('INTEL GPU (0000:00:02.0)');
+      expect(result).toBe('Intel Arc/dGPU (0000:00:02.0)');
     });
   });
 });

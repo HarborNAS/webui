@@ -14,7 +14,22 @@ export interface HarborAssistantMetric {
   tone: HarborAssistantStatusTone;
 }
 
-export type HarborAssistantTabId = 'search' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+export type HarborAssistantTabId = 'overview' | 'rules' | 'multimodal' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+
+
+export interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
 
 export interface HarborAssistantTab {
   id: HarborAssistantTabId;
@@ -374,6 +389,15 @@ export interface GatewayStatusResponse {
   channels?: GatewayPlatformStatus[];
   platforms?: GatewayPlatformStatus[];
   bridge_provider?: BridgeProviderConfig;
+  setup?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+    channels?: GatewayPlatformStatus[];
+  };
+  connectors?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+  };
   feishu?: GatewayPlatformStatus & { rehearsal_ready?: boolean };
   weixin?: GatewayPlatformStatus & {
     rehearsal_ready?: boolean;
@@ -1146,12 +1170,18 @@ export interface ModelCapabilityInstallableModel {
   expected_capabilities?: string[];
 }
 
+export type ModelCapabilityTransitionStatus = 'ready' | 'loading' | 'failed' | 'unknown';
+
 export interface ModelCapabilityStatus {
   capability_id: string;
   label: string;
   model_kind: string;
   status: ModelCapabilityStatusValue;
   selected_model_id?: string | null;
+  desired_model_id?: string | null;
+  active_model_id?: string | null;
+  transition_status?: ModelCapabilityTransitionStatus;
+  last_error?: string | null;
   runtime_model_id?: string | null;
   current_model?: ModelCapabilityCurrentModel | null;
   installed_models?: ModelCapabilityInstallableModel[];

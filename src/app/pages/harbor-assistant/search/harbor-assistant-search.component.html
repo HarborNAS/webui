@@ -54,15 +54,17 @@
             } @else {
               <section class="results-waterfall" aria-live="polite">
                 @for (item of waterfallItems(); track resultTrackKey($index, item)) {
-                  <mat-card class="result-card" [ngClass]="item.kind" tabindex="0" (click)="openPreview(item)" (keydown.enter)="openPreview(item)">
+                  <mat-card class="result-card" tabindex="0" [ngClass]="item.kind" (click)="openPreview(item)" (keydown.enter)="openPreview(item)">
                     @if (item.kind === 'image') {
                       <div class="image-frame">
-                        <img [src]="item.previewUrl" [alt]="item.hit.title" loading="lazy" />
+                        @if (imagePreviewUrls()[item.hit.path]; as previewUrl) {
+                          <img loading="lazy" [src]="previewUrl" [alt]="item.hit.title" />
+                        }
                       </div>
                     }
                     @if (item.kind === 'video') {
                       <div class="video-frame">
-                        <video [src]="videoPreviewUrl(item)" muted playsinline preload="metadata" aria-hidden="true"></video>
+                        <video muted playsinline preload="metadata" aria-hidden="true" [src]="videoPreviewUrl(item)"></video>
                         <span class="play-chip">{{ 'Play' | translate }}</span>
                       </div>
                     }
@@ -135,6 +137,7 @@
         }
 
         <div class="scope-note">{{ 'Search scope' | translate }}: {{ searchScopeLabel() | translate }}</div>
+        <p class="image-search-note">{{ 'Image search uses indexed image sources and citations. Use Multimodal for a direct upload.' | translate }}</p>
 
         <mat-button-toggle-group class="scope-toggle" formControlName="sourceScope" aria-label="Search source scope">
           <mat-button-toggle value="all">{{ 'All' | translate }}</mat-button-toggle>
@@ -167,6 +170,9 @@
       }
       @if (error()) {
         <div class="notice error compact">{{ error() | translate }}</div>
+      }
+      @if (previewError()) {
+        <div class="notice error compact" role="alert">{{ previewError() | translate }}</div>
       }
       @if (response(); as result) {
         @if (result.warnings.length > 0 || result.blockers.length > 0) {

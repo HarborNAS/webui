@@ -1,6 +1,6 @@
 import { HarnessLoader } from '@angular/cdk/testing';
 import { TestbedHarnessEnvironment } from '@angular/cdk/testing/testbed';
-import { MatDialog } from '@angular/material/dialog';
+import { MatButtonHarness } from '@angular/material/button/testing';
 import { MatMenuHarness } from '@angular/material/menu/testing';
 import { Spectator } from '@ngneat/spectator';
 import { createComponentFactory, mockProvider } from '@ngneat/spectator/jest';
@@ -16,9 +16,6 @@ import { IscsiTarget } from 'app/interfaces/iscsi.interface';
 import { Service } from 'app/interfaces/service.interface';
 import { DialogService } from 'app/modules/dialog/dialog.service';
 import { IxTableHarness } from 'app/modules/ix-table/components/ix-table/ix-table.harness';
-import {
-  IxTablePagerShowMoreComponent,
-} from 'app/modules/ix-table/components/ix-table-pager-show-more/ix-table-pager-show-more.component';
 import { SlideIn } from 'app/modules/slide-ins/slide-in';
 import { SlideInRef } from 'app/modules/slide-ins/slide-in-ref';
 import { IscsiCardComponent } from 'app/pages/sharing/components/shares-dashboard/iscsi-card/iscsi-card.component';
@@ -28,8 +25,7 @@ import {
 import {
   ServiceStateButtonComponent,
 } from 'app/pages/sharing/components/shares-dashboard/service-state-button/service-state-button.component';
-import { DeleteTargetDialog } from 'app/pages/sharing/iscsi/target/delete-target-dialog/delete-target-dialog.component';
-import { TargetFormComponent } from 'app/pages/sharing/iscsi/target/target-form/target-form.component';
+import { IscsiWizardComponent } from 'app/pages/sharing/iscsi/iscsi-wizard/iscsi-wizard.component';
 import { LicenseService } from 'app/services/license.service';
 import { selectServices } from 'app/store/services/services.selectors';
 
@@ -64,8 +60,6 @@ describe('IscsiCardComponent', () => {
 
   const createComponent = createComponentFactory({
     component: IscsiCardComponent,
-    imports: [IxTablePagerShowMoreComponent,
-    ],
     declarations: [
       MockComponents(
         ServiceStateButtonComponent,
@@ -76,7 +70,6 @@ describe('IscsiCardComponent', () => {
       mockAuth(),
       mockApi([
         mockCall('iscsi.target.query', iscsiShares),
-        mockCall('iscsi.target.delete'),
       ]),
       mockProvider(DialogService, {
         confirm: jest.fn(() => of(true)),
@@ -87,11 +80,6 @@ describe('IscsiCardComponent', () => {
       mockProvider(SlideInRef, slideInRef),
       mockProvider(LicenseService, {
         hasFibreChannel$: of(true),
-      }),
-      mockProvider(MatDialog, {
-        open: jest.fn(() => ({
-          afterClosed: () => of(true),
-        })),
       }),
       provideMockStore({
         initialState: {
@@ -126,33 +114,24 @@ describe('IscsiCardComponent', () => {
 
   it('should show table rows', async () => {
     const expectedRows = [
-      ['Target Name', 'Target Alias', 'Mode', ''],
-      ['grow', 'kokok', 'Both', ''],
+      ['Target Name', 'Target Alias', 'Mode'],
+      ['grow', 'kokok', 'Both'],
     ];
 
     const cells = await table.getCellTexts();
     expect(cells).toEqual(expectedRows);
   });
 
-  it('shows form to edit an existing iSCSI Share when Edit button is pressed', async () => {
-    const [menu] = await loader.getAllHarnesses(MatMenuHarness.with({ selector: '[mat-icon-button]' }));
-    await menu.open();
-    await menu.clickItem({ text: 'Edit' });
-
-    expect(spectator.inject(SlideIn).open).toHaveBeenCalledWith(TargetFormComponent, {
-      data: expect.objectContaining(iscsiShares[0]),
-      wide: true,
-    });
+  it('keeps the target summary read-only after target management is removed', async () => {
+    const menus = await loader.getAllHarnesses(MatMenuHarness.with({ selector: '[mat-icon-button]' }));
+    expect(menus).toHaveLength(0);
+    expect(spectator.query('ix-table-pager-show-more')).not.toExist();
+    expect(spectator.query('.toolbar-row-title a')).toHaveAttribute('href', '/sharing/iscsi');
   });
 
-  it('shows confirmation to delete iSCSI Share when Delete button is pressed', async () => {
-    const [menu] = await loader.getAllHarnesses(MatMenuHarness.with({ selector: '[mat-icon-button]' }));
-    await menu.open();
-    await menu.clickItem({ text: 'Delete' });
-
-    expect(spectator.inject(MatDialog).open).toHaveBeenCalledWith(
-      DeleteTargetDialog,
-      { data: iscsiShares[0], width: '600px' },
-    );
+  it('opens the existing iSCSI wizard from the dashboard', async () => {
+    const wizard = await loader.getHarness(MatButtonHarness.with({ text: 'Wizard' }));
+    await wizard.click();
+    expect(spectator.inject(SlideIn).open).toHaveBeenCalledWith(IscsiWizardComponent, { wide: true });
   });
 });

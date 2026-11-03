@@ -3,15 +3,14 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, effect, OnInit, 
 import { toSignal, takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButton } from '@angular/material/button';
 import { MatCard } from '@angular/material/card';
-import { MatDialog } from '@angular/material/dialog';
 import { MatToolbarRow } from '@angular/material/toolbar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService, TranslateModule } from '@ngx-translate/core';
-import { tnIconMarker, TnIconComponent } from '@truenas/ui-components';
+import { TnIconComponent } from '@truenas/ui-components';
 import {
-  filter, Observable, startWith, tap,
+  filter, startWith, tap,
 } from 'rxjs';
 import { iscsiCardEmptyConfig } from 'app/constants/empty-configs';
 import { RequiresRolesDirective } from 'app/directives/requires-roles/requires-roles.directive';
@@ -25,25 +24,19 @@ import { EmptyComponent } from 'app/modules/empty/empty.component';
 import { EmptyService } from 'app/modules/empty/empty.service';
 import { AsyncDataProvider } from 'app/modules/ix-table/classes/async-data-provider/async-data-provider';
 import { IxTableComponent } from 'app/modules/ix-table/components/ix-table/ix-table.component';
-import { actionsWithMenuColumn } from 'app/modules/ix-table/components/ix-table-body/cells/ix-cell-actions-with-menu/ix-cell-actions-with-menu.component';
 import { textColumn } from 'app/modules/ix-table/components/ix-table-body/cells/ix-cell-text/ix-cell-text.component';
 import { IxTableBodyComponent } from 'app/modules/ix-table/components/ix-table-body/ix-table-body.component';
 import { IxTableHeadComponent } from 'app/modules/ix-table/components/ix-table-head/ix-table-head.component';
-import { IxTablePagerShowMoreComponent } from 'app/modules/ix-table/components/ix-table-pager-show-more/ix-table-pager-show-more.component';
 import { IxTableEmptyDirective } from 'app/modules/ix-table/directives/ix-table-empty.directive';
 import { SortDirection } from 'app/modules/ix-table/enums/sort-direction.enum';
 import { createTable } from 'app/modules/ix-table/utils';
 import { SlideIn } from 'app/modules/slide-ins/slide-in';
-import { SlideInResponse } from 'app/modules/slide-ins/slide-in.interface';
 import { TestDirective } from 'app/modules/test-id/test.directive';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { iscsiCardElements } from 'app/pages/sharing/components/shares-dashboard/iscsi-card/iscsi-card.elements';
 import { ServiceExtraActionsComponent } from 'app/pages/sharing/components/shares-dashboard/service-extra-actions/service-extra-actions.component';
 import { ServiceStateButtonComponent } from 'app/pages/sharing/components/shares-dashboard/service-state-button/service-state-button.component';
 import { IscsiWizardComponent } from 'app/pages/sharing/iscsi/iscsi-wizard/iscsi-wizard.component';
-import { DeleteTargetDialog } from 'app/pages/sharing/iscsi/target/delete-target-dialog/delete-target-dialog.component';
-import { TargetFormComponent } from 'app/pages/sharing/iscsi/target/target-form/target-form.component';
-import { IscsiService } from 'app/services/iscsi.service';
 import { LicenseService } from 'app/services/license.service';
 import { ServicesState } from 'app/store/services/services.reducer';
 import { selectService } from 'app/store/services/services.selectors';
@@ -67,7 +60,6 @@ import { selectService } from 'app/store/services/services.selectors';
     IxTableEmptyDirective,
     IxTableHeadComponent,
     IxTableBodyComponent,
-    IxTablePagerShowMoreComponent,
     TranslateModule,
     AsyncPipe,
     RouterLink,
@@ -82,8 +74,6 @@ export class IscsiCardComponent implements OnInit {
   private api = inject(ApiService);
   protected emptyService = inject(EmptyService);
   private store$ = inject<Store<ServicesState>>(Store);
-  private matDialog = inject(MatDialog);
-  private iscsiService = inject(IscsiService);
   private cdr = inject(ChangeDetectorRef);
   private license = inject(LicenseService);
   private destroyRef = inject(DestroyRef);
@@ -122,21 +112,6 @@ export class IscsiCardComponent implements OnInit {
       hidden: true,
       getValue: (row) => this.translate.instant(iscsiTargetModeNames.get(row.mode) || row.mode) || '-',
     }),
-    actionsWithMenuColumn({
-      actions: [
-        {
-          iconName: tnIconMarker('pencil', 'mdi'),
-          tooltip: this.translate.instant('Edit'),
-          onClick: (row) => this.openForm(row),
-        },
-        {
-          iconName: tnIconMarker('delete', 'mdi'),
-          tooltip: this.translate.instant('Delete'),
-          onClick: (row) => this.doDelete(row),
-          requiredRoles: this.requiredRoles,
-        },
-      ],
-    }),
   ], {
     uniqueRowTag: (row) => 'card-iscsi-target-' + row.name,
     ariaLabels: (row) => [row.name, this.translate.instant('iSCSI Target')],
@@ -173,29 +148,11 @@ export class IscsiCardComponent implements OnInit {
     this.dataProvider.load();
   }
 
-  openForm(row?: IscsiTarget, openWizard?: boolean): void {
-    let slideInRef$: Observable<SlideInResponse<boolean | IscsiTarget>>;
-
-    if (openWizard) {
-      slideInRef$ = this.slideIn.open(IscsiWizardComponent, { data: row, wide: true });
-    } else {
-      slideInRef$ = this.slideIn.open(TargetFormComponent, { data: row, wide: true });
-    }
-
-    slideInRef$.pipe(
+  openWizard(): void {
+    this.slideIn.open(IscsiWizardComponent, { wide: true }).pipe(
       filter((response) => !!response.response),
       takeUntilDestroyed(this.destroyRef),
-    ).subscribe(() => {
-      this.dataProvider.load();
-    });
-  }
-
-  doDelete(iscsi: IscsiTarget): void {
-    this.matDialog
-      .open(DeleteTargetDialog, { data: iscsi, width: '600px' })
-      .afterClosed()
-      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => this.dataProvider.load());
+    ).subscribe(() => this.dataProvider.load());
   }
 
   setDefaultSort(): void {

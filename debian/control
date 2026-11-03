@@ -7,7 +7,7 @@ Standards-Version: 4.0.0
 
 Package: truenas-webui
 Architecture: all
-Depends: ${misc:Depends}
+Depends: ${misc:Depends}, python3, harboros-im-gate
 Description: HarborOS Angular UI
  .
  This package installs the HarborOS Angular web-ui component,

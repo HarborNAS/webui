@@ -7,7 +7,7 @@ import { MatButtonModule } from '@angular/material/button';
 import {
   MatDrawerMode, MatSidenav, MatSidenavContainer,
 } from '@angular/material/sidenav';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
 import { filter, map, Subject, pairwise, startWith } from 'rxjs';
@@ -26,6 +26,7 @@ import { SidenavService } from 'app/modules/layout/sidenav.service';
 import { TopbarComponent } from 'app/modules/layout/topbar/topbar.component';
 import { ThemeService } from 'app/modules/theme/theme.service';
 import { SessionTimeoutService } from 'app/services/session-timeout.service';
+import { GlobalAssistantComposerComponent } from 'app/pages/harbor-assistant/composer/global-assistant-composer.component';
 import { AppState } from 'app/store';
 import { waitForPreferences } from 'app/store/preferences/preferences.selectors';
 import { selectHasConsoleFooter } from 'app/store/system-config/system-config.selectors';
@@ -46,9 +47,11 @@ import {
     AppBarComponent,
     TopbarComponent,
     RouterOutlet,
+    RouterLink,
     AlertsPanelComponent,
     AsyncPipe,
     TranslateModule,
+    GlobalAssistantComposerComponent,
   ],
 })
 export class AdminLayoutComponent implements OnInit, AfterViewInit, OnDestroy {

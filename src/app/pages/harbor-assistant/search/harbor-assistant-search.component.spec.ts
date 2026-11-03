@@ -1,16 +1,20 @@
 import { fakeAsync, tick } from '@angular/core/testing';
 import { createComponentFactory, Spectator } from '@ngneat/spectator/jest';
 import { MockComponent } from 'ng-mocks';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
+import { WINDOW } from 'app/helpers/window.helper';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantSearchComponent } from 'app/pages/harbor-assistant/search/harbor-assistant-search.component';
-import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
+import { HarborAssistantSearchResponse } from 'app/pages/harbor-assistant/shared/harbor-assistant.interface';
 
 describe('Harbor Assistant search component', () => {
   let spectator: Spectator<HarborAssistantSearchComponent>;
   let scrollIntoViewSpy: jest.Mock;
   let api: Partial<Record<keyof HarborAssistantContentApiService, jest.Mock>>;
+  const popup = { opener: null, location: { href: '' }, close: jest.fn() };
+  const open = jest.fn(() => popup);
+  const originalUrl = URL;
 
   const createComponent = createComponentFactory({
     component: HarborAssistantSearchComponent,
@@ -18,6 +22,7 @@ describe('Harbor Assistant search component', () => {
       MockComponent(PageHeaderComponent),
     ],
     providers: [
+      { provide: WINDOW, useValue: { open } },
       {
         provide: HarborAssistantContentApiService,
         useFactory: (): Partial<Record<keyof HarborAssistantContentApiService, jest.Mock>> => api,
@@ -29,10 +34,21 @@ describe('Harbor Assistant search component', () => {
     scrollIntoViewSpy = jest.fn();
     (Element.prototype as unknown as { scrollIntoView: jest.Mock }).scrollIntoView = scrollIntoViewSpy;
     localStorage.clear();
+    const testUrl = class extends originalUrl {};
+    Object.defineProperty(testUrl, 'createObjectURL', { value: jest.fn(() => 'blob:photo-preview') });
+    Object.defineProperty(testUrl, 'revokeObjectURL', { value: jest.fn() });
+    globalThis.URL = testUrl;
+    popup.location.href = '';
+    open.mockClear();
     api = {
       search: jest.fn(() => of(searchResponse())),
+      preview: jest.fn(() => of(new Blob(['photo'], { type: 'image/jpeg' }))),
       previewUrl: jest.fn((path: string) => `/api/beacon/knowledge/preview?path=${encodeURIComponent(path)}`),
     };
+  });
+
+  afterEach(() => {
+    globalThis.URL = originalUrl;
   });
 
   it('renders a RAG workbench without DVR controls', () => {
@@ -46,7 +62,58 @@ describe('Harbor Assistant search component', () => {
     expect(spectator.element.textContent).not.toContain('Multimodal RAG');
     expect(spectator.element.textContent).not.toContain('Harbor Assistant Search');
     expect(spectator.element.textContent).not.toContain('RAG search');
+    expect(spectator.element.textContent).toContain('Image search uses indexed image sources and citations');
+    expect(spectator.element.textContent).toContain('Use Multimodal for a direct upload');
   });
+
+  it('renders authenticated photo blobs and opens the loaded original', fakeAsync(() => {
+    api.search = jest.fn(() => of(searchResponse({
+      images: [{
+        path: '/photos/001.jpg', title: '001.jpg', modality: 'image', score: 900,
+      }],
+      videos: [],
+    })));
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      form: { controls: { query: { setValue: (value: string) => void } } };
+      search: () => void;
+    };
+    component.form.controls.query.setValue('spring photos');
+    component.search();
+    tick();
+    spectator.detectChanges();
+
+    expect(api.preview).toHaveBeenCalledWith('/photos/001.jpg');
+    expect(spectator.query<HTMLImageElement>('.image-frame img')?.getAttribute('src')).toBe('blob:photo-preview');
+    spectator.click('.result-card.image');
+    expect(open).toHaveBeenCalledWith('blob:photo-preview', '_blank', 'noopener');
+    spectator.fixture.destroy();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:photo-preview');
+  }));
+
+  it('cancels photo previews from a previous result before loading new photos', fakeAsync(() => {
+    const oldPreview$ = new Subject<Blob>();
+    api.preview = jest.fn(() => oldPreview$);
+    api.search = jest.fn(() => of(searchResponse({
+      images: [{
+        path: '/photos/old.jpg', title: 'old.jpg', modality: 'image', score: 900,
+      }],
+      videos: [],
+    })));
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      form: { controls: { query: { setValue: (value: string) => void } } };
+      search: () => void;
+    };
+    component.form.controls.query.setValue('spring photos');
+    component.search();
+    api.search = jest.fn(() => of(searchResponse({ images: [], videos: [] })));
+    component.search();
+    oldPreview$.next(new Blob(['stale photo'], { type: 'image/jpeg' }));
+    tick();
+    spectator.detectChanges();
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  }));
 
   it('defaults Harbor Assistant search to all knowledge sources', fakeAsync(() => {
     spectator = createComponent();

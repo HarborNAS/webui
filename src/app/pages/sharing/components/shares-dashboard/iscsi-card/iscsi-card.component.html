@@ -3,8 +3,8 @@
     <div class="toolbar-row-title">
       <a
         [ixTest]="['iscsi-share', 'open-in-new']"
-        [routerLink]="['/sharing', 'iscsi', 'targets']"
-        [matTooltip]="'Open iSCSI list in full page' | translate"
+        [routerLink]="['/sharing', 'iscsi']"
+        [matTooltip]="'Open iSCSI settings' | translate"
       >
         <h3 class="card-title">
           @if (hasFibreChannel()) {
@@ -16,7 +16,7 @@
             name="open-in-new"
             library="mdi"
             class="title-icon"
-            [attr.aria-label]="'Open iSCSI list in full page' | translate"
+            [attr.aria-label]="'Open iSCSI settings' | translate"
           ></tn-icon>
           <ix-card-alert-badge [menuPath]="cardMenuPath" />
         </h3>
@@ -34,7 +34,7 @@
         mat-button
         [ixTest]="['iscsi-share', 'wizard']"
         [ixUiSearch]="searchableElements.elements.wizard"
-        (click)="openForm(undefined, true)"
+        (click)="openWizard()"
       >
         {{ 'Wizard' | translate }}
       </button>
@@ -68,10 +68,4 @@
     </ix-table>
   }
 
-  <ix-table-pager-show-more
-    [pageSize]="4"
-    [dataProvider]="dataProvider"
-    [ixTestOverride]="['iscsi']"
-    [routerLink]="['/sharing', 'iscsi', 'targets']"
-  ></ix-table-pager-show-more>
 </mat-card>

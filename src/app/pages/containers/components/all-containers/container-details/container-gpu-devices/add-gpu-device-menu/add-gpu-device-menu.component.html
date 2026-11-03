@@ -17,9 +17,15 @@
         <button
           mat-menu-item
           [ixTest]="['add-gpu-device', gpu.description]"
+          [disabled]="gpu.disabled"
           (click)="addGpu(gpu)"
         >
-          {{ gpu.description }}
+          <span class="gpu-menu-item">
+            <span>{{ gpu.description }}</span>
+            @if (gpu.status) {
+              <span class="gpu-menu-status">{{ gpu.status }}</span>
+            }
+          </span>
         </button>
       }
     }

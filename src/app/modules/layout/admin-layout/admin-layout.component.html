@@ -1,19 +1,26 @@
 <!-- 'background-image': `url('assets/images/backgrounds/white-bg.jpg')`, -->
-<mat-sidenav-container class="app-side-nav-container flex flex-col h-full overflow-hidden" [style]="{
+<mat-sidenav-container class="app-side-nav-container flex flex-col h-full overflow-hidden"
+  [class.assistant-console-footer]="hasConsoleFooter$ | async"
+  [style]="{
     'background-image': `url('assets/images/backgrounds/new-bg.png')`,
     'background-size': '100% 100%',
   }">
   <ix-app-bar></ix-app-bar>
   <ix-topbar></ix-topbar>
+  <a mat-button class="assistant-mobile-home" routerLink="/desktop" [attr.aria-label]="'Open desktop' | translate">
+    {{ 'Desktop' | translate }}
+  </a>
 
   <main mat-sidenav-content class="h-full pt-[104px] pb-[30px] pr-[30px] pl-[110px]" [ngClass]="">
-    <div class="relative h-full rounded-4xl overflow-hidden"
+    <div class="assistant-page-workspace relative h-full rounded-4xl overflow-hidden"
       [ngClass]="router.url.startsWith('/desktop') ? '' : 'bg-background/60'">
       <div class='h-full'>
         <router-outlet></router-outlet>
       </div>
     </div>
   </main>
+
+  <ix-global-assistant-composer></ix-global-assistant-composer>
 
   <!-- Alert bar -->
   @if (isInit) {

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, map } from 'rxjs';
 import {
   HarborAssistantCameraLiveSessionResponse,
   HarborAssistantSearchCameraStateResponse,
@@ -22,7 +22,27 @@ export class HarborAssistantContentApiService {
   }
 
   search(payload: HarborAssistantSearchRequest): Observable<HarborAssistantSearchResponse> {
-    return this.http.post<HarborAssistantSearchResponse>(this.apiUrl('/knowledge/search'), payload);
+    type SearchEnvelope = Partial<HarborAssistantSearchResponse> & { search: HarborAssistantSearchResponse };
+    const url = this.apiUrl('/knowledge/search');
+    return this.http.post<HarborAssistantSearchResponse | SearchEnvelope>(url, payload).pipe(map((response) => {
+      if ('search' in response) {
+        return { ...response.search, ...response };
+      }
+      return response;
+    }));
+  }
+
+  preview(path: string): Observable<Blob> {
+    return this.http.get(this.previewUrl(path), { responseType: 'blob' });
+  }
+
+
+  conversations(): Observable<unknown> {
+    return this.http.get<unknown>(this.apiUrl('/knowledge/conversations'));
+  }
+
+  conversation(conversationId: string): Observable<unknown> {
+    return this.http.get<unknown>(this.apiUrl(`/knowledge/conversations/${encodeURIComponent(conversationId)}`));
   }
 
   cameraState(): Observable<HarborAssistantSearchCameraStateResponse> {

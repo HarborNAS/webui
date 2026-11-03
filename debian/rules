@@ -30,6 +30,11 @@ binary-stamp:
 	/usr/bin/yarn run build:prod
 	date +%s > dist/assets/buildtime
 	cp -r dist/* debian/truenas-webui/usr/share/truenas/webui
+	mkdir -p debian/truenas-webui/usr/lib/harboros/assistant-deployment
+	cp scripts/harbor-demo/deploy.py scripts/harbor-demo/nginx.py scripts/harbor-demo/adopt_packaged_webui.py debian/truenas-webui/usr/lib/harboros/assistant-deployment/
+	cp scripts/harbor-demo/harbor-webui-override.service scripts/harbor-demo/harbor-webui-override.path debian/truenas-webui/usr/lib/harboros/assistant-deployment/
+	mkdir -p debian/truenas-webui/DEBIAN
+	install -m 0755 debian/postinst debian/truenas-webui/DEBIAN/postinst
 	rm -rf dist/
 	rm -rf node_modules/
 	cp debian/copyright debian/truenas-webui/usr/share/doc/truenas-webui/copyright

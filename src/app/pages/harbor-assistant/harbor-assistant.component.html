@@ -35,34 +35,38 @@
     </div>
   }
 
-  <nav
-    class="tab-strip"
-    [attr.aria-label]="'Harbor Assistant sections' | translate"
-  >
-    @for (tab of tabs; track tab.id) {
-      <button
-        type="button"
-        class="tab-button"
-        [attr.aria-current]="isTab(tab.id) ? 'page' : null"
-        [class.active]="isTab(tab.id)"
-        (click)="selectTab(tab.id)"
-      >
-        {{ tab.label | translate }}
-      </button>
-    }
-  </nav>
-
-  <section class="rules-review-entry">
-    <button
-      mat-button
-      type="button"
-      color="primary"
-      (click)="toggleRulesDrawer()"
-    >
-      {{ 'Rules' | translate }} {{ pendingRuleCount() }} {{ 'pending' | translate }}
-    </button>
-  </section>
-
+  <div class="assistant-workspace">
+    <aside class="workspace-sidebar">
+      <nav class="workspace-navigation" [attr.aria-label]="'Harbor Assistant sections' | translate">
+        <div class="workspace-nav-group">
+          <span class="workspace-nav-label">{{ 'Workspace' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="overview"
+            [class.active]="isTab('overview')" [attr.aria-current]="isTab('overview') ? 'page' : null" (click)="selectTab('overview')">
+            {{ 'Overview' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="rules"
+            [class.active]="isTab('rules')" [attr.aria-current]="isTab('rules') ? 'page' : null" (click)="selectTab('rules')">
+            <span>{{ 'Rules' | translate }}</span><span class="workspace-nav-count">{{ pendingRuleCount() }}</span>
+          </button>
+        </div>
+        <div class="workspace-nav-group workspace-tools">
+          <span class="workspace-nav-label">{{ 'Tools' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="camera"
+            [class.active]="isTab('camera')" [attr.aria-current]="isTab('camera') ? 'page' : null" (click)="selectTab('camera')">
+            {{ 'Camera' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="home-assistant"
+            [class.active]="isTab('home-assistant')" [attr.aria-current]="isTab('home-assistant') ? 'page' : null" (click)="selectTab('home-assistant')">
+            {{ 'Home Assistant' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="settings"
+            [class.active]="isTab('settings') || isTab('messages')"
+            [attr.aria-current]="isTab('settings') || isTab('messages') ? 'page' : null"
+            (click)="selectSettingsDestination('models')">{{ 'Settings' | translate }}</button>
+        </div>
+      </nav>
+    </aside>
+    <main class="workspace-content">
   @if (rulesDrawerOpen()) {
     <mat-card class="settings-card native-panel rules-review-drawer">
       <mat-card-header>
@@ -285,9 +289,47 @@
     </mat-card>
   }
 
-  @if (isTab('search')) {
-    <section class="tab-panel assistant-search-tab">
-      <ix-harbor-assistant-search></ix-harbor-assistant-search>
+  @if (isTab('overview')) {
+    <section class="workspace-overview" aria-labelledby="assistant-workspace-title">
+      <header class="workspace-heading">
+        <span class="workspace-eyebrow">{{ 'Harbor Assistant' | translate }}</span>
+        <h2 id="assistant-workspace-title">{{ 'Your NAS workspace' | translate }}</h2>
+        <p>{{ 'Find photos, ask about your documents, and keep working with your NAS. Use the composer below from any page.' | translate }}</p>
+      </header>
+      <div class="workspace-readiness">
+        <article class="workspace-status">
+          <h3>{{ 'Data sources' | translate }}</h3>
+          <strong>{{ overviewSources() }}</strong>
+          <p>{{ 'Search uses the NAS folders you have enabled.' | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('sources')">{{ 'Manage data sources' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Models' | translate }}</h3>
+          <strong [ngClass]="'tone-' + aiWorkflowSummary().tone">{{ aiWorkflowSummary().label | translate }}</strong>
+          <p>{{ aiWorkflowSummary().detail | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('models')">{{ 'Manage models' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Connections' | translate }}</h3>
+          @if (connectedConnectorCount() !== null) {
+            <strong>{{ connectedConnectorCount() }} {{ 'connected' | translate }}</strong>
+            <p>{{ 'Use your connected messaging accounts to reach this workspace.' | translate }}</p>
+          } @else {
+            <strong>{{ loading() ? ('Loading connections' | translate) : ('Connection status unavailable' | translate) }}</strong>
+            <p>{{ 'Open connections to review account availability.' | translate }}</p>
+          }
+          <button mat-button type="button" (click)="selectTab('messages')">{{ 'Manage connections' | translate }}</button>
+        </article>
+      </div>
+      <section class="workspace-context">
+        <div>
+          <h3>{{ 'One conversation, wherever you work' | translate }}</h3>
+          <p>{{ 'Choose folders and search options with + in the composer. Your draft and conversation stay with you as you move between pages.' | translate }}</p>
+        </div>
+        <button mat-button type="button" [disabled]="!assistantSession.hasResults()" (click)="assistantSession.resultsOpen.set(true)">
+          {{ 'Open conversation' | translate }}
+        </button>
+      </section>
     </section>
   }
 
@@ -583,6 +625,29 @@
     </section>
   }
 
+  @if (isTab('home-assistant')) {
+    <section class="tab-panel home-assistant-tab">
+      <ix-harbor-assistant-home-assistant></ix-harbor-assistant-home-assistant>
+    </section>
+  }
+
+  @if (isTab('settings') || isTab('messages')) {
+    <section class="tab-panel settings-tab">
+      <nav class="settings-section-strip" [attr.aria-label]="'Assistant settings sections' | translate">
+        @for (section of settingsSections; track section.id) {
+          <button
+            type="button"
+            class="settings-section-button"
+            [attr.data-settings-section]="section.id"
+            [class.active]="isSettingsDestination(section.id)"
+            [attr.aria-current]="isSettingsDestination(section.id) ? 'page' : null"
+            (click)="selectSettingsDestination(section.id)"
+          >
+            {{ section.label | translate }}
+          </button>
+        }
+      </nav>
+
   @if (isTab('messages')) {
     <section class="tab-panel im-tab">
       @if (endpointError('gateway')) {
@@ -647,28 +712,6 @@
     </section>
   }
 
-  @if (isTab('home-assistant')) {
-    <section class="tab-panel home-assistant-tab">
-      <ix-harbor-assistant-home-assistant></ix-harbor-assistant-home-assistant>
-    </section>
-  }
-
-  @if (isTab('settings')) {
-    <section class="tab-panel settings-tab">
-      <nav class="settings-section-strip" [attr.aria-label]="'Assistant settings sections' | translate">
-        @for (section of settingsSections; track section.id) {
-          <button
-            type="button"
-            class="settings-section-button"
-            [class.active]="isSettingsSection(section.id)"
-            [attr.aria-current]="isSettingsSection(section.id) ? 'page' : null"
-            (click)="selectSettingsSection(section.id)"
-          >
-            {{ section.label | translate }}
-          </button>
-        }
-      </nav>
-
       @if (isSettingsSection('ai')) {
     <section class="settings-section-panel models-tab">
       @if (endpointError('models')) {
@@ -683,32 +726,6 @@
 
       <mat-card class="settings-card ai-settings-card">
         <mat-card-content>
-          <section class="ai-status-toolbar" [ngClass]="'tone-' + aiWorkflowSummary().tone">
-            <div>
-              <span class="field-label">{{ 'AI settings status' | translate }}</span>
-              <strong>{{ aiWorkflowSummary().label | translate }}</strong>
-              <p>{{ aiWorkflowSummary().detail | translate }}</p>
-            </div>
-            <button mat-button type="button" [disabled]="loading()" (click)="refresh()">
-              {{ 'Refresh' | translate }}
-            </button>
-          </section>
-
-          <section class="ai-settings-subtabs" [attr.aria-label]="'AI settings' | translate">
-            @for (tab of aiSettingsTabs(); track tab.id) {
-              <button
-                type="button"
-                class="ai-settings-subtab"
-                [class.active]="activeAiSettingsTab() === tab.id"
-                [ngClass]="'tone-' + tab.tone"
-                (click)="selectAiSettingsTab(tab.id)"
-              >
-                <strong>{{ tab.label | translate }}</strong>
-                <span>{{ tab.summary | translate }}</span>
-              </button>
-            }
-          </section>
-
           @if (activeAiSettingsTab() === 'sources') {
             <section class="ai-settings-panel sources-settings-panel">
               <section class="knowledge-section source-roots-card">
@@ -822,7 +839,281 @@
             </section>
           }
 
-          @if (activeAiSettingsTab() === 'models') {
+          @if (activeAiSettingsTab() !== 'sources') {
+            @if (modelProjectionLoading()) {
+              <div class="notice info compact" data-testid="model-projection-loading">
+                {{ 'Loading runtime and model status...' | translate }}
+              </div>
+            } @else if (modelProjectionIncomplete()) {
+              <div class="notice warn compact" data-testid="model-projection-incomplete">
+                {{ 'Runtime and model status could not be loaded. Refresh to retry.' | translate }}
+              </div>
+            }
+
+            <section class="ai-settings-panel model-capability-list">
+              <div class="model-capability-header">
+                <span>{{ 'Capability' | translate }}</span>
+                <span>{{ 'Current model' | translate }}</span>
+                <span>{{ 'Status' | translate }}</span>
+                <span>{{ 'Actions' | translate }}</span>
+              </div>
+              @for (capability of aiModelCapabilities(); track capability.id) {
+                <article class="model-capability-row" [class.optional]="capability.optional" [attr.data-capability]="capability.capabilityId">
+                  <div class="model-setting-line">
+                    <div class="model-capability-name">
+                      <span class="field-label">{{ capability.optional ? ('Optional capability' | translate) : ('Core capability' | translate) }}</span>
+                      <strong>{{ capability.label | translate }}</strong>
+                      <p class="muted">{{ capability.detail | translate }}</p>
+                    </div>
+                    <div class="model-current-cell">
+                      @if (workflowDesiredModelName(capability.capabilityId); as desired) {
+                        <p class="model-selected-target">{{ 'Selected model:' | translate }} {{ desired }}</p>
+                        <strong>{{ 'Currently running:' | translate }} {{ workflowCurrentModelName(capability.capabilityId) }}</strong>
+                      } @else {
+                        <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
+                      }
+                      @if (workflowSelectionNotice(capability.capabilityId); as notice) {
+                        <p class="muted warn" role="status">{{ notice | translate }}</p>
+                      }
+                      @if (workflowSelectionError(capability.capabilityId); as error) {
+                        <p class="muted error" role="alert">{{ error }}</p>
+                      }
+                      <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
+                      @if (workflowCurrentModelDevice(capability.capabilityId); as device) {
+                        <p class="muted model-device">{{ device }}</p>
+                      }
+                      @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
+                        <p class="muted warn">{{ runtimeNotice | translate }}</p>
+                      }
+                    </div>
+                    <span class="pill" [ngClass]="workflowCapabilityToneClass(capability.capabilityId)">
+                      {{ workflowCapabilityStatusLabel(capability.capabilityId) | translate }}
+                    </span>
+                    <div class="row-actions">
+                      <button mat-button color="primary" type="button" [disabled]="loading() || !modelProjectionReady()" (click)="toggleModelCapabilityChooser(capability)">
+                        {{ 'Select model' | translate }}
+                      </button>
+                      @if (canBrowseCapabilityModels(capability.capabilityId)) {
+                        <button mat-button type="button" [disabled]="loading() || !modelProjectionReady()" (click)="openModelCapabilityMoreModels(capability)">
+                          {{ 'More models' | translate }}
+                        </button>
+                      }
+                      @if (workflowRuntimeInstallCandidate(capability.capabilityId); as runtime) {
+                        <button
+                          mat-button
+                          color="primary"
+                          type="button"
+                          [disabled]="runtimeActionDisabled(runtime)"
+                          (click)="installModelRuntime(runtime)"
+                        >
+                          {{ 'Install runtime' | translate }}
+                        </button>
+                      }
+                    </div>
+                  </div>
+
+                  @if (modelCapabilityChooserOpen(capability.id)) {
+                    <section class="inline-model-panel">
+                      @if (workflowModelChoices(capability.capabilityId).length === 0) {
+                        <div class="empty-state inline-empty-action">
+                          <span>{{ 'No installed models yet.' | translate }}</span>
+                          <button mat-button color="primary" type="button" (click)="openModelCapabilityMoreModels(capability)">
+                            {{ 'More models' | translate }}
+                          </button>
+                        </div>
+                      } @else {
+                        @for (card of workflowModelChoices(capability.capabilityId); track card.key) {
+                          <article class="model-option-row">
+                            <div>
+                              <strong>{{ card.displayName }}</strong>
+                              <p class="muted">{{ card.configuredEndpoint ? (card.hardware || card.source) : card.modelId }}</p>
+                              <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
+                              @if (card.fitReason) {
+                                <p class="muted warn">{{ card.fitReason | translate }}</p>
+                              }
+                              @if (card.runtimeGuidance) {
+                                <p class="muted warn">{{ card.runtimeGuidance | translate }}</p>
+                              }
+                            </div>
+                            <button
+                              mat-button
+                              type="button"
+                              [disabled]="modelCardActionDisabled(card)"
+                              (click)="handleModelCardAction(card)"
+                            >
+                              {{ card.actionLabel | translate }}
+                            </button>
+                          </article>
+                        }
+                      }
+                    </section>
+                  }
+
+                  @if (modelCapabilityMoreModelsOpen(capability.id)) {
+                    <section class="inline-model-panel">
+                      @if (workflowDownloadingModelChoices(capability.capabilityId).length) {
+                        @for (card of workflowDownloadingModelChoices(capability.capabilityId); track card.key) {
+                          <article class="model-option-row">
+                            <div>
+                              <strong>{{ card.displayName }}</strong>
+                              <p class="muted">{{ card.progressLabel || card.status }}</p>
+                              @if (card.errorMessage) {
+                                <p class="muted error">{{ card.errorMessage }}</p>
+                              }
+                            </div>
+                            @if (card.action === 'retry') {
+                              <button
+                                mat-button
+                                color="primary"
+                                type="button"
+                                [disabled]="modelCardActionDisabled(card)"
+                                (click)="handleModelCardAction(card)"
+                              >
+                                {{ card.actionLabel | translate }}
+                              </button>
+                            } @else {
+                              <span class="pill" [ngClass]="toneClass(card.status)">{{ card.progressLabel || card.status }}</span>
+                            }
+                          </article>
+                        }
+                      }
+                      @if (workflowAvailableModelChoices(capability.capabilityId).length === 0) {
+                        <div class="empty-state inline-empty-action">
+                          <span>{{ 'No recommended models are available for one-click install.' | translate }}</span>
+                          <button mat-button type="button" (click)="prepareModelCapabilityManualDownload(capability)">
+                            {{ 'Choose any Hugging Face model' | translate }}
+                          </button>
+                        </div>
+                      } @else {
+                        @for (card of workflowAvailableModelChoices(capability.capabilityId); track card.key) {
+                          <article class="model-option-row">
+                            <div>
+                              <strong>{{ card.displayName }}</strong>
+                              <p class="muted">{{ card.modelId }} · {{ card.sizeHint || card.hardware }}</p>
+                              <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
+                              @if (card.fitReason) {
+                                <p class="muted warn">{{ card.fitReason | translate }}</p>
+                              }
+                              @if (card.errorMessage) {
+                                <p class="muted error">{{ card.errorMessage }}</p>
+                              }
+                            </div>
+                            <button
+                              mat-button
+                              color="primary"
+                              type="button"
+                              [disabled]="modelCardActionDisabled(card)"
+                              (click)="handleModelCardAction(card)"
+                            >
+                              {{ card.actionLabel | translate }}
+                            </button>
+                          </article>
+                        }
+                        <button mat-button type="button" (click)="prepareModelCapabilityManualDownload(capability)">
+                          {{ 'Choose any Hugging Face model' | translate }}
+                        </button>
+                      }
+                      @if (modelCapabilityManualDownloadOpen(capability.id)) {
+                        <form class="form-grid compact-download-form" [formGroup]="downloadForm" (ngSubmit)="createModelDownload()">
+                          <mat-form-field>
+                            <input matInput formControlName="modelId" [placeholder]="'Hugging Face model ID' | translate" />
+                          </mat-form-field>
+                          <mat-form-field>
+                            <input matInput formControlName="displayName" [placeholder]="'Display name' | translate" />
+                          </mat-form-field>
+                          <mat-form-field>
+                            <input matInput formControlName="sourceUrl" [placeholder]="'Download URL, optional' | translate" />
+                          </mat-form-field>
+                          <button mat-button color="primary" type="submit" [disabled]="isBusy()">
+                            {{ 'Start download' | translate }}
+                          </button>
+                        </form>
+                      }
+                    </section>
+                  }
+                </article>
+              }
+            </section>
+          }
+
+          @if (activeAiSettingsTab() !== 'sources') {
+            <details class="cloud-model-settings" [attr.open]="activeAiSettingsTab() === 'cloud-api' ? '' : null">
+              <summary>{{ 'Cloud API' | translate }}</summary>
+            <section class="ai-settings-panel cloud-api-panel">
+              <section class="knowledge-section cloud-api-card">
+              <form class="form-grid cloud-api-form" [formGroup]="cloudApiForm" (ngSubmit)="saveCloudApiSettings()">
+                <mat-form-field>
+                  <mat-label>{{ 'Provider' | translate }}</mat-label>
+                  <mat-select formControlName="provider" (selectionChange)="applyCloudProviderDefaults($event.value)">
+                    @for (provider of cloudProviderOptions; track provider.value) {
+                      <mat-option [value]="provider.value">{{ provider.label | translate }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'Base URL' | translate }}</mat-label>
+                  <input matInput formControlName="baseUrl" [placeholder]="'Base URL' | translate" />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'Model name' | translate }}</mat-label>
+                  <input matInput formControlName="modelName" [placeholder]="'Model name' | translate" />
+                </mat-form-field>
+                <mat-form-field>
+                  <mat-label>{{ 'API Key' | translate }}</mat-label>
+                  <input
+                    matInput
+                    type="password"
+                    formControlName="apiKey"
+                    autocomplete="new-password"
+                    [placeholder]="cloudApiConfigured() ? ('Configured; leave blank to keep' | translate) : ('API Key' | translate)"
+                  />
+                </mat-form-field>
+                <mat-form-field class="full-span">
+                  <mat-label>{{ 'Cloud usage scope' | translate }}</mat-label>
+                  <mat-select formControlName="usageMode">
+                    @for (option of cloudUsageOptions; track option.value) {
+                      <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+
+                @if (cloudApiForm.controls.usageMode.value === 'selected_capabilities') {
+                  <section class="cloud-capability-box full-span">
+                    <span class="field-label">{{ 'Capabilities allowed to use cloud API' | translate }}</span>
+                    <mat-checkbox formControlName="allowQuestionUnderstanding">{{ 'Question understanding' | translate }}</mat-checkbox>
+                    <mat-checkbox formControlName="allowAnswer">{{ 'Conversation answer' | translate }}</mat-checkbox>
+                    <p class="muted">{{ 'Vector search, image/video understanding, text recognition, and speech-to-text stay local.' | translate }}</p>
+                  </section>
+                }
+
+                <div class="button-row full-span">
+                  <span class="pill" [ngClass]="cloudApiConfigured() ? 'tone-good' : 'tone-warn'">
+                    {{ cloudApiConfiguredLabel() | translate }}
+                  </span>
+                  <button mat-button color="primary" type="submit" [disabled]="actionBusy('cloud-api-settings')">
+                    {{ 'Save cloud API' | translate }}
+                  </button>
+                  <button mat-button type="button" [disabled]="actionBusyPrefix('model-test')" (click)="testCloudApiSettings()">
+                    {{ 'Test connection' | translate }}
+                  </button>
+                </div>
+              </form>
+              </section>
+            </section>
+            </details>
+          }
+        </mat-card-content>
+      </mat-card>
+
+      @if (activeAiSettingsTab() !== 'sources') {
+      <details
+        class="advanced-settings"
+        [attr.open]="modelsAdvancedOpen() ? '' : null"
+        (toggle)="modelsAdvancedOpen.set($any($event.target).open)"
+      >
+        <summary>{{ 'Advanced settings' | translate }}</summary>
+        @if (modelsAdvancedOpen()) {
+          <div class="advanced-settings-body">
             @if (modelCapabilitiesResponse()?.model_store; as modelStore) {
               <section class="ai-settings-panel model-store-panel">
                 <div class="model-store-line">
@@ -1005,260 +1296,6 @@
               }
             </section>
 
-            <section class="ai-settings-panel model-capability-list">
-              <div class="model-capability-header">
-                <span>{{ 'Capability' | translate }}</span>
-                <span>{{ 'Current model' | translate }}</span>
-                <span>{{ 'Status' | translate }}</span>
-                <span>{{ 'Actions' | translate }}</span>
-              </div>
-              @for (capability of aiModelCapabilities(); track capability.id) {
-                <article class="model-capability-row" [class.optional]="capability.optional">
-                  <div class="model-setting-line">
-                    <div class="model-capability-name">
-                      <span class="field-label">{{ capability.optional ? ('Optional capability' | translate) : ('Core capability' | translate) }}</span>
-                      <strong>{{ capability.label | translate }}</strong>
-                      <p class="muted">{{ capability.detail | translate }}</p>
-                    </div>
-                    <div class="model-current-cell">
-                      <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
-                      <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
-                      @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
-                        <p class="muted warn">{{ runtimeNotice | translate }}</p>
-                      }
-                    </div>
-                    <span class="pill" [ngClass]="workflowCapabilityToneClass(capability.capabilityId)">
-                      {{ workflowCapabilityStatusLabel(capability.capabilityId) | translate }}
-                    </span>
-                    <div class="row-actions">
-                      <button mat-button color="primary" type="button" (click)="toggleModelCapabilityChooser(capability)">
-                        {{ 'Select model' | translate }}
-                      </button>
-                      <button mat-button type="button" (click)="openModelCapabilityMoreModels(capability)">
-                        {{ 'More models' | translate }}
-                      </button>
-                      @if (workflowRuntimeInstallCandidate(capability.capabilityId); as runtime) {
-                        <button
-                          mat-button
-                          color="primary"
-                          type="button"
-                          [disabled]="runtimeActionDisabled(runtime)"
-                          (click)="installModelRuntime(runtime)"
-                        >
-                          {{ 'Install runtime' | translate }}
-                        </button>
-                      }
-                      @if (workflowTestEndpoint(capability.capabilityId); as endpoint) {
-                        <button
-                          mat-button
-                          type="button"
-                          [disabled]="actionBusy('model-test:' + endpoint.model_endpoint_id)"
-                          (click)="testModelEndpoint(endpoint)"
-                        >
-                          {{ actionBusy('model-test:' + endpoint.model_endpoint_id) ? ('Testing...' | translate) : ('Test' | translate) }}
-                        </button>
-                      }
-                    </div>
-                  </div>
-
-                  @if (modelCapabilityChooserOpen(capability.id)) {
-                    <section class="inline-model-panel">
-                      @if (workflowModelChoices(capability.capabilityId).length === 0) {
-                        <div class="empty-state inline-empty-action">
-                          <span>{{ 'No installed models yet.' | translate }}</span>
-                          <button mat-button color="primary" type="button" (click)="openModelCapabilityMoreModels(capability)">
-                            {{ 'More models' | translate }}
-                          </button>
-                        </div>
-                      } @else {
-                        @for (card of workflowModelChoices(capability.capabilityId); track card.key) {
-                          <article class="model-option-row">
-                            <div>
-                              <strong>{{ card.displayName }}</strong>
-                              <p class="muted">{{ card.localPath || card.modelId }}</p>
-                              <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
-                              @if (card.fitReason) {
-                                <p class="muted warn">{{ card.fitReason | translate }}</p>
-                              }
-                              @if (card.runtimeGuidance) {
-                                <p class="muted warn">{{ card.runtimeGuidance | translate }}</p>
-                              }
-                            </div>
-                            <button
-                              mat-button
-                              type="button"
-                              [disabled]="modelCardActionDisabled(card)"
-                              (click)="handleModelCardAction(card)"
-                            >
-                              {{ card.actionLabel | translate }}
-                            </button>
-                          </article>
-                        }
-                      }
-                    </section>
-                  }
-
-                  @if (modelCapabilityMoreModelsOpen(capability.id)) {
-                    <section class="inline-model-panel">
-                      @if (workflowDownloadingModelChoices(capability.capabilityId).length) {
-                        @for (card of workflowDownloadingModelChoices(capability.capabilityId); track card.key) {
-                          <article class="model-option-row">
-                            <div>
-                              <strong>{{ card.displayName }}</strong>
-                              <p class="muted">{{ card.progressLabel || card.status }}</p>
-                              @if (card.errorMessage) {
-                                <p class="muted error">{{ card.errorMessage }}</p>
-                              }
-                            </div>
-                            @if (card.action === 'retry') {
-                              <button
-                                mat-button
-                                color="primary"
-                                type="button"
-                                [disabled]="modelCardActionDisabled(card)"
-                                (click)="handleModelCardAction(card)"
-                              >
-                                {{ card.actionLabel | translate }}
-                              </button>
-                            } @else {
-                              <span class="pill" [ngClass]="toneClass(card.status)">{{ card.progressLabel || card.status }}</span>
-                            }
-                          </article>
-                        }
-                      }
-                      @if (workflowAvailableModelChoices(capability.capabilityId).length === 0) {
-                        <div class="empty-state inline-empty-action">
-                          <span>{{ 'No recommended models are available for one-click install.' | translate }}</span>
-                          <button mat-button type="button" (click)="prepareModelCapabilityManualDownload(capability)">
-                            {{ 'Choose any Hugging Face model' | translate }}
-                          </button>
-                        </div>
-                      } @else {
-                        @for (card of workflowAvailableModelChoices(capability.capabilityId); track card.key) {
-                          <article class="model-option-row">
-                            <div>
-                              <strong>{{ card.displayName }}</strong>
-                              <p class="muted">{{ card.modelId }} · {{ card.sizeHint || card.hardware }}</p>
-                              <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
-                              @if (card.fitReason) {
-                                <p class="muted warn">{{ card.fitReason | translate }}</p>
-                              }
-                              @if (card.errorMessage) {
-                                <p class="muted error">{{ card.errorMessage }}</p>
-                              }
-                            </div>
-                            <button
-                              mat-button
-                              color="primary"
-                              type="button"
-                              [disabled]="modelCardActionDisabled(card)"
-                              (click)="handleModelCardAction(card)"
-                            >
-                              {{ card.actionLabel | translate }}
-                            </button>
-                          </article>
-                        }
-                        <button mat-button type="button" (click)="prepareModelCapabilityManualDownload(capability)">
-                          {{ 'Choose any Hugging Face model' | translate }}
-                        </button>
-                      }
-                      @if (modelCapabilityManualDownloadOpen(capability.id)) {
-                        <form class="form-grid compact-download-form" [formGroup]="downloadForm" (ngSubmit)="createModelDownload()">
-                          <mat-form-field>
-                            <input matInput formControlName="modelId" [placeholder]="'Hugging Face model ID' | translate" />
-                          </mat-form-field>
-                          <mat-form-field>
-                            <input matInput formControlName="displayName" [placeholder]="'Display name' | translate" />
-                          </mat-form-field>
-                          <mat-form-field>
-                            <input matInput formControlName="sourceUrl" [placeholder]="'Download URL, optional' | translate" />
-                          </mat-form-field>
-                          <button mat-button color="primary" type="submit" [disabled]="isBusy()">
-                            {{ 'Start download' | translate }}
-                          </button>
-                        </form>
-                      }
-                    </section>
-                  }
-                </article>
-              }
-            </section>
-          }
-
-          @if (activeAiSettingsTab() === 'cloud-api') {
-            <section class="ai-settings-panel cloud-api-panel">
-              <section class="knowledge-section cloud-api-card">
-              <form class="form-grid cloud-api-form" [formGroup]="cloudApiForm" (ngSubmit)="saveCloudApiSettings()">
-                <mat-form-field>
-                  <mat-label>{{ 'Provider' | translate }}</mat-label>
-                  <mat-select formControlName="provider" (selectionChange)="applyCloudProviderDefaults($event.value)">
-                    @for (provider of cloudProviderOptions; track provider.value) {
-                      <mat-option [value]="provider.value">{{ provider.label | translate }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-                <mat-form-field>
-                  <mat-label>{{ 'Base URL' | translate }}</mat-label>
-                  <input matInput formControlName="baseUrl" [placeholder]="'Base URL' | translate" />
-                </mat-form-field>
-                <mat-form-field>
-                  <mat-label>{{ 'Model name' | translate }}</mat-label>
-                  <input matInput formControlName="modelName" [placeholder]="'Model name' | translate" />
-                </mat-form-field>
-                <mat-form-field>
-                  <mat-label>{{ 'API Key' | translate }}</mat-label>
-                  <input
-                    matInput
-                    type="password"
-                    formControlName="apiKey"
-                    autocomplete="new-password"
-                    [placeholder]="cloudApiConfigured() ? ('Configured; leave blank to keep' | translate) : ('API Key' | translate)"
-                  />
-                </mat-form-field>
-                <mat-form-field class="full-span">
-                  <mat-label>{{ 'Cloud usage scope' | translate }}</mat-label>
-                  <mat-select formControlName="usageMode">
-                    @for (option of cloudUsageOptions; track option.value) {
-                      <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
-                    }
-                  </mat-select>
-                </mat-form-field>
-
-                @if (cloudApiForm.controls.usageMode.value === 'selected_capabilities') {
-                  <section class="cloud-capability-box full-span">
-                    <span class="field-label">{{ 'Capabilities allowed to use cloud API' | translate }}</span>
-                    <mat-checkbox formControlName="allowQuestionUnderstanding">{{ 'Question understanding' | translate }}</mat-checkbox>
-                    <mat-checkbox formControlName="allowAnswer">{{ 'Conversation answer' | translate }}</mat-checkbox>
-                    <p class="muted">{{ 'Vector search, image/video understanding, text recognition, and speech-to-text stay local.' | translate }}</p>
-                  </section>
-                }
-
-                <div class="button-row full-span">
-                  <span class="pill" [ngClass]="cloudApiConfigured() ? 'tone-good' : 'tone-warn'">
-                    {{ cloudApiConfiguredLabel() | translate }}
-                  </span>
-                  <button mat-button color="primary" type="submit" [disabled]="actionBusy('cloud-api-settings')">
-                    {{ 'Save cloud API' | translate }}
-                  </button>
-                  <button mat-button type="button" [disabled]="actionBusyPrefix('model-test')" (click)="testCloudApiSettings()">
-                    {{ 'Test connection' | translate }}
-                  </button>
-                </div>
-              </form>
-              </section>
-            </section>
-          }
-        </mat-card-content>
-      </mat-card>
-
-      <details
-        class="advanced-settings"
-        [attr.open]="modelsAdvancedOpen() ? '' : null"
-        (toggle)="modelsAdvancedOpen.set($any($event.target).open)"
-      >
-        <summary>{{ 'Advanced settings' | translate }}</summary>
-        @if (modelsAdvancedOpen()) {
-          <div class="advanced-settings-body">
           <mat-card class="settings-card endpoint-editor-card">
             <mat-card-header>
               <mat-card-title>{{ modelEndpointEditingId() ? ('Edit Endpoint' | translate) : ('Add Endpoint' | translate) }}</mat-card-title>
@@ -1531,6 +1568,8 @@
           </div>
         }
       </details>
+
+      }
     </section>
       }
 
@@ -2148,4 +2187,6 @@
       }
     </section>
   }
+    </main>
+  </div>
 </section>

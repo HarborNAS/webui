@@ -57,12 +57,11 @@ describe('IscsiComponent', () => {
     const navbar = await loader.getHarness(MatTabNavBarHarness);
     const links = await navbar.getLinks();
 
-    expect(links).toHaveLength(5);
-    expect(await links[0].getLabel()).toBe('Targets');
-    expect(await links[1].getLabel()).toBe('Extents');
-    expect(await links[2].getLabel()).toBe('Initiators');
-    expect(await links[3].getLabel()).toBe('Portals');
-    expect(await links[4].getLabel()).toBe('Authorized Access');
+    expect(links).toHaveLength(4);
+    expect(await links[0].getLabel()).toBe('Extents');
+    expect(await links[1].getLabel()).toBe('Initiators');
+    expect(await links[2].getLabel()).toBe('Portals');
+    expect(await links[3].getLabel()).toBe('Authorized Access');
   });
 
   it('shows fibre channel link navtab on a fibre channel capable system', async () => {
@@ -72,7 +71,7 @@ describe('IscsiComponent', () => {
     const navbar = await loader.getHarness(MatTabNavBarHarness);
     const links = await navbar.getLinks();
 
-    expect(links).toHaveLength(6);
-    expect(await links[5].getLabel()).toBe('Fibre Channel Ports');
+    expect(links).toHaveLength(5);
+    expect(await links[4].getLabel()).toBe('Fibre Channel Ports');
   });
 });

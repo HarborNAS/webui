@@ -54,10 +54,6 @@ export class IscsiComponent {
   protected readonly navLinks = computed(() => {
     const links = [
       {
-        label: this.translate.instant('Targets'),
-        path: '/sharing/iscsi/targets',
-      },
-      {
         label: this.translate.instant('Extents'),
         path: '/sharing/iscsi/extents',
       },
