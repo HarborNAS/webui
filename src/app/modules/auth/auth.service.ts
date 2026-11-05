@@ -261,6 +261,10 @@ export class AuthService implements OnDestroy {
     return this.api.call('auth.generate_token', [300, {}, true, true]);
   }
 
+  getHarborAssistantOneTimeToken(): Observable<string> {
+    return this.api.call('auth.generate_token', [30, {}, false, true]);
+  }
+
   /**
    * Completes the login process by initializing the session.
    * This should only be called after all pre-flight checks (like failover) have passed.

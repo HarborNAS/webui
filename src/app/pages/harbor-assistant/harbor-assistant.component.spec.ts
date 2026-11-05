@@ -1,5 +1,5 @@
-import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
 import { MatDialog } from '@angular/material/dialog';
+import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
 import { MockComponent } from 'ng-mocks';
 import { of, Subject, throwError } from 'rxjs';
@@ -71,6 +71,43 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent?.toLowerCase()).not.toContain('fallback order');
   });
 
+  it('shows the active knowledge index job and disables duplicate starts', () => {
+    api.getKnowledgeIndexJobs = jest.fn(() => of({
+      generated_at: '1',
+      jobs: [{
+        job_id: 'knowledge-index-1',
+        source_root_id: 'nas',
+        source_root_label: 'NAS Library',
+        source_root_path: '/mnt/pool/library',
+        modalities: ['document'],
+        status: 'running',
+        progress_percent: 10,
+        retry_count: 0,
+        checkpoint: { phase: 'load_or_refresh' },
+        resource_profile: 'cpu_only',
+        cancel_requested: false,
+      }],
+    }));
+    spectator = createComponent();
+    spectator.detectChanges();
+
+    expect(spectator.query('.knowledge-index-job-progress')).toHaveText('Scanning files and detecting changes');
+    expect(spectator.query('.knowledge-index-job-progress')).toHaveText('10%');
+    expect(spectator.query<HTMLButtonElement>('.index-status-card button')?.disabled).toBe(true);
+  });
+
+  it('shows indexed totals for every supported file category', () => {
+    spectator = createComponent();
+    spectator.detectChanges();
+
+    expect(spectator.query('.knowledge-index-stat--total')).toHaveText('33');
+    expect(spectator.query('.knowledge-index-stat--unindexed')).toHaveText('4');
+    expect(spectator.query('.knowledge-index-stat--documents')).toHaveText('27');
+    expect(spectator.query('.knowledge-index-stat--images')).toHaveText('1');
+    expect(spectator.query('.knowledge-index-stat--audio')).toHaveText('2');
+    expect(spectator.query('.knowledge-index-stat--videos')).toHaveText('3');
+  });
+
   it('does not show raw endpoint errors in the AI settings page', () => {
     spectator = createComponent();
     spectator.detectChanges();
@@ -78,7 +115,7 @@ describe('Harbor Assistant component', () => {
     (spectator.component as unknown as { endpointErrors: { set: (errors: Record<string, string>) => void } })
       .endpointErrors
       .set({
-        knowledgeIndexStatus: 'knowledge-index-status: Http failure response for /api/harbor-beacon/knowledge/index/status: 500 OK',
+        knowledgeIndexStatus: 'knowledge-index-status: Http failure response for /api/beacon/knowledge/index/status: 500 OK',
       });
     spectator.detectChanges();
 
@@ -107,8 +144,13 @@ describe('Harbor Assistant component', () => {
 
     const component = spectator.component as unknown as {
       selectTab: (tab: 'messages' | 'home-assistant' | 'settings') => void;
-      selectSettingsSection: (section: 'ai' | 'camera') => void;
+      selectSettingsSection: (section: 'ai' | 'camera' | 'rules') => void;
     };
+
+    const headerButtons = spectator.queryAll('ix-page-header button');
+    expect(headerButtons[0]).toHaveText('Refresh');
+    expect(headerButtons[1]).toHaveText('Rules 0 pending');
+    expect(spectator.query('.rules-review-entry')).not.toExist();
 
     expect(spectator.query('.tab-strip')).toHaveText('Search');
     expect(spectator.query('.tab-strip')).toHaveText('Camera');
@@ -137,6 +179,125 @@ describe('Harbor Assistant component', () => {
     expect(spectator.query('.simple-dvr-form')).toExist();
     expect(spectator.query('.device-edit-grid')).toExist();
     expect(spectator.query('.system-tab')).not.toExist();
+
+    component.selectSettingsSection('rules');
+    spectator.detectChanges();
+    expect(spectator.query('.rules-settings-tab')).toExist();
+    expect(spectator.query('.rules-settings-card')).toExist();
+    expect(spectator.query('.rule-draft-form')).toExist();
+  });
+
+  it('shows read-only local vision events in the camera tab', () => {
+    api.getLocalVisionEvents = jest.fn(() => of({
+      generated_at: 'epoch_ms:1',
+      limit: 5,
+      events: [
+        {
+          received_at: 'epoch_ms:1',
+          event: {
+            event_id: 'lve_1',
+            camera_id: 'cam-real-231',
+            event_type: 'person_detected',
+            confidence: 0.92,
+            labels: ['person', 'local_vision_event'],
+            summary: 'Front door has a person.',
+            snapshot_artifact: {
+              artifact_id: 'artifact_1',
+              path: null,
+              mime_type: 'image/jpeg',
+              byte_size: 12345,
+              sha256: 'sha256-redacted',
+              source: 'k3-local-snapshot',
+            },
+            started_at: 'epoch_ms:1',
+            analyzer: 'yolov8n-cpu',
+            latency_ms: 1370,
+            metrics: {
+              capture_read_ms: 80,
+              frame_age_ms: 450,
+              vlm_ms: 3200,
+            },
+            vlm: {
+              status: 'active',
+              summary: 'A person is standing near the front door.',
+              derived_text: 'A person is standing near the front door.',
+              tags: ['vlm'],
+              labels: ['person'],
+              artifacts: [],
+              ingest_metadata: { frame_path_redacted: true },
+              vlm_metrics: { elapsed_ms: 3200 },
+            },
+          },
+          audit_record: {},
+          ha_mqtt_payload: {},
+        },
+      ],
+    }));
+    spectator = createComponent({
+      providers: [
+        mockProvider(ActivatedRoute, {
+          queryParamMap: of(convertToParamMap({ tab: 'camera' })),
+        }),
+      ],
+    });
+    spectator.detectChanges();
+    (spectator.component as unknown as {
+      state: { set: (value: unknown) => void };
+      localVisionEvents: { set: (value: unknown[]) => void };
+    }).state.set({ devices: [], defaults: {}, writable_root: '/var/lib/harbor' });
+    (spectator.component as unknown as {
+      localVisionEvents: { set: (value: unknown[]) => void };
+    }).localVisionEvents.set([
+      {
+        received_at: 'epoch_ms:1',
+        event: {
+          event_id: 'lve_1',
+          camera_id: 'cam-real-231',
+          event_type: 'person_detected',
+          confidence: 0.92,
+          labels: ['person', 'local_vision_event'],
+          summary: 'Front door has a person.',
+          snapshot_artifact: {
+            artifact_id: 'artifact_1',
+            path: null,
+            mime_type: 'image/jpeg',
+            byte_size: 12345,
+            sha256: 'sha256-redacted',
+            source: 'k3-local-snapshot',
+          },
+          started_at: 'epoch_ms:1',
+          analyzer: 'yolov8n-cpu',
+          latency_ms: 1370,
+          metrics: {
+            capture_read_ms: 80,
+            frame_age_ms: 450,
+            vlm_ms: 3200,
+          },
+          vlm: {
+            status: 'active',
+            summary: 'A person is standing near the front door.',
+            derived_text: 'A person is standing near the front door.',
+            tags: ['vlm'],
+            labels: ['person'],
+            artifacts: [],
+            ingest_metadata: { frame_path_redacted: true },
+            vlm_metrics: { elapsed_ms: 3200 },
+          },
+        },
+        audit_record: {},
+        ha_mqtt_payload: {},
+      },
+    ]);
+    spectator.detectChanges();
+
+    expect(spectator.query('.event-intelligence-panel')).toExist();
+    expect(spectator.query('.event-intelligence-panel')).toHaveText('Event intelligence');
+    expect(spectator.query('.event-intelligence-panel')).toHaveText('A person is standing near the front door.');
+    expect(spectator.query('.event-intelligence-panel')).toHaveText('cam-real-231');
+    expect(spectator.query('.event-intelligence-panel')).toHaveText('92%');
+    expect(spectator.element.textContent).not.toContain('rtsp://');
+    expect(spectator.element.textContent).not.toContain(['/tmp', '/'].join(''));
+    expect(spectator.element.textContent).not.toContain('camera_credential');
   });
 
   it('ignores removed tab aliases even when an old focus parameter is present', () => {
@@ -155,14 +316,18 @@ describe('Harbor Assistant component', () => {
   });
 
   it('selects exactly one default IM target from connector rows', () => {
-    const defaultSubject = new Subject<unknown>();
+    const defaultSubject$ = new Subject<unknown>();
     api.getNotificationTargets = jest.fn(() => of({
       targets: [
-        { target_id: 'weixin-1', label: 'WeChat', platform_hint: 'weixin', is_default: true },
-        { target_id: 'feishu-1', label: 'Feishu', platform_hint: 'feishu', is_default: false },
+        {
+          target_id: 'weixin-1', label: 'WeChat', platform_hint: 'weixin', is_default: true,
+        },
+        {
+          target_id: 'feishu-1', label: 'Feishu', platform_hint: 'feishu', is_default: false,
+        },
       ],
     }));
-    api.setDefaultNotificationTarget = jest.fn(() => defaultSubject.asObservable());
+    api.setDefaultNotificationTarget = jest.fn(() => defaultSubject$.asObservable());
     spectator = createComponent({
       providers: [
         mockProvider(ActivatedRoute, {
@@ -173,7 +338,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const radios = spectator.queryAll<HTMLInputElement>('input[type="radio"]');
-    expect(radios.length).toBe(2);
+    expect(radios).toHaveLength(2);
     expect(radios[0].checked).toBe(true);
     expect(radios[1].checked).toBe(false);
 
@@ -185,13 +350,17 @@ describe('Harbor Assistant component', () => {
     expect(radios[1].checked).toBe(true);
     expect(spectator.query('.im-connector-list')).toHaveText('Saving...');
 
-    defaultSubject.next({
+    defaultSubject$.next({
       targets: [
-        { target_id: 'weixin-1', label: 'WeChat', platform_hint: 'weixin', is_default: false },
-        { target_id: 'feishu-1', label: 'Feishu', platform_hint: 'feishu', is_default: true },
+        {
+          target_id: 'weixin-1', label: 'WeChat', platform_hint: 'weixin', is_default: false,
+        },
+        {
+          target_id: 'feishu-1', label: 'Feishu', platform_hint: 'feishu', is_default: true,
+        },
       ],
     });
-    defaultSubject.complete();
+    defaultSubject$.complete();
   });
 
   it('opens the model subtab and shows product capability names', () => {
@@ -213,8 +382,201 @@ describe('Harbor Assistant component', () => {
     expect(panel).not.toHaveText('Event detection');
     expect(panel?.textContent?.toLowerCase()).not.toContain('detector');
     expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({
-      queryParams: { tab: 'settings', section: 'ai', focus: 'models', node: null },
+      queryParams: {
+        tab: 'settings', section: 'ai', focus: 'models', node: null,
+      },
     }));
+  });
+
+  it('summarizes healthy models only and still shows degraded current model names', () => {
+    const degradedCurrentModel = (
+      capabilityId: string,
+      modelKind: string,
+      modelName: string,
+    ): Record<string, unknown> => ({
+      capability_id: capabilityId,
+      label: capabilityId,
+      model_kind: modelKind,
+      status: 'degraded',
+      runtime_model_id: modelName,
+      current_model: {
+        model_endpoint_id: `${capabilityId}-local`,
+        model_name: modelName,
+        provider_key: 'openai_compatible',
+        status: 'degraded',
+      },
+      installed_models: [],
+      installable_models: [],
+      download_jobs: [],
+      next_action: '模型服务需要检查',
+      runtime_ready: false,
+    });
+    const modelCapabilities = {
+      generated_at: '1',
+      checked_at: '1',
+      status: 'degraded',
+      capabilities: [
+        degradedCurrentModel('semantic_router', 'llm', 'harbor-local-chat'),
+        degradedCurrentModel('embedder', 'embedder', 'harbor-local-embed'),
+        degradedCurrentModel('retrieval_answer', 'llm', 'harbor-local-chat'),
+        degradedCurrentModel('vlm', 'vlm', 'vision'),
+      ],
+      blockers: [],
+      warnings: [],
+    };
+
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      modelCapabilitiesResponse: { set: (response: unknown) => void };
+      aiSettingsTabs: () => { id: string; summary: string; tone: string }[];
+      workflowCurrentModelName: (kind: string) => string;
+      workflowCurrentModelDetail: (kind: string) => string;
+    };
+    component.modelCapabilitiesResponse.set(modelCapabilities);
+    spectator.detectChanges();
+
+    expect(component.aiSettingsTabs().find((tab) => tab.id === 'models')).toMatchObject({
+      summary: '0/4 Ready',
+      tone: 'danger',
+    });
+    expect(component.workflowCurrentModelName('semantic_router')).toBe('harbor-local-chat');
+    expect(component.workflowCurrentModelDetail('semantic_router')).toBe('模型服务需要检查');
+    expect(spectator.query('.ai-settings-subtabs')).toHaveText('0/4 Ready');
+    expect(spectator.query('.ai-settings-subtabs')).not.toHaveText('4/4 Configured');
+
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.detectChanges();
+
+    const questionRow = spectator.queryAll('.model-capability-row')[0];
+    expect(questionRow).toHaveText('harbor-local-chat');
+    expect(questionRow).toHaveText('模型服务需要检查');
+    expect(questionRow).not.toHaveText('No model selected yet');
+  });
+
+  it('shows the serving model when the requested model does not match runtime truth', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      modelCapabilitiesResponse: { set: (response: unknown) => void };
+      workflowCurrentModelName: (kind: string) => string;
+      workflowCurrentModelDetail: (kind: string) => string;
+      workflowCapabilityStatusLabel: (kind: string) => string;
+    };
+    component.modelCapabilitiesResponse.set({
+      generated_at: '1',
+      checked_at: '1',
+      status: 'ready',
+      capabilities: [{
+        capability_id: 'vlm',
+        label: 'Image/video understanding',
+        model_kind: 'vlm',
+        status: 'ready',
+        desired_model_id: 'Qwen/Qwen3.5-9B',
+        active_model_id: 'Qwen/Qwen3.5-4B',
+        transition_status: 'mismatch',
+        current_model: {
+          model_endpoint_id: 'vlm-local-openai-compatible',
+          model_name: 'Qwen/Qwen3.5-4B',
+          provider_key: 'openai_compatible',
+          status: 'active',
+        },
+        installed_models: [
+          { model_id: 'Qwen/Qwen3.5-4B', display_name: 'Qwen3.5 4B' },
+          { model_id: 'Qwen/Qwen3.5-9B', display_name: 'Qwen3.5 9B' },
+        ],
+        installable_models: [],
+        download_jobs: [],
+        next_action: 'Available',
+      }],
+      blockers: [],
+      warnings: [],
+    });
+
+    expect(component.workflowCurrentModelName('vlm')).toBe('Qwen3.5 4B');
+    expect(component.workflowCurrentModelDetail('vlm')).toContain('Qwen/Qwen3.5-9B');
+    expect(component.workflowCapabilityStatusLabel('vlm')).toBe('Model mismatch');
+  });
+
+  it('shows a shared runtime model only once across multiple capabilities', () => {
+    const sharedCapability = (capabilityId: string, modelKind: string): Record<string, unknown> => ({
+      capability_id: capabilityId,
+      label: capabilityId,
+      model_kind: modelKind,
+      status: 'ready',
+      desired_model_id: 'Qwen/Qwen3.5-4B',
+      active_model_id: 'Qwen/Qwen3.5-4B',
+      runtime_model_id: 'Qwen/Qwen3.5-4B',
+      transition_status: 'ready',
+      installed_models: [{
+        model_id: 'Qwen/Qwen3.5-4B',
+        display_name: 'Qwen3.5 4B',
+      }],
+      installable_models: [],
+      download_jobs: [],
+      next_action: 'Available',
+      runtime_ready: true,
+    });
+
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      modelCapabilitiesResponse: { set: (response: unknown) => void };
+    };
+    component.modelCapabilitiesResponse.set({
+      generated_at: '1',
+      checked_at: '1',
+      status: 'ready',
+      capabilities: [
+        sharedCapability('semantic_router', 'llm'),
+        sharedCapability('retrieval_answer', 'llm'),
+        sharedCapability('vlm', 'vlm'),
+      ],
+      blockers: [],
+      warnings: [],
+    });
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.detectChanges();
+
+    const currentModelCells = spectator.queryAll('.model-current-cell');
+    expect(currentModelCells.filter((cell) => cell.textContent?.includes('Qwen3.5 4B'))).toHaveLength(1);
+    expect(currentModelCells.filter((cell) => cell.textContent?.includes('Shared model'))).toHaveLength(2);
+    expect(currentModelCells[2]).toHaveText('Uses the same running model as Question understanding');
+    expect(currentModelCells[3]).toHaveText('Uses the same running model as Question understanding');
+  });
+
+  it('does not let legacy model metadata override an explicitly empty active model', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      modelCapabilitiesResponse: { set: (response: unknown) => void };
+      workflowCurrentModelName: (kind: string) => string;
+    };
+    component.modelCapabilitiesResponse.set({
+      generated_at: '1',
+      checked_at: '1',
+      status: 'degraded',
+      capabilities: [{
+        capability_id: 'vlm',
+        label: 'Image/video understanding',
+        model_kind: 'vlm',
+        status: 'degraded',
+        desired_model_id: 'Qwen/Qwen3.5-9B',
+        active_model_id: null,
+        runtime_model_id: 'legacy-configured-model',
+        transition_status: 'unknown',
+        current_model: {
+          model_endpoint_id: 'vlm-local-openai-compatible',
+          model_name: 'Qwen/Qwen3.5-9B',
+          provider_key: 'openai_compatible',
+          status: 'active',
+        },
+        installed_models: [],
+        installable_models: [],
+        download_jobs: [],
+        next_action: 'Check runtime',
+      }],
+      blockers: [],
+      warnings: [],
+    });
+
+    expect(component.workflowCurrentModelName('vlm')).toBe('Unknown');
   });
 
   it('shows installed models only after opening the vector retrieval model chooser', () => {
@@ -224,8 +586,8 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
-      workflowModelChoices: (kind: string) => Array<{ displayName: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
+      workflowModelChoices: (kind: string) => { displayName: string }[];
       toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
     };
     expect(component.workflowModelChoices('embedder').map((card) => card.displayName)).toContain('Harbor Embed Small');
@@ -259,7 +621,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
       toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
     };
     component.toggleModelCapabilityChooser(component.aiModelCapabilities()[1]);
@@ -325,7 +687,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
       openModelCapabilityMoreModels: (capability: { id: string; kind: string }) => void;
     };
     component.openModelCapabilityMoreModels(component.aiModelCapabilities()[1]);
@@ -364,7 +726,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
       openModelCapabilityMoreModels: (capability: { id: string; kind: string }) => void;
     };
     component.openModelCapabilityMoreModels(component.aiModelCapabilities()[1]);
@@ -415,8 +777,8 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      downloadJobs: () => Array<{ job_id: string; model_id: string }>;
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      downloadJobs: () => { job_id: string; model_id: string }[];
+      aiModelCapabilities: () => { id: string; kind: string }[];
       openModelCapabilityMoreModels: (capability: { id: string; kind: string }) => void;
     };
     expect(component.downloadJobs().map((job) => job.job_id)).toEqual(['job-qwen-latest']);
@@ -425,7 +787,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const rows = spectator.queryAll('.model-capability-row .inline-model-panel .model-option-row');
-    expect(rows.length).toBe(1);
+    expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveText('Qwen3.5 4B');
     expect(rows[0]).toHaveText('1%');
     expect(rows[0]).not.toHaveText('old hf-mirror 404');
@@ -476,7 +838,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
       toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
     };
     component.toggleModelCapabilityChooser(component.aiModelCapabilities()[1]);
@@ -486,6 +848,71 @@ describe('Harbor Assistant component', () => {
     expect(panel).toHaveText('Qwen3.5 4B');
     expect(panel).toHaveText('/mnt/models/qwen3.5-4b');
     expect(panel).toHaveText('Select');
+  });
+
+  it('deduplicates vector models and marks only runtime truth as selected', () => {
+    const qwen = {
+      model_id: 'Qwen/Qwen3-Embedding-0.6B',
+      display_name: 'Qwen3 Embedding 0.6B',
+      provider_key: 'qwen',
+      model_kind: 'embedder',
+      status: 'ready',
+      installed: true,
+      local_path: '/models/qwen3-embedding',
+      source_kind: 'huggingface',
+      expected_capabilities: ['embedding'],
+    };
+    const jina = {
+      model_id: 'jina-embeddings-v2-base-zh',
+      display_name: 'Jina Embeddings v2 zh',
+      provider_key: 'jina',
+      model_kind: 'embedder',
+      status: 'ready',
+      installed: true,
+      local_path: '/models/jina-v2-zh',
+      source_kind: 'huggingface',
+      expected_capabilities: ['embedding'],
+    };
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      desired_model_id: qwen.model_id,
+      active_model_id: jina.model_id,
+      runtime_model_id: jina.local_path,
+      status: 'installed_not_running',
+      installed_models: [qwen, jina],
+    })));
+    api.getLocalModelCatalog = jest.fn(() => of({
+      models: [{
+        ...qwen,
+        model_id: 'qwen3-embedding-local-alias',
+      }, jina],
+      download_jobs: [],
+    }));
+
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.detectChanges();
+
+    const component = spectator.component as unknown as {
+      workflowModelChoices: (kind: string) => {
+        modelId: string;
+        action: string;
+        actionLabel: string;
+      }[];
+    };
+    const choices = component.workflowModelChoices('embedder');
+
+    expect(choices.map((card) => card.modelId)).toEqual([
+      'Qwen/Qwen3-Embedding-0.6B',
+      'jina-embeddings-v2-base-zh',
+    ]);
+    expect(choices.find((card) => card.modelId === qwen.model_id)).toMatchObject({
+      action: 'set-current',
+      actionLabel: 'Restart',
+    });
+    expect(choices.find((card) => card.modelId === jina.model_id)).toMatchObject({
+      action: 'current',
+      actionLabel: 'Selected',
+    });
   });
 
   it('treats choosing an installed model as a runtime start request', () => {
@@ -527,7 +954,7 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      aiModelCapabilities: () => Array<{ id: string; kind: string }>;
+      aiModelCapabilities: () => { id: string; kind: string }[];
       toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
     };
     component.toggleModelCapabilityChooser(component.aiModelCapabilities()[1]);
@@ -541,13 +968,85 @@ describe('Harbor Assistant component', () => {
     expect(spectator.element.textContent).not.toContain('compatible runtime');
   });
 
+  it('auto-configures an OpenAI-compatible installed model when selected', () => {
+    const installedModel = {
+      model_id: 'Qwen/Qwen3-Embedding-0.6B',
+      display_name: 'Qwen3 Embedding 0.6B',
+      provider_key: 'qwen',
+      model_kind: 'embedder',
+      status: 'ready',
+      installed: true,
+      local_path: '/mnt/software/harborbeacon-agent-ci/model-store/qwen-qwen3-embedding-0.6b',
+      source_kind: 'huggingface',
+      repo_id: 'Qwen/Qwen3-Embedding-0.6B',
+      file_policy: 'runtime_snapshot',
+      expected_capabilities: ['embedder'],
+      runtime_profiles: ['openai-compatible-embedding'],
+    };
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      status: 'installed_not_running',
+      current_model: {
+        model_endpoint_id: 'embedder-local',
+        model_name: '/models/old-embed.gguf',
+        provider_key: 'local',
+        status: 'active',
+      },
+      installed_models: [installedModel],
+    })));
+    api.selectModelCapability = jest.fn();
+
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    spectator.detectChanges();
+
+    const component = spectator.component as unknown as {
+      aiModelCapabilities: () => { id: string; kind: string }[];
+      toggleModelCapabilityChooser: (capability: { id: string; kind: string }) => void;
+    };
+    component.toggleModelCapabilityChooser(component.aiModelCapabilities()[1]);
+    spectator.detectChanges();
+
+    const panel = spectator.query('.model-capability-row .inline-model-panel');
+    expect(panel).toHaveText('Qwen3 Embedding 0.6B');
+    expect(panel).toHaveText('Select');
+    expect(panel).not.toHaveText('Configure endpoint');
+
+    spectator.click(spectator.query('.model-capability-row .inline-model-panel button'));
+    spectator.detectChanges();
+
+    expect(api.selectModelCapability).not.toHaveBeenCalled();
+    expect(api.updateModelEndpoint).toHaveBeenCalledWith('embedder-local', expect.objectContaining({
+      model_kind: 'embedder',
+      endpoint_kind: 'local',
+      model_name: 'Qwen/Qwen3-Embedding-0.6B',
+      status: 'active',
+      metadata: expect.objectContaining({
+        auto_configured_by: 'harbor-assistant-select',
+        base_url: 'http://127.0.0.1:4174/api/inference/v1',
+        catalog_model_id: 'Qwen/Qwen3-Embedding-0.6B',
+        healthz_url: 'http://127.0.0.1:4174/api/inference/healthz',
+        local_path: '/mnt/software/harborbeacon-agent-ci/model-store/qwen-qwen3-embedding-0.6b',
+        runtime_profiles: ['openai-compatible-embedding'],
+      }),
+    }));
+    expect(spectator.element.textContent).toContain('Model selected');
+  });
+
   it('groups installed 4B as not recommended and keeps FlashV4 visible as cloud backup', () => {
     api.getHardwareReadiness = jest.fn(() => of({
       status: 'ready',
-      cpu: { status: 'ready', summary: 'ready', detail: 'ready', evidence: [] },
-      memory: { status: 'ready', summary: '11.7 GiB', detail: 'ready', evidence: [] },
-      gpu: { status: 'warn', summary: 'No confirmed GPU memory', detail: 'ready', evidence: [] },
-      npu: { status: 'warn', summary: 'No NPU', detail: 'ready', evidence: [] },
+      cpu: {
+        status: 'ready', summary: 'ready', detail: 'ready', evidence: [],
+      },
+      memory: {
+        status: 'ready', summary: '11.7 GiB', detail: 'ready', evidence: [],
+      },
+      gpu: {
+        status: 'warn', summary: 'No confirmed GPU memory', detail: 'ready', evidence: [],
+      },
+      npu: {
+        status: 'warn', summary: 'No NPU', detail: 'ready', evidence: [],
+      },
       memory_mb: 11980,
       gpu_vram_total_mb: null,
       hardware_class: 'tiny_cpu',
@@ -614,7 +1113,11 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      workflowModelChoices: (kind: string) => Array<{ displayName: string; actionLabel: string; errorMessage: string | null }>;
+      workflowModelChoices: (kind: string) => {
+        displayName: string;
+        actionLabel: string;
+        errorMessage: string | null;
+      }[];
       modelRecommendationLabel: (card: unknown) => string;
       modelHardwareFitLabel: (card: unknown) => string;
     };
@@ -670,15 +1173,19 @@ describe('Harbor Assistant component', () => {
     spectator.detectChanges();
 
     const component = spectator.component as unknown as {
-      workflowAvailableModelChoices: (kind: string) => Array<unknown>;
+      workflowAvailableModelChoices: (kind: string) => unknown[];
       handleModelCardAction: (card: unknown) => void;
     };
     const bge = component.workflowAvailableModelChoices('embedder')[0];
+    expect((bge as { actionLabel: string }).actionLabel).toBe('Select');
     component.handleModelCardAction(bge);
 
     expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
       model_id: 'bge-m3',
       metadata: expect.objectContaining({
+        auto_select_after_download: true,
+        auto_select_capability_id: 'embedder',
+        auto_select_model_id: 'bge-m3',
         repo_id: 'BAAI/bge-m3',
         source_kind: 'huggingface',
         file_policy: 'runtime_snapshot',
@@ -701,7 +1208,14 @@ describe('Harbor Assistant component', () => {
     const component = spectator.component as unknown as {
       selectTab: (tab: 'settings') => void;
       selectSettingsSection: (section: 'camera') => void;
-      scanForm: { controls: { cidr: { value: string }; rtspPort: { value: string }; username: { value: string }; password: { value: string } } };
+      scanForm: {
+        controls: {
+          cidr: { value: string };
+          rtspPort: { value: string };
+          username: { value: string };
+          password: { value: string };
+        };
+      };
       scanDevices: () => void;
     };
     component.selectTab('settings');
@@ -798,14 +1312,14 @@ describe('Harbor Assistant component', () => {
       selectTab: (tab: 'settings') => void;
       selectSettingsSection: (section: 'camera') => void;
       scanDevices: () => void;
-      scanResults: () => Array<{
+      scanResults: () => {
         candidate_id: string;
         name: string;
         room: string;
         ip: string;
         port: number;
         rtsp_paths?: string[];
-      }>;
+      }[];
       prepareManualFromScan: (result: unknown) => void;
       scanCredentialForm: { patchValue: (value: { username: string; password: string }) => void };
       toggleScanCredentialPasswordVisible: () => void;
@@ -872,21 +1386,24 @@ describe('Harbor Assistant component', () => {
         rtsp_paths: ['/stream1'],
       }],
     }));
-    api.addManualDevice = jest.fn(() => throwError(() => ({ error: { error: 'RTSP authentication failed' } })));
+    api.addManualDevice = jest.fn(() => throwError(() => Object.assign(
+      new Error('RTSP authentication failed'),
+      { error: { error: 'RTSP authentication failed' } },
+    )));
 
     spectator = createComponent();
     const component = spectator.component as unknown as {
       selectTab: (tab: 'settings') => void;
       selectSettingsSection: (section: 'camera') => void;
       scanDevices: () => void;
-      scanResults: () => Array<{
+      scanResults: () => {
         candidate_id: string;
         name: string;
         room: string;
         ip: string;
         port: number;
         rtsp_paths?: string[];
-      }>;
+      }[];
       prepareManualFromScan: (result: unknown) => void;
       scanCredentialForm: { patchValue: (value: { username: string; password: string }) => void };
       connectScanResult: (result: unknown) => void;
@@ -1029,7 +1546,9 @@ describe('Harbor Assistant component', () => {
 });
 
 function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiService, jest.Mock>> {
-  const statusComponent = { status: 'ready', summary: 'ready', detail: 'ready', evidence: [] };
+  const statusComponent = {
+    status: 'ready', summary: 'ready', detail: 'ready', evidence: [],
+  };
   return {
     getState: jest.fn(() => of({ devices: [], defaults: {}, writable_root: '/var/lib/harbor' })),
     scanDevices: jest.fn((payload) => of(payload)),
@@ -1037,6 +1556,7 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     getDeviceEvidence: jest.fn(() => of({ results: [] })),
     getGatewayStatus: jest.fn(() => of({ status: 'ready', channels: [] })),
     getInferenceHealth: jest.fn(() => of({ status: 'ready', ready: true })),
+    getAutomationReviews: jest.fn(() => of({ reviews: [] })),
     getNotificationTargets: jest.fn(() => of({ targets: [] })),
     setDefaultNotificationTarget: jest.fn(() => of({ ok: true })),
     deleteNotificationTarget: jest.fn(() => of({ ok: true })),
@@ -1061,6 +1581,17 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     createModelEndpoint: jest.fn((payload) => of({ endpoints: [payload] })),
     updateModelEndpoint: jest.fn((id, payload) => of({ endpoints: [{ ...payload, model_endpoint_id: id }] })),
     testModelEndpoint: jest.fn(() => of({ ok: true, status: 'active', summary: 'ok' })),
+    getModelRuntimes: jest.fn(() => of(defaultRuntimeManager())),
+    installModelRuntime: jest.fn((runtimeId) => of({
+      runtime: {
+        ...(defaultRuntimeManager().runtimes.find((runtime) => runtime.runtime_id === runtimeId) ?? {}),
+        installed: true,
+        enabled: true,
+        status: 'installed',
+      },
+      runtime_manager: defaultRuntimeManager(),
+      message: 'enabled',
+    })),
     getModelCapabilities: jest.fn(() => of({
       generated_at: '1',
       checked_at: '1',
@@ -1185,7 +1716,9 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     })),
     getKnowledgeSettings: jest.fn(() => of({
       source_roots: [
-        { root_id: 'nas', label: 'NAS Library', path: '/mnt/pool/library', enabled: true, include: [], exclude: [] },
+        {
+          root_id: 'nas', label: 'NAS Library', path: '/mnt/pool/library', enabled: true, include: [], exclude: [],
+        },
       ],
       index_root: '/var/lib/harbor/index',
       privacy_level: 'strict_local',
@@ -1195,13 +1728,24 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       status: 'ready',
       index_root_writable: true,
       source_roots: [
-        { root_id: 'nas', path: '/mnt/pool/library', enabled: true, exists: true, status: 'ready' },
+        {
+          root_id: 'nas', path: '/mnt/pool/library', enabled: true, exists: true, status: 'ready',
+        },
       ],
+      document_count: 27,
       image_count: 1,
+      audio_count: 2,
+      video_count: 3,
+      supported_file_count: 37,
+      unindexed_file_count: 4,
       content_indexed_image_count: 1,
       vlm_indexed_image_count: 1,
       image_content_missing_count: 0,
       blockers: [],
+    })),
+    getKnowledgeIndexJobs: jest.fn(() => of({
+      generated_at: '1',
+      jobs: [],
     })),
     saveKnowledgeSettings: jest.fn((payload) => of(payload)),
     runKnowledgeIndex: jest.fn(() => of({ status: 'started' })),
@@ -1213,7 +1757,7 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
     getHarborOsStatus: jest.fn(() => of({
       status: 'ready',
       version: '26.04',
-      webui_url: 'https://192.168.3.82/ui',
+      webui_url: 'https://192.168.3.21/ui',
       system_domain_only: true,
       services: [],
       jobs_alerts: harborOsService('jobs-alerts'),
@@ -1246,11 +1790,13 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       },
     })),
     testHomeAssistantConnection: jest.fn(() => of({
-      test: { ok: true, status: 'connected', location_name: 'Home', version: '2026.5.0' },
+      test: {
+        ok: true, status: 'connected', location_name: 'Home', version: '2026.5.0',
+      },
       status: {
         configured: true,
         enabled: true,
-        base_url: 'http://192.168.3.82:8123',
+        base_url: 'http://homeassistant.local:8123',
         token_configured: true,
         token_redacted: true,
         exposed_domains: ['light', 'camera'],
@@ -1265,7 +1811,7 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       status: {
         configured: true,
         enabled: true,
-        base_url: 'http://192.168.3.82:8123',
+        base_url: 'http://homeassistant.local:8123',
         token_configured: true,
         token_redacted: true,
         exposed_domains: ['light', 'camera'],
@@ -1273,11 +1819,15 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
         entity_count: 1,
         service_count: 1,
       },
-      entities: [{ entity_id: 'light.kitchen', domain: 'light', state: 'on', display_name: 'Kitchen' }],
+      entities: [{
+        entity_id: 'light.kitchen', domain: 'light', state: 'on', display_name: 'Kitchen',
+      }],
       service_domains: [{ domain: 'light', services: [{ service: 'turn_on' }] }],
     })),
     getHomeAssistantEntities: jest.fn(() => of({
-      entities: [{ entity_id: 'light.kitchen', domain: 'light', state: 'on', display_name: 'Kitchen' }],
+      entities: [{
+        entity_id: 'light.kitchen', domain: 'light', state: 'on', display_name: 'Kitchen',
+      }],
     })),
     getHomeAssistantServices: jest.fn(() => of({
       services: [{ domain: 'light', services: [{ service: 'turn_on' }] }],
@@ -1317,6 +1867,7 @@ function harborAssistantApiMock(): Partial<Record<keyof HarborAssistantApiServic
       },
     })),
     getShareLinks: jest.fn(() => of([])),
+    getLocalVisionEvents: jest.fn(() => of({ generated_at: 'epoch_ms:0', limit: 5, events: [] })),
   };
 }
 
@@ -1383,6 +1934,59 @@ function modelCapabilitiesWithEmbedder(embedderOverrides: Record<string, unknown
         download_jobs: [],
         next_action: '选择或安装模型',
         runtime_ready: false,
+      },
+    ],
+    blockers: [],
+    warnings: [],
+  };
+}
+
+function defaultRuntimeManager(): {
+  generated_at: string;
+  checked_at: string;
+  status: string;
+  runtimes: Record<string, unknown>[];
+  blockers: string[];
+  warnings: string[];
+} {
+  return {
+    generated_at: '1',
+    checked_at: '1',
+    status: 'ready',
+    runtimes: [
+      {
+        runtime_id: 'harbor-candle',
+        display_name: 'Harbor Candle Runtime',
+        runtime_kind: 'embedded_candle',
+        provider_key: 'harbor',
+        status: 'active',
+        managed: true,
+        installable: true,
+        enabled: true,
+        capabilities: ['llm', 'embedding'],
+        runtime_profiles: ['harbor-candle', 'harbor-model-api-candle'],
+        model_store_path: '/mnt/software/harborbeacon-agent-ci/model-store/runtimes/harbor-candle',
+        message: 'Runtime 已安装，并正在服务 Harbor-managed 推理路径。',
+        installed: true,
+        active: true,
+        next_action: '可以使用',
+      },
+      {
+        runtime_id: 'harbor-vlm-sidecar',
+        display_name: 'Harbor Vision Runtime',
+        runtime_kind: 'managed_sidecar',
+        provider_key: 'harbor',
+        status: 'not_available',
+        managed: true,
+        installable: false,
+        enabled: false,
+        capabilities: ['vlm'],
+        runtime_profiles: ['harbor-vlm-sidecar'],
+        model_store_path: '/mnt/software/harborbeacon-agent-ci/model-store/runtimes/harbor-vlm-sidecar',
+        message: 'Harbor Vision Runtime is reserved for managed VLM packages.',
+        installed: false,
+        active: false,
+        next_action: '当前 ISO 未包含该 runtime 包，可在高级设置接入 OpenAI-compatible endpoint',
       },
     ],
     blockers: [],
