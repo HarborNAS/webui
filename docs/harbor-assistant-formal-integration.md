@@ -9,7 +9,7 @@ This change builds on the formal 26.04 base b8dc9017d2. Reviewed media, authenti
 - Response preference is auto, fast, or careful. Requests persist that preference with response_preference_persist. Fast indexed photos are labelled as not visually verified; careful mode reports actual verification metadata and blockers.
 - Model selection submits model_id and optional model_endpoint_id. Selected and running identities remain separate until the server confirms activation. Failed transitions show last_error. Downloads require a later explicit activation action.
 - HarborNavi retains its own API prefix and authentication boundary. local_model_policy=fixed disables selection; explicitly unsupported capabilities remain visible and do not inflate supported-capability readiness counts. The reviewed media-stack package pins remain unchanged.
-- Feishu credentials and WeChat actions are native protected WebUI requests. Feishu success appears only after success=true. Secrets are cleared after submission, and the setup session code is held only in component memory. The QR is rendered locally from the login response.
+- Feishu credentials and WeChat actions are native protected WebUI requests. Feishu success appears only after success=true. Secrets are cleared after submission, and the setup session code is held only in component memory. The QR is rendered locally from the login response. Nexus Feishu identity pairing creates a caller-owned, five-minute one-time challenge; the user sends the exact message through their real Feishu account. Only backend confirmation reports a successful binding.
 
 ## Automated verification
 
@@ -31,3 +31,9 @@ Run production build, app TypeScript checks, ESLint, Stylelint, check:harbor-ass
 10. Smoke Dashboard, Apps, System, existing camera/live controls, and search/history settings. Save screenshots and redacted API evidence.
 
 This source change does not deploy to a NAS, alter runtime services or model files, or qualify a new RISC-V runtime artifact. Production hardware and account verification remain release acceptance steps.
+
+## Local browser verification limit
+
+An isolated Angular fixture reused the real Composer, Models, native Connections, formal workspace/header styles, and synthetic provider data. It did not contact a NAS or a real account. A measured 320 CSS-pixel Connections view showed the repaired header, shrinking input fields and Composer within their bounds. A near-768 view exposed another header wrap case, which was fixed in Assistant-scoped CSS afterward.
+
+Windows computer-use policy then stopped browser control because it could not reliably confirm the active browser URL. No alternate driver was used. Final-source visual checks at 320, 390, 768, 1024 and 1440 remain pending; TypeScript, unit tests, style checks and production builds do not replace those visual checks.

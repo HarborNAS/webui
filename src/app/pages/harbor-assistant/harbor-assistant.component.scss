@@ -2021,3 +2021,62 @@ $hd-space-5: 20px;
     justify-content: flex-start;
   }
 }
+
+// Cards follow the available workspace, including the wide-screen results pane.
+.model-capability-header,
+.model-setting-line {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+
+.model-capability-row > .muted {
+  overflow-wrap: anywhere;
+  padding: 0 16px;
+}
+
+@media (max-width: 767px) {
+  .harbor-assistant-page {
+    margin: 12px;
+  }
+
+  .tab-panel {
+    padding: 12px;
+  }
+
+  .ai-settings-subtabs {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ai-settings-subtab {
+    strong,
+    span {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+  }
+
+  :host ::ng-deep ix-page-header > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+
+    > div:last-child {
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 100%;
+    }
+  }
+}
+
+// The header also wraps when the results pane narrows a desktop workspace.
+:host ::ng-deep ix-page-header > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+
+  > div:last-child {
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
+  }
+}

@@ -9,6 +9,21 @@
   }
 
   mat-form-field {
-    min-width: 220px;
+    flex: 1 1 220px;
+    max-width: 100%;
+    min-width: 0;
   }
+}
+
+.pairing-code {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.identity-pairing time {
+  overflow-wrap: anywhere;
 }

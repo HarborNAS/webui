@@ -6809,5 +6809,16 @@
   "Conversation options": "对话选项",
   "The server chooses the answer model": "由服务器选择回答模型",
   "No matching candidates · not visually verified": "无匹配候选结果 · 未进行视觉验证",
-  "Folder browsing is unavailable in the HarborNavi K3 Assistant build.": "HarborNavi K3 助手版本暂不支持文件夹浏览。"
+  "Folder browsing is unavailable in the HarborNavi K3 Assistant build.": "HarborNavi K3 助手版本暂不支持文件夹浏览。",
+  "Connect your Feishu account": "连接您的飞书账号",
+  "Create a one-time code for your current HarborOS account, then send it to the Feishu bot in a private chat.": "为当前 HarborOS 账号创建一次性验证码，然后在飞书私聊中发送给机器人。",
+  "Create pairing code": "创建配对验证码",
+  "Send this exact message to the bot. The code expires in five minutes and can be used once.": "请将以下完整消息发送给机器人。验证码五分钟后过期，仅可使用一次。",
+  "Check pairing status": "检查配对状态",
+  "A valid pairing code could not be created.": "无法创建有效的配对验证码。",
+  "Pairing code expired. Create a new code.": "配对验证码已过期，请创建新验证码。",
+  "Waiting for the pairing message from your Feishu account.": "正在等待您的飞书账号发送配对消息。",
+  "Feishu account connected.": "飞书账号已连接。",
+  "Pairing status could not be refreshed.": "无法刷新配对状态。",
+  "Pairing could not be completed. Create a new code.": "无法完成配对，请创建新验证码。"
 }

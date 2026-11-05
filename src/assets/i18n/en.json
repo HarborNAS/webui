@@ -6809,5 +6809,16 @@
   "Conversation options": "Conversation options",
   "The server chooses the answer model": "The server chooses the answer model",
   "No matching candidates · not visually verified": "No matching candidates · not visually verified",
-  "Folder browsing is unavailable in the HarborNavi K3 Assistant build.": "Folder browsing is unavailable in the HarborNavi K3 Assistant build."
+  "Folder browsing is unavailable in the HarborNavi K3 Assistant build.": "Folder browsing is unavailable in the HarborNavi K3 Assistant build.",
+  "Connect your Feishu account": "Connect your Feishu account",
+  "Create a one-time code for your current HarborOS account, then send it to the Feishu bot in a private chat.": "Create a one-time code for your current HarborOS account, then send it to the Feishu bot in a private chat.",
+  "Create pairing code": "Create pairing code",
+  "Send this exact message to the bot. The code expires in five minutes and can be used once.": "Send this exact message to the bot. The code expires in five minutes and can be used once.",
+  "Check pairing status": "Check pairing status",
+  "A valid pairing code could not be created.": "A valid pairing code could not be created.",
+  "Pairing code expired. Create a new code.": "Pairing code expired. Create a new code.",
+  "Waiting for the pairing message from your Feishu account.": "Waiting for the pairing message from your Feishu account.",
+  "Feishu account connected.": "Feishu account connected.",
+  "Pairing status could not be refreshed.": "Pairing status could not be refreshed.",
+  "Pairing could not be completed. Create a new code.": "Pairing could not be completed. Create a new code."
 }

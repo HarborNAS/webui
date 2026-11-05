@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
-import { harborAssistantSetupApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
+import { harborAssistantGateApiUrl, harborAssistantSetupApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 
 export interface AssistantWeixinLogin {
   status: string;
@@ -15,6 +15,16 @@ export interface AssistantSetupStatus {
   weixin: { configured: boolean; login?: AssistantWeixinLogin | null };
 }
 
+export interface AssistantIdentityChallengeStatus {
+  challenge_id: string;
+  expires_at: string;
+  status: 'pending' | 'bound' | 'expired' | 'failed';
+}
+
+export interface AssistantIdentityChallenge extends AssistantIdentityChallengeStatus {
+  challenge_text: string;
+}
+
 export interface AssistantConnectionResult {
   success?: boolean;
   ok?: boolean;
@@ -25,6 +35,16 @@ export interface AssistantConnectionResult {
 export class AssistantConnectionsApiService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = harborAssistantSetupApiUrl('');
+
+  createFeishuIdentityChallenge(): Observable<AssistantIdentityChallenge> {
+    return this.http.post<AssistantIdentityChallenge>(harborAssistantGateApiUrl('/im/feishu/identity-challenges'), {});
+  }
+
+  feishuIdentityChallengeStatus(challengeId: string): Observable<AssistantIdentityChallengeStatus> {
+    return this.http.get<AssistantIdentityChallengeStatus>(
+      harborAssistantGateApiUrl(`/im/feishu/identity-challenges/${encodeURIComponent(challengeId)}`),
+    );
+  }
 
   status(): Observable<AssistantSetupStatus> {
     return this.http.get<AssistantSetupStatus>(`${this.baseUrl}/status`);

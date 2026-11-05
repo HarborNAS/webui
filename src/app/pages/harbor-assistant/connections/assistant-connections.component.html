@@ -14,6 +14,23 @@
       {{ 'Save and verify connection' | translate }}
     </button>
   </form>
+  @if (pairingAvailable) {
+    <section class="identity-pairing">
+      <h3>{{ 'Connect your Feishu account' | translate }}</h3>
+      <p>{{ 'Create a one-time code for your current HarborOS account, then send it to the Feishu bot in a private chat.' | translate }}</p>
+      <button mat-button type="button" [disabled]="busy() || !status()?.feishu?.configured" (click)="createIdentityPairing()">
+        {{ 'Create pairing code' | translate }}
+      </button>
+      @if (pairingChallenge(); as challenge) {
+        <p>{{ 'Send this exact message to the bot. The code expires in five minutes and can be used once.' | translate }}</p>
+        <code class="pairing-code">{{ challenge.challenge_text }}</code>
+        <p>{{ 'Expires' | translate }}: <time [attr.datetime]="challenge.expires_at">{{ challenge.expires_at }}</time></p>
+        <button mat-button type="button" [disabled]="busy()" (click)="refreshIdentityPairing()">
+          {{ 'Check pairing status' | translate }}
+        </button>
+      }
+    </section>
+  }
   <h2>{{ 'WeChat connection' | translate }}</h2>
   <p>{{ status()?.weixin?.configured ? ('Configured' | translate) : ('Not configured' | translate) }}</p>
   <button mat-button type="button" [disabled]="busy() || !status()" (click)="startWeixin()">

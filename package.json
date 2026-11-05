@@ -36,7 +36,8 @@
     "validate-translations": "node scripts/validate_translations.js",
     "build:harbornavi-k3": "yarn tn-icons && yarn buildng --configuration harbornavi-k3 --base-href / && yarn tsx scripts/update-sw-version.ts",
     "package:harbornavi-k3": "bash scripts/harbornavi-k3/build-deb.sh",
-    "check:harbor-assistant-profiles": "node scripts/check-harbor-assistant-profiles.mjs"
+    "check:harbor-assistant-profiles": "node scripts/check-harbor-assistant-profiles.mjs",
+    "check:harbor-assistant-delivery": "node scripts/check-harbor-assistant-delivery.mjs"
   },
   "repository": {
     "type": "git",

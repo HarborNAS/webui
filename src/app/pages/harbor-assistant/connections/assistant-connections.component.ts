@@ -7,10 +7,12 @@ import { MatInput } from '@angular/material/input';
 import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
 import { TranslateModule } from '@ngx-translate/core';
 import { QrCodeModule } from 'ng-qrcode';
-import { EMPTY, catchError, finalize, switchMap, timer } from 'rxjs';
+import { EMPTY, Subscription, catchError, finalize, switchMap, timer } from 'rxjs';
 import {
-  AssistantConnectionResult, AssistantConnectionsApiService, AssistantSetupStatus, AssistantWeixinLogin,
+  AssistantConnectionResult, AssistantConnectionsApiService, AssistantIdentityChallenge,
+  AssistantSetupStatus, AssistantWeixinLogin,
 } from 'app/pages/harbor-assistant/connections/assistant-connections-api.service';
+import { harborAssistantGateRequiresUserToken } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 
 @Component({
   selector: 'ix-assistant-connections',
@@ -25,6 +27,9 @@ export class AssistantConnectionsComponent implements OnInit {
   private readonly zone = inject(NgZone);
   private readonly fb = inject(NonNullableFormBuilder);
   private sessionCode = '';
+  private challengeExpirySubscription?: Subscription;
+  protected readonly pairingAvailable = harborAssistantGateRequiresUserToken();
+  protected readonly pairingChallenge = signal<AssistantIdentityChallenge | null>(null);
   protected readonly status = signal<Pick<AssistantSetupStatus, 'feishu' | 'weixin'> | null>(null);
   protected readonly busy = signal(false);
   protected readonly message = signal<string | null>(null);
@@ -103,6 +108,64 @@ export class AssistantConnectionsComponent implements OnInit {
         }
       },
       error: () => this.error.set(T('Feishu connection could not be verified. Check the credentials and try again.')),
+    });
+  }
+
+  protected createIdentityPairing(): void {
+    if (!this.pairingAvailable || this.busy() || !this.status()?.feishu?.configured) {
+      return;
+    }
+    this.busy.set(true);
+    this.error.set(null);
+    this.message.set(null);
+    const request$ = this.api.createFeishuIdentityChallenge();
+    request$.pipe(finalize(() => this.busy.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (challenge) => {
+        const remaining = Date.parse(challenge.expires_at) - Date.now();
+        if (challenge.status !== 'pending' || !challenge.challenge_text?.trim()
+          || !Number.isFinite(remaining) || remaining <= 0) {
+          this.error.set(T('A valid pairing code could not be created.'));
+          return;
+        }
+        this.pairingChallenge.set(challenge);
+        this.challengeExpirySubscription?.unsubscribe();
+        this.zone.runOutsideAngular(() => {
+          const expiry$ = timer(remaining).pipe(takeUntilDestroyed(this.destroyRef));
+          this.challengeExpirySubscription = expiry$.subscribe(() => {
+            this.pairingChallenge.set(null);
+            this.message.set(T('Pairing code expired. Create a new code.'));
+          });
+        });
+      },
+      error: () => this.error.set(T('A valid pairing code could not be created.')),
+    });
+  }
+
+  protected refreshIdentityPairing(): void {
+    const challenge = this.pairingChallenge();
+    if (!challenge || this.busy()) {
+      return;
+    }
+    this.busy.set(true);
+    this.error.set(null);
+    const request$ = this.api.feishuIdentityChallengeStatus(challenge.challenge_id);
+    request$.pipe(finalize(() => this.busy.set(false)), takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => {
+        if (result.status === 'pending') {
+          this.message.set(T('Waiting for the pairing message from your Feishu account.'));
+          return;
+        }
+        this.challengeExpirySubscription?.unsubscribe();
+        this.pairingChallenge.set(null);
+        if (result.status === 'failed') {
+          this.error.set(T('Pairing could not be completed. Create a new code.'));
+        } else {
+          this.message.set(result.status === 'bound'
+            ? T('Feishu account connected.')
+            : T('Pairing code expired. Create a new code.'));
+        }
+      },
+      error: () => this.error.set(T('Pairing status could not be refreshed.')),
     });
   }
 
