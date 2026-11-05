@@ -1,0 +1,33 @@
+<section class="native-connections">
+  @if (error()) { <p role="alert">{{ error() | translate }}</p> }
+  @if (message()) { <p role="status">{{ message() | translate }}</p> }
+  <h2>{{ 'Feishu connection' | translate }}</h2>
+  <p>{{ status()?.feishu?.configured ? ('Configured' | translate) : ('Not configured' | translate) }}</p>
+  <form [formGroup]="form" (ngSubmit)="saveFeishu()">
+    <mat-form-field><mat-label>{{ 'Feishu App ID' | translate }}</mat-label>
+      <input matInput formControlName="appId" autocomplete="off" /></mat-form-field>
+    <mat-form-field><mat-label>{{ 'Feishu App Secret' | translate }}</mat-label>
+      <input matInput type="password" formControlName="appSecret" autocomplete="new-password" /></mat-form-field>
+    <mat-form-field><mat-label>{{ 'Verification token (optional)' | translate }}</mat-label>
+      <input matInput type="password" formControlName="verificationToken" autocomplete="new-password" /></mat-form-field>
+    <button mat-button type="submit" [disabled]="busy() || form.invalid || !status()">
+      {{ 'Save and verify connection' | translate }}
+    </button>
+  </form>
+  <h2>{{ 'WeChat connection' | translate }}</h2>
+  <p>{{ status()?.weixin?.configured ? ('Configured' | translate) : ('Not configured' | translate) }}</p>
+  <button mat-button type="button" [disabled]="busy() || !status()" (click)="startWeixin()">
+    {{ 'Connect WeChat' | translate }}
+  </button>
+  <button mat-button type="button" [disabled]="busy() || !status()?.weixin?.configured" (click)="unbindWeixin()">
+    {{ 'Disconnect WeChat' | translate }}
+  </button>
+  @if (login(); as currentLogin) {
+    <p role="status">{{ 'Login status' | translate }}: {{ currentLogin.status | translate }}</p>
+    @if (currentLogin.qrcode_url && ['wait', 'scanned', 'scaned_but_redirect'].includes(currentLogin.status)) {
+      <qr-code [value]="currentLogin.qrcode_url" [size]="220"></qr-code>
+      <p>{{ 'Scan the QR code in WeChat to connect.' | translate }}</p>
+    }
+  }
+  <button mat-button type="button" (click)="refresh()">{{ 'Refresh' | translate }}</button>
+</section>

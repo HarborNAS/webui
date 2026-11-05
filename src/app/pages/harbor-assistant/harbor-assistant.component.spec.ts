@@ -1,8 +1,10 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { fakeAsync, tick } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
 import { convertToParamMap, ActivatedRoute, Router } from '@angular/router';
 import { createComponentFactory, mockProvider, Spectator } from '@ngneat/spectator/jest';
 import { MockComponent } from 'ng-mocks';
-import { of, Subject, throwError } from 'rxjs';
+import { defer, of, Subject, throwError } from 'rxjs';
 import { PageHeaderComponent } from 'app/modules/page-header/page-title-header/page-header.component';
 import { HarborAssistantComponent } from 'app/pages/harbor-assistant/harbor-assistant.component';
 import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
@@ -48,6 +50,129 @@ describe('Harbor Assistant component', () => {
         afterClosed: () => of({ path: '/mnt/pool/videos' }),
       })),
     };
+  });
+
+  it('shows loading until all model projection requests complete', () => {
+    const capabilities$ = new Subject<unknown>();
+    api.getModelCapabilities = jest.fn(() => capabilities$);
+    spectator = createComponent();
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).toHaveText('Loading model status...');
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).not.toHaveText('0/4');
+    capabilities$.next(modelCapabilitiesWithEmbedder({}));
+    capabilities$.complete();
+    spectator.detectChanges();
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).not.toHaveText('Loading model status...');
+  });
+
+  it('retries a transient model projection failure before calculating readiness', fakeAsync(() => {
+    let attempts = 0;
+    api.getModelCapabilities = jest.fn(() => defer(() => {
+      attempts += 1;
+      return attempts === 1
+        ? throwError(() => new HttpErrorResponse({ status: 500 }))
+        : of(modelCapabilitiesWithEmbedder({}));
+    }));
+    spectator = createComponent();
+    expect(attempts).toBe(1);
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).toHaveText('Loading model status...');
+    tick(350);
+    spectator.detectChanges();
+    expect(attempts).toBe(2);
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).not.toHaveText('Loading model status...');
+    spectator.fixture.destroy();
+  }));
+
+  it('keeps unsupported product capabilities visible and disables model actions', () => {
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      status: 'unsupported',
+      runtime_installable: false,
+      installable_models: [],
+      installed_models: [],
+      next_action: 'Unsupported on N2',
+    })));
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    const row = spectator.queryAll('.model-capability-row')[1];
+    expect(row.textContent).toContain('Not supported');
+    expect(Array.from(row.querySelectorAll('button')).every((button) => button.disabled)).toBe(true);
+  });
+
+  it('projects actual external runtime metadata onto model settings even when the old inference backend differs', () => {
+    const projection = modelCapabilitiesWithEmbedder({}) as { capabilities: Record<string, unknown>[] };
+    Object.assign(projection.capabilities[0], {
+      desired_model_id: 'qwen-0.5b',
+      active_model_id: 'qwen-0.5b',
+      transition_status: 'ready',
+      current_model: {
+        model_endpoint_id: 'llm-local',
+        model_name: 'Qwen2.5',
+        provider_key: 'local',
+        status: 'active',
+      },
+    });
+    api.getModelCapabilities = jest.fn(() => of(projection));
+    api.getModelEndpoints = jest.fn(() => of({
+      endpoints: [{
+        model_endpoint_id: 'llm-local',
+        model_kind: 'llm',
+        endpoint_kind: 'local',
+        provider_key: 'local',
+        model_name: 'Qwen2.5',
+        status: 'active',
+        metadata: {
+          runtime_backend_kind: 'llama.cpp',
+          runtime_device: 'Vulkan1: AMD Radeon Pro W7900',
+          persistent: true,
+          base_url: 'http://127.0.0.1:11435/v1',
+        },
+      }],
+    }));
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    const row = spectator.queryAll('.model-capability-row')[0];
+    expect(row.textContent).toContain('qwen-0.5b');
+    expect(row.textContent).toContain('llama.cpp');
+    expect(row.textContent).toContain('Vulkan1: AMD Radeon Pro W7900');
+    expect(row.textContent).toContain('http://127.0.0.1:11435/v1');
+    expect(row.textContent).toContain('true');
+  });
+
+  it('shows a failed desired model separately from the model still serving requests', () => {
+    api.getModelCapabilities = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      desired_model_id: 'new-embedding',
+      active_model_id: 'old-embedding',
+      transition_status: 'failed',
+      last_error: 'Activation failed',
+      status: 'degraded',
+    })));
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    const row = spectator.queryAll('.model-capability-row')[1];
+    expect(row.textContent).toContain('new-embedding');
+    expect(row.textContent).toContain('old-embedding');
+    expect(row.textContent).toContain('Activation failed');
+    expect(row.textContent).toContain('Switch failed');
+  });
+
+  it('disables selection for supported fixed-model product capabilities', () => {
+    const projection = modelCapabilitiesWithEmbedder({}) as { local_model_policy: string };
+    projection.local_model_policy = 'fixed';
+    api.getModelCapabilities = jest.fn(() => of(projection));
+    spectator = createComponent();
+    spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
+    const row = spectator.queryAll('.model-capability-row')[1];
+    expect(Array.from(row.querySelectorAll('button')).every((button) => button.disabled)).toBe(true);
+  });
+
+  it('counts supported fixed capabilities without treating unsupported vision as a missing model', () => {
+    const projection = modelCapabilitiesWithEmbedder({}) as {
+      local_model_policy: string; capabilities: Record<string, unknown>[];
+    };
+    projection.local_model_policy = 'fixed';
+    projection.capabilities[3].status = 'unsupported';
+    api.getModelCapabilities = jest.fn(() => of(projection));
+    spectator = createComponent();
+    expect(spectator.queryAll('.ai-settings-subtab')[1]).toHaveText('3/3 Ready');
   });
 
   it('renders the AI settings subtabs without technical routing copy', () => {
@@ -378,7 +503,8 @@ describe('Harbor Assistant component', () => {
     expect(panel).toHaveText('Vector search');
     expect(panel).toHaveText('Conversation answer');
     expect(panel).toHaveText('Image/video understanding');
-    expect(panel).not.toHaveText('Speech-to-text');
+    expect(panel).toHaveText('Speech-to-text');
+    expect(panel).toHaveText('Text-to-speech');
     expect(panel).not.toHaveText('Event detection');
     expect(panel?.textContent?.toLowerCase()).not.toContain('detector');
     expect(router.navigate).toHaveBeenCalledWith([], expect.objectContaining({
@@ -600,6 +726,7 @@ describe('Harbor Assistant component', () => {
   });
 
   it('puts the More action inside an empty model chooser', () => {
+    api.getModelEndpoints = jest.fn(() => of({ endpoints: [] }));
     api.getLocalModelCatalog = jest.fn(() => of({
       models: [
         {
@@ -851,6 +978,7 @@ describe('Harbor Assistant component', () => {
   });
 
   it('deduplicates vector models and marks only runtime truth as selected', () => {
+    api.getModelEndpoints = jest.fn(() => of({ endpoints: [] }));
     const qwen = {
       model_id: 'Qwen/Qwen3-Embedding-0.6B',
       display_name: 'Qwen3 Embedding 0.6B',
@@ -963,12 +1091,12 @@ describe('Harbor Assistant component', () => {
     spectator.click(spectator.query('.model-capability-row .inline-model-panel button'));
     spectator.detectChanges();
 
-    expect(api.selectModelCapability).toHaveBeenCalledWith('embedder', 'Qwen/Qwen3.5-4B');
+    expect(api.selectModelCapability).toHaveBeenCalledWith('embedder', 'Qwen/Qwen3.5-4B', undefined);
     expect(spectator.element.textContent).toContain('Model startup has been requested');
     expect(spectator.element.textContent).not.toContain('compatible runtime');
   });
 
-  it('auto-configures an OpenAI-compatible installed model when selected', () => {
+  it('requests server activation of an OpenAI-compatible installed model', () => {
     const installedModel = {
       model_id: 'Qwen/Qwen3-Embedding-0.6B',
       display_name: 'Qwen3 Embedding 0.6B',
@@ -993,7 +1121,9 @@ describe('Harbor Assistant component', () => {
       },
       installed_models: [installedModel],
     })));
-    api.selectModelCapability = jest.fn();
+    api.selectModelCapability = jest.fn(() => of(modelCapabilitiesWithEmbedder({
+      transition_status: 'loading', desired_model_id: installedModel.model_id, active_model_id: null,
+    })));
 
     spectator = createComponent();
     spectator.click(spectator.queryAll('.ai-settings-subtab')[1]);
@@ -1014,22 +1144,9 @@ describe('Harbor Assistant component', () => {
     spectator.click(spectator.query('.model-capability-row .inline-model-panel button'));
     spectator.detectChanges();
 
-    expect(api.selectModelCapability).not.toHaveBeenCalled();
-    expect(api.updateModelEndpoint).toHaveBeenCalledWith('embedder-local', expect.objectContaining({
-      model_kind: 'embedder',
-      endpoint_kind: 'local',
-      model_name: 'Qwen/Qwen3-Embedding-0.6B',
-      status: 'active',
-      metadata: expect.objectContaining({
-        auto_configured_by: 'harbor-assistant-select',
-        base_url: 'http://127.0.0.1:4174/api/inference/v1',
-        catalog_model_id: 'Qwen/Qwen3-Embedding-0.6B',
-        healthz_url: 'http://127.0.0.1:4174/api/inference/healthz',
-        local_path: '/mnt/software/harborbeacon-agent-ci/model-store/qwen-qwen3-embedding-0.6b',
-        runtime_profiles: ['openai-compatible-embedding'],
-      }),
-    }));
-    expect(spectator.element.textContent).toContain('Model selected');
+    expect(api.selectModelCapability).toHaveBeenCalledWith('embedder', installedModel.model_id, undefined);
+    expect(api.updateModelEndpoint).not.toHaveBeenCalled();
+    expect(spectator.element.textContent).toContain('Model startup has been requested');
   });
 
   it('groups installed 4B as not recommended and keeps FlashV4 visible as cloud backup', () => {
@@ -1183,7 +1300,7 @@ describe('Harbor Assistant component', () => {
     expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
       model_id: 'bge-m3',
       metadata: expect.objectContaining({
-        auto_select_after_download: true,
+        auto_select_after_download: false,
         auto_select_capability_id: 'embedder',
         auto_select_model_id: 'bge-m3',
         repo_id: 'BAAI/bge-m3',

@@ -8,6 +8,7 @@ import {
 import { SpectatorService, createServiceFactory, mockProvider } from '@ngneat/spectator/jest';
 import { firstValueFrom, of } from 'rxjs';
 import { AuthService } from 'app/modules/auth/auth.service';
+import * as prefix from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 import { HarborAssistantContentApiService } from 'app/pages/harbor-assistant/shared/harbor-assistant-content-api.service';
 import {
   HarborAssistantSearchRequest,
@@ -36,6 +37,57 @@ describe('Harbor Assistant content API service', () => {
 
   afterEach(() => {
     httpMock.verify();
+    jest.restoreAllMocks();
+  });
+
+  it('retains fast/careful and runtime metadata from a formal rag.answer envelope', async () => {
+    const payload = {
+      ...searchRequest('Find photos'),
+      response_preference: 'fast' as const,
+      response_preference_persist: true,
+    };
+    const promise = firstValueFrom(spectator.service.search(payload));
+    const request = httpMock.expectOne('/api/harbor-gate/api/beacon/knowledge/search');
+    expect(request.request.body.response_preference_persist).toBe(true);
+    request.flush({
+      kind: 'rag.answer',
+      query: 'Find photos',
+      answer: 'Indexed photos',
+      status: 'ok',
+      degraded: false,
+      citations: [],
+      warnings: [],
+      search: searchResponse(),
+      response_preference: 'fast',
+      verification_status: 'skipped',
+      model: { model_name: 'Qwen2.5', runtime_backend_kind: 'llama.cpp' },
+    });
+    await expect(promise).resolves.toMatchObject({
+      reply_pack: { summary: 'Indexed photos' },
+      response_preference: 'fast',
+      verification_status: 'skipped',
+      model: { runtime_backend_kind: 'llama.cpp' },
+    });
+  });
+
+  it('loads a protected photo with a single-use header instead of an unauthenticated image URL', async () => {
+    const promise = firstValueFrom(spectator.service.preview('/nas/photo.jpg'));
+    const request = httpMock.expectOne('/api/harbor-gate/api/beacon/knowledge/preview?path=%2Fnas%2Fphoto.jpg');
+    expect(request.request.responseType).toBe('blob');
+    expect(request.request.headers.get('X-HarborOS-Auth-Token')).toBe('harbor-user-token');
+    request.flush(new Blob(['photo'], { type: 'image/jpeg' }));
+    await expect(promise).resolves.toBeInstanceOf(Blob);
+  });
+
+  it('does not request NAS user identity when the HarborNavi profile is active', async () => {
+    jest.spyOn(prefix, 'harborAssistantGateRequiresUserToken').mockReturnValue(false);
+    jest.spyOn(prefix, 'harborAssistantGateApiUrl').mockImplementation((path) => `/api/beacon${path}`);
+    const promise = firstValueFrom(spectator.service.search(searchRequest('N2 query')));
+    const request = httpMock.expectOne('/api/beacon/knowledge/search');
+    expect(request.request.headers.has('X-HarborOS-Auth-Token')).toBe(false);
+    expect(spectator.inject(AuthService).getHarborAssistantOneTimeToken).not.toHaveBeenCalled();
+    request.flush(searchResponse());
+    await promise;
   });
 
   it('loads prompt suggestions derived from the current knowledge index', async () => {

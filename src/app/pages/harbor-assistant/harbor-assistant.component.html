@@ -144,6 +144,7 @@
         <div class="notice error">{{ endpointError('notificationTargets') | translate }}</div>
       }
 
+      <ix-assistant-connections></ix-assistant-connections>
       <mat-card class="settings-card native-panel im-native-panel">
         <mat-card-header>
           <mat-card-title>{{ 'Message connections' | translate }}</mat-card-title>
@@ -175,16 +176,6 @@
                   {{ connector.status | translate }}
                 </span>
                 <div class="row-actions">
-                  @if (connector.setupUrl) {
-                    <a mat-button color="primary" target="_blank" rel="noopener" [href]="connector.setupUrl">
-                      {{ 'Bind' | translate }}
-                    </a>
-                  }
-                  @if (connector.manageUrl) {
-                    <a mat-button color="primary" target="_blank" rel="noopener" [href]="connector.manageUrl">
-                      {{ connector.connected ? ('Reconnect' | translate) : ('Manage' | translate) }}
-                    </a>
-                  }
                   @if (notificationTargetForConnector(connector); as target) {
                     <button mat-button type="button" [disabled]="isBusy()" (click)="removeNotificationTarget(target)">
                       {{ 'Remove' | translate }}
@@ -513,6 +504,9 @@
                       <p class="muted">{{ capability.detail | translate }}</p>
                     </div>
                     <div class="model-current-cell">
+                      <span class="field-label">{{ 'Selected model' | translate }}</span>
+                      <p>{{ workflowDesiredModelName(capability.capabilityId) }}</p>
+                      <span class="field-label">{{ 'Running model' | translate }}</span>
                       @if (workflowSharedModelOwner(capability.capabilityId); as owner) {
                         <strong>{{ 'Shared model' | translate }}</strong>
                         <p class="muted">
@@ -530,10 +524,10 @@
                       {{ workflowCapabilityStatusLabel(capability.capabilityId) | translate }}
                     </span>
                     <div class="row-actions">
-                      <button mat-button color="primary" type="button" (click)="toggleModelCapabilityChooser(capability)">
+                      <button mat-button color="primary" type="button" [disabled]="capabilityUnsupported(capability.capabilityId)" (click)="toggleModelCapabilityChooser(capability)">
                         {{ 'Select model' | translate }}
                       </button>
-                      <button mat-button type="button" (click)="openModelCapabilityMoreModels(capability)">
+                      <button mat-button type="button" [disabled]="capabilityUnsupported(capability.capabilityId)" (click)="openModelCapabilityMoreModels(capability)">
                         {{ 'More models' | translate }}
                       </button>
                       @if (workflowRuntimeInstallCandidate(capability.capabilityId); as runtime) {
@@ -560,7 +554,10 @@
                     </div>
                   </div>
 
-                  @if (modelCapabilityChooserOpen(capability.id)) {
+                  @for (row of workflowEndpointMetadata(capability.capabilityId); track row.label) {
+                    <p class="muted"><strong>{{ row.label | translate }}:</strong> {{ row.value }}</p>
+                  }
+                  @if (modelCapabilityChooserOpen(capability.id) && !capabilityUnsupported(capability.capabilityId)) {
                     <section class="inline-model-panel">
                       @if (workflowModelChoices(capability.capabilityId).length === 0) {
                         <div class="empty-state inline-empty-action">
@@ -597,7 +594,7 @@
                     </section>
                   }
 
-                  @if (modelCapabilityMoreModelsOpen(capability.id)) {
+                  @if (modelCapabilityMoreModelsOpen(capability.id) && !capabilityUnsupported(capability.capabilityId)) {
                     <section class="inline-model-panel">
                       @if (workflowDownloadingModelChoices(capability.capabilityId).length) {
                         @for (card of workflowDownloadingModelChoices(capability.capabilityId); track card.key) {

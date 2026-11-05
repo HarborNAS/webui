@@ -1,0 +1,14 @@
+.native-connections {
+  padding: 20px;
+
+  form {
+    align-items: start;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  mat-form-field {
+    min-width: 220px;
+  }
+}

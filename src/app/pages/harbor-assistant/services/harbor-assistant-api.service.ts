@@ -1,8 +1,9 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject } from '@angular/core';
+import { Injectable, Injector, inject } from '@angular/core';
 import { marker as T } from '@biesbjerg/ngx-translate-extract-marker';
-import { Observable, of } from 'rxjs';
+import { Observable, defer, of, switchMap } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
+import { AuthService } from 'app/modules/auth/auth.service';
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
@@ -60,13 +61,14 @@ import {
   RtspCheckResult,
   ShareLinkSummary,
 } from 'app/pages/harbor-assistant/interfaces/harbor-assistant-status.interface';
-import { harborAssistantBeaconApiUrl } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
+import { harborAssistantBeaconApiUrl, harborAssistantGateApiUrl, harborAssistantGateRequiresUserToken } from 'app/pages/harbor-assistant/services/harbor-assistant-api-prefix';
 
 @Injectable({
   providedIn: 'root',
 })
 export class HarborAssistantApiService {
   private http = inject(HttpClient);
+  private readonly injector = inject(Injector);
 
   private apiUrl(path: string): string {
     return harborAssistantBeaconApiUrl(path);
@@ -250,11 +252,23 @@ export class HarborAssistantApiService {
     return this.http.put<ModelStoreStatusResponse>(this.apiUrl('/models/store'), { path });
   }
 
-  selectModelCapability(capabilityId: string, modelId: string): Observable<ModelCapabilitiesResponse> {
-    return this.http.post<ModelCapabilitiesResponse>(
-      this.apiUrl(`/models/capabilities/${encodeURIComponent(capabilityId)}/selection`),
-      { model_id: modelId },
-    );
+  selectModelCapability(
+    capabilityId: string,
+    modelId: string,
+    modelEndpointId?: string,
+  ): Observable<ModelCapabilitiesResponse> {
+    return defer(() => {
+      const request = (token?: string): Observable<ModelCapabilitiesResponse> => this.http.post<
+        ModelCapabilitiesResponse
+      >(
+        harborAssistantGateApiUrl(`/models/capabilities/${encodeURIComponent(capabilityId)}/selection`),
+        { model_id: modelId, ...(modelEndpointId ? { model_endpoint_id: modelEndpointId } : {}) },
+        token ? { headers: { 'X-HarborOS-Auth-Token': token } } : {},
+      );
+      return harborAssistantGateRequiresUserToken()
+        ? this.injector.get(AuthService).getHarborAssistantOneTimeToken().pipe(switchMap(request))
+        : request();
+    });
   }
 
   createModelEndpoint(payload: ModelEndpointPayload): Observable<ModelEndpointsResponse> {

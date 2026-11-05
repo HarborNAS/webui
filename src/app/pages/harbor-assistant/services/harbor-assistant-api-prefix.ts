@@ -9,3 +9,7 @@ export function harborAssistantGateApiUrl(path: string): string {
 export function harborAssistantGateRequiresUserToken(): boolean {
   return true;
 }
+
+export function harborAssistantSetupApiUrl(path: string): string {
+  return `/api/harbor-gate/api/setup${path}`;
+}

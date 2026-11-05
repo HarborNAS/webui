@@ -928,6 +928,7 @@ export interface ModelStoreStatusResponse {
 }
 
 export interface ModelCapabilitiesResponse {
+  local_model_policy?: 'fixed' | 'flexible';
   generated_at: string;
   checked_at: string;
   status: string;

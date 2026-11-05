@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { SpectatorService, createServiceFactory } from '@ngneat/spectator/jest';
-import { firstValueFrom } from 'rxjs';
-import { HarborAssistantApiService } from './harbor-assistant-api.service';
+import { SpectatorService, createServiceFactory, mockProvider } from '@ngneat/spectator/jest';
+import { firstValueFrom, of } from 'rxjs';
+import { AuthService } from 'app/modules/auth/auth.service';
+import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 
 describe('Harbor Assistant API service', () => {
   let spectator: SpectatorService<HarborAssistantApiService>;
@@ -15,6 +16,7 @@ describe('Harbor Assistant API service', () => {
     providers: [
       provideHttpClient(),
       provideHttpClientTesting(),
+      mockProvider(AuthService, { getHarborAssistantOneTimeToken: () => of('single-use') }),
     ],
   });
 
@@ -25,6 +27,16 @@ describe('Harbor Assistant API service', () => {
 
   afterEach(() => {
     httpMock.verify();
+  });
+
+  it('selects a configured capability endpoint using fresh middleware identity', async () => {
+    const promise = firstValueFrom(spectator.service.selectModelCapability('asr', 'whisper-small', 'asr-780m'));
+    const request = httpMock.expectOne('/api/harbor-gate/api/beacon/models/capabilities/asr/selection');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('X-HarborOS-Auth-Token')).toBe('single-use');
+    expect(request.request.body).toEqual({ model_id: 'whisper-small', model_endpoint_id: 'asr-780m' });
+    request.flush({ capabilities: [] });
+    await promise;
   });
 
   it('uses the same-origin Harbor Assistant state endpoint', async () => {
@@ -574,21 +586,5 @@ describe('Harbor Assistant API service', () => {
     [':4174', ':4175', ':4176', ':4196', ':8787', '/api/turns', '/api/web/turns'].forEach((forbidden) => {
       expect(source).not.toContain(forbidden);
     });
-  });
-
-  it('does not keep the Weixin setup action visible after the connector is connected', () => {
-    const source = readFileSync(
-      join(process.cwd(), 'src/app/pages/harbor-assistant/harbor-assistant.component.ts'),
-      'utf8',
-    );
-    const template = readFileSync(
-      join(process.cwd(), 'src/app/pages/harbor-assistant/harbor-assistant.component.html'),
-      'utf8',
-    );
-
-    expect(source).toContain('const setupUrl = connected ? null : harborGateConnectorSetupUrl');
-    expect(template).toContain('Reconnect');
-    expect(template).toContain('Manage');
-    expect(template).toContain('color="primary"');
   });
 });

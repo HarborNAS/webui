@@ -1,6 +1,14 @@
 export type HarborAssistantSearchResultFilter = 'all' | 'audio' | 'images' | 'text' | 'videos';
 export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'all';
 export type HarborAssistantRetrievalMode = 'auto' | 'on' | 'off';
+export type HarborAssistantResponsePreference = 'auto' | 'fast' | 'careful';
+
+export interface HarborAssistantAnswerMetadata {
+  model?: string | Record<string, unknown> | null;
+  verification_status?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: { status?: string; [key: string]: unknown };
+}
 
 export interface HarborAssistantSearchRequest {
   query: string;
@@ -12,6 +20,9 @@ export interface HarborAssistantSearchRequest {
   include_videos: boolean;
   use_retrieval?: boolean;
   retrieval_mode?: HarborAssistantRetrievalMode;
+  response_preference?: HarborAssistantResponsePreference;
+  response_preference_persist?: boolean;
+  filter?: HarborAssistantSearchResultFilter;
   source_scope?: HarborAssistantSearchSourceScope;
   source_root_ids?: string[];
   camera_id?: string | null;
@@ -62,7 +73,7 @@ export interface HarborAssistantSearchReplyPack {
   citations: unknown[];
 }
 
-export interface HarborAssistantSearchResponse {
+export interface HarborAssistantSearchResponse extends HarborAssistantAnswerMetadata {
   conversation_id?: string;
   query: string;
   roots: string[];
@@ -104,7 +115,7 @@ export interface HarborAssistantQueryUnderstanding {
   retrieval_strategy?: 'semantic' | 'recent';
 }
 
-export interface HarborAssistantKnowledgeAnswerResponse {
+export interface HarborAssistantKnowledgeAnswerResponse extends HarborAssistantAnswerMetadata {
   kind: 'rag.answer';
   conversation_id?: string;
   status: string;
@@ -135,6 +146,7 @@ export interface HarborAssistantKnowledgeSuggestionsResponse {
 }
 
 export interface HarborAssistantConversationSettings {
+  response_preference?: HarborAssistantResponsePreference;
   history_limit: number;
   context_turn_limit: number;
   context_token_limit: number;
