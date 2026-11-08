@@ -1,10 +1,10 @@
 @import 'scss-imports/variables';
 
 $hd-bg-canvas: #f8fafc;
-$hd-bg-surface: #ffffff;
+$hd-bg-surface: #fff;
 $hd-bg-hover: #f1f5f9;
 $hd-border-subtle: rgba(0, 0, 0, 0.06);
-$hd-border-default: rgba(0, 0, 0, 0.10);
+$hd-border-default: rgba(0, 0, 0, 0.1);
 $hd-text-secondary: #64748b;
 $hd-space-1: 4px;
 $hd-space-2: 8px;
@@ -21,7 +21,27 @@ $hd-space-5: 20px;
   overscroll-behavior: contain;
 }
 
+:host.search-tab-active {
+  display: flex;
+  flex-direction: column;
+}
+
+:host.search-tab-active ix-page-header {
+  flex: 0 0 auto;
+}
+
+:host.search-tab-active .harbor-assistant-page {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .harbor-assistant-page {
+  --bg1: #f8fafc;
+  --bg2: #fff;
+  --fg1: #172033;
+  --fg2: #64748b;
+  --lines: rgba(15, 23, 42, 0.12);
+
   background: $hd-bg-surface;
   border: 1px solid $hd-border-subtle;
   border-radius: 16px;
@@ -32,6 +52,7 @@ $hd-space-5: 20px;
   flex-direction: column;
   margin: $hd-space-5;
   overflow: hidden;
+  color: var(--fg1);
 }
 
 .tab-strip {
@@ -59,16 +80,15 @@ $hd-space-5: 20px;
   color: $hd-text-secondary;
   cursor: pointer;
   display: flex;
+  flex: 0 0 auto;
   font: inherit;
   font-weight: 600;
   justify-content: center;
   line-height: 1.2;
   min-height: 56px;
-  min-width: 0;
-  overflow: hidden;
+  min-width: fit-content;
   padding: 0 $hd-space-4;
   text-align: center;
-  text-overflow: ellipsis;
   white-space: nowrap;
 
   &:hover {
@@ -78,7 +98,7 @@ $hd-space-5: 20px;
 
   &.active {
     border-bottom-color: var(--primary);
-    color: var(--fg1);
+    color: #172033;
   }
 }
 
@@ -91,22 +111,13 @@ $hd-space-5: 20px;
   padding: $hd-space-3 $hd-space-5;
 }
 
-.rules-review-entry {
-  align-items: center;
-  background: $hd-bg-canvas;
-  border-bottom: 1px solid $hd-border-subtle;
-  display: flex;
-  justify-content: flex-end;
-  padding: $hd-space-3 $hd-space-5;
-}
-
-.rules-review-drawer {
+.rules-settings-card {
   border-left: 0;
   border-right: 0;
   border-top: 0;
 }
 
-.rules-review-drawer mat-card-content {
+.rules-settings-card mat-card-content {
   display: grid;
   gap: $hd-space-4;
 }
@@ -165,6 +176,79 @@ $hd-space-5: 20px;
 .assistant-search-tab,
 .assistant-camera-tab {
   padding: 0;
+}
+
+.assistant-search-tab {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.assistant-camera-tab {
+  gap: $hd-space-4;
+}
+
+.event-intelligence-panel {
+  margin: 0;
+}
+
+.camera-live-event-intelligence {
+  display: block;
+  min-width: 0;
+}
+
+.event-intelligence-status-grid {
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: $hd-space-4;
+}
+
+.event-intelligence-list {
+  display: grid;
+  gap: $hd-space-3;
+}
+
+.event-intelligence-row {
+  align-items: flex-start;
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  display: grid;
+  gap: $hd-space-4;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.35fr);
+  padding: $hd-space-4;
+}
+
+.event-intelligence-main {
+  min-width: 0;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+    margin: $hd-space-2 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.event-intelligence-meta,
+.event-intelligence-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $hd-space-2;
+}
+
+.event-intelligence-metrics {
+  justify-content: flex-end;
+
+  span {
+    min-width: 92px;
+    text-align: right;
+  }
+
+  strong {
+    display: block;
+  }
 }
 
 .settings-section-strip {
@@ -345,6 +429,33 @@ $hd-space-5: 20px;
 
 .native-panel {
   background: $hd-bg-surface;
+  color: var(--fg1);
+}
+
+.native-panel,
+.native-panel mat-card-header,
+.native-panel mat-card-title,
+.native-panel mat-card-content,
+.native-panel h2,
+.native-panel h3,
+.native-panel strong,
+.event-intelligence-panel,
+.event-intelligence-main,
+.event-intelligence-metrics {
+  color: var(--fg1);
+}
+
+.native-panel .muted,
+.native-panel p,
+.event-intelligence-meta,
+.event-intelligence-metrics span {
+  color: var(--fg2);
+}
+
+.native-panel .pill {
+  background: #eef2f7;
+  border-color: rgba(15, 23, 42, 0.18);
+  color: #334155;
 }
 
 .overview-action-grid,
@@ -424,7 +535,7 @@ $hd-space-5: 20px;
 .inline-device-rename-form {
   align-items: center;
   border-top: 1px solid $hd-border-subtle;
-  grid-template-columns: minmax(180px, 1fr) minmax(160px, .8fr) minmax(120px, auto);
+  grid-template-columns: minmax(180px, 1fr) minmax(160px, 0.8fr) minmax(120px, auto);
   margin-top: $hd-space-4;
   padding-top: $hd-space-4;
 }
@@ -439,10 +550,10 @@ $hd-space-5: 20px;
   align-items: center;
   grid-template-columns:
     minmax(220px, 1.5fr)
-    minmax(120px, .7fr)
-    minmax(110px, .55fr)
-    minmax(130px, .75fr)
-    minmax(150px, .9fr)
+    minmax(120px, 0.7fr)
+    minmax(110px, 0.55fr)
+    minmax(130px, 0.75fr)
+    minmax(150px, 0.9fr)
     minmax(150px, auto);
 }
 
@@ -1008,6 +1119,65 @@ $hd-space-5: 20px;
   margin-bottom: $hd-space-4;
 }
 
+.runtime-manager-panel {
+  border: 1px solid $hd-border-subtle;
+  border-radius: 8px;
+  margin-bottom: $hd-space-4;
+  padding: $hd-space-4;
+}
+
+.runtime-manager-heading {
+  align-items: flex-start;
+  display: flex;
+  gap: $hd-space-4;
+  justify-content: space-between;
+
+  strong {
+    display: block;
+    font-size: 16px;
+    line-height: 1.35;
+  }
+}
+
+.runtime-card-grid {
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.runtime-card {
+  align-items: center;
+  border: 1px solid $hd-border-subtle;
+  border-radius: 6px;
+  display: grid;
+  gap: $hd-space-3;
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding: $hd-space-3;
+
+  strong {
+    display: block;
+    font-size: 15px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  p {
+    margin: 4px 0 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.runtime-card-actions {
+  align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: $hd-space-2;
+}
+
+.mono-text {
+  font-family: var(--font-family-monospace, monospace);
+}
+
 .model-store-line {
   align-items: center;
   display: grid;
@@ -1077,7 +1247,7 @@ $hd-space-5: 20px;
   align-items: center;
   display: grid;
   gap: $hd-space-4;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) minmax(140px, .55fr) minmax(280px, auto);
+  grid-template-columns: minmax(220px, 1.2fr) minmax(220px, 1fr) minmax(140px, 0.55fr) minmax(280px, auto);
 }
 
 .model-capability-header {
@@ -1204,6 +1374,36 @@ $hd-space-5: 20px;
 
 .index-status-card {
   margin-top: 0;
+}
+
+.knowledge-index-job-progress {
+  align-items: center;
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 24%, var(--lines));
+  border-radius: 4px;
+  display: grid;
+  gap: 8px 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  margin-bottom: 14px;
+  padding: 12px;
+
+  div {
+    display: grid;
+    gap: 3px;
+  }
+
+  strong {
+    color: var(--fg1);
+  }
+
+  span {
+    color: var(--fg2);
+    font-size: 12px;
+  }
+
+  mat-progress-bar {
+    grid-column: 1 / -1;
+  }
 }
 
 .inline-advanced {
@@ -1727,6 +1927,23 @@ $hd-space-5: 20px;
     flex-direction: column;
   }
 
+  .event-intelligence-panel {
+    margin: 0;
+  }
+
+  .event-intelligence-row,
+  .event-intelligence-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .event-intelligence-metrics {
+    justify-content: flex-start;
+
+    span {
+      text-align: left;
+    }
+  }
+
   .device-main,
   .selected-device-heading {
     width: 100%;
@@ -1739,6 +1956,8 @@ $hd-space-5: 20px;
   .ai-settings-subtabs,
   .settings-section-strip,
   .model-recommendation-panel,
+  .runtime-card-grid,
+  .runtime-card,
   .hardware-summary-grid,
   .model-picker-row,
   .model-choice-panel,
@@ -1775,6 +1994,7 @@ $hd-space-5: 20px;
   }
 
   .ai-status-toolbar,
+  .runtime-manager-heading,
   .app-status-line,
   .empty-state.inline-empty-action {
     flex-direction: column;
@@ -1799,5 +2019,64 @@ $hd-space-5: 20px;
   .device-actions,
   .row-actions {
     justify-content: flex-start;
+  }
+}
+
+// Cards follow the available workspace, including the wide-screen results pane.
+.model-capability-header,
+.model-setting-line {
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+}
+
+.model-capability-row > .muted {
+  overflow-wrap: anywhere;
+  padding: 0 16px;
+}
+
+@media (max-width: 767px) {
+  .harbor-assistant-page {
+    margin: 12px;
+  }
+
+  .tab-panel {
+    padding: 12px;
+  }
+
+  .ai-settings-subtabs {
+    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .ai-settings-subtab {
+    strong,
+    span {
+      overflow-wrap: anywhere;
+      white-space: normal;
+    }
+  }
+
+  :host ::ng-deep ix-page-header > div:first-child {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+
+    > div:last-child {
+      flex-wrap: wrap;
+      gap: 8px;
+      max-width: 100%;
+    }
+  }
+}
+
+// The header also wraps when the results pane narrows a desktop workspace.
+:host ::ng-deep ix-page-header > div:first-child {
+  flex-wrap: wrap;
+  gap: 8px;
+
+  > div:last-child {
+    flex-wrap: wrap;
+    gap: 8px;
+    max-width: 100%;
   }
 }

@@ -1,5 +1,5 @@
 {
-  "iconUrl": "assets/tn-icons/sprite.svg?v=1f051c6124",
+  "iconUrl": "assets/tn-icons/sprite.svg?v=723437e9a0",
   "icons": [
     "app-account_circle",
     "app-alert-settings",
@@ -183,6 +183,7 @@
     "mdi-folder-plus",
     "mdi-folder-upload",
     "mdi-format-list-text",
+    "mdi-fullscreen",
     "mdi-harddisk",
     "mdi-heart",
     "mdi-help-circle",
@@ -230,6 +231,7 @@
     "mdi-open-in-new",
     "mdi-page-first",
     "mdi-page-last",
+    "mdi-pause",
     "mdi-pause-circle",
     "mdi-pencil",
     "mdi-play",
@@ -268,6 +270,8 @@
     "mdi-usb",
     "mdi-usb-flash-drive",
     "mdi-view-dashboard",
+    "mdi-volume-high",
+    "mdi-volume-off",
     "mdi-web",
     "mdi-widgets",
     "mdi-wrench",

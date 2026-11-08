@@ -1,16 +1,50 @@
-export type HarborAssistantSearchResultFilter = 'all' | 'images' | 'text' | 'videos';
+export type HarborAssistantSearchResultFilter = 'all' | 'audio' | 'images' | 'text' | 'videos';
 export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'all';
+export type HarborAssistantRetrievalMode = 'auto' | 'on' | 'off';
+export type HarborAssistantResponsePreference = 'auto' | 'fast' | 'careful';
+
+export interface HarborAssistantAnswerMetadata {
+  model?: string | Record<string, unknown> | null;
+  verification_status?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: { status?: string; [key: string]: unknown };
+}
 
 export interface HarborAssistantSearchRequest {
   query: string;
+  conversation_id?: string;
   limit?: number;
   include_documents: boolean;
+  include_audio: boolean;
   include_images: boolean;
   include_videos: boolean;
+  use_retrieval?: boolean;
+  retrieval_mode?: HarborAssistantRetrievalMode;
+  response_preference?: HarborAssistantResponsePreference;
+  response_preference_persist?: boolean;
+  filter?: HarborAssistantSearchResultFilter;
   source_scope?: HarborAssistantSearchSourceScope;
+  source_root_ids?: string[];
   camera_id?: string | null;
   from?: string | null;
   to?: string | null;
+}
+
+export interface HarborAssistantRetrievalSettings {
+  query_expansion_enabled: boolean;
+  fusion_strategy: string;
+  rrf_k: number;
+  lexical_weight: number;
+  vector_weight: number;
+  candidate_limit: number;
+  lexical_min_score: number;
+  vector_min_score: number;
+  semantic_only_min_score: number;
+  rerank_enabled: boolean;
+  rerank_top_k: number;
+  rerank_min_score: number;
+  mmr_enabled: boolean;
+  mmr_lambda: number;
 }
 
 export interface HarborAssistantSearchHit {
@@ -39,7 +73,8 @@ export interface HarborAssistantSearchReplyPack {
   citations: unknown[];
 }
 
-export interface HarborAssistantSearchResponse {
+export interface HarborAssistantSearchResponse extends HarborAssistantAnswerMetadata {
+  conversation_id?: string;
   query: string;
   roots: string[];
   total_matches: number;
@@ -59,10 +94,91 @@ export interface HarborAssistantSearchResponse {
   resource_profile: string;
   empty_reason?: string | null;
   empty_guidance?: string | null;
+  answer?: string | null;
+  answer_degraded?: boolean;
+  answer_degraded_reason?: string | null;
+  answer_intent?: string | null;
+  review_scope?: HarborAssistantReviewScope | null;
+}
+
+export interface HarborAssistantReviewScope {
+  returned_count: number;
+  reviewed_count: number;
+  max_reviewed_count: number;
+  note?: string | null;
+}
+
+export interface HarborAssistantQueryUnderstanding {
+  intent: string;
+  needs_retrieval: boolean;
+  target_modalities?: ('audio' | 'document' | 'image' | 'video')[];
+  retrieval_strategy?: 'semantic' | 'recent';
+}
+
+export interface HarborAssistantKnowledgeAnswerResponse extends HarborAssistantAnswerMetadata {
+  kind: 'rag.answer';
+  conversation_id?: string;
+  status: string;
+  degraded: boolean;
+  degraded_reason?: string | null;
+  query: string;
+  answer: string;
+  citations: unknown[];
+  search: HarborAssistantSearchResponse;
+  review_scope?: HarborAssistantReviewScope | null;
+  warnings: string[];
+  query_understanding?: HarborAssistantQueryUnderstanding | null;
+}
+
+export type HarborAssistantSearchWireResponse
+  = | HarborAssistantKnowledgeAnswerResponse
+    | HarborAssistantSearchResponse;
+
+export interface HarborAssistantKnowledgeSuggestion {
+  subject: string;
+  kind: 'describe' | 'summarize';
+  filter: HarborAssistantSearchResultFilter;
+}
+
+export interface HarborAssistantKnowledgeSuggestionsResponse {
+  generated_at: string;
+  suggestions: HarborAssistantKnowledgeSuggestion[];
+}
+
+export interface HarborAssistantConversationSettings {
+  response_preference?: HarborAssistantResponsePreference;
+  history_limit: number;
+  context_turn_limit: number;
+  context_token_limit: number;
+}
+
+export interface HarborAssistantConversationSummary {
+  conversation_id: string;
+  title: string;
+  updated_at?: string | null;
+  turn_count: number;
+}
+
+export interface HarborAssistantConversationTurn {
+  task_id: string;
+  query: string;
+  answer: string;
+  created_at?: string | null;
+  response: HarborAssistantKnowledgeAnswerResponse;
+}
+
+export interface HarborAssistantConversationDetail {
+  conversation_id: string;
+  turns: HarborAssistantConversationTurn[];
+}
+
+export interface HarborAssistantConversationListResponse {
+  conversations: HarborAssistantConversationSummary[];
+  settings?: HarborAssistantConversationSettings | null;
 }
 
 export interface HarborAssistantSearchWaterfallItem {
-  kind: 'image' | 'document' | 'video';
+  kind: 'audio' | 'image' | 'document' | 'video';
   hit: HarborAssistantSearchHit;
   previewUrl: string;
 }
@@ -104,11 +220,66 @@ export interface HarborAssistantSearchDvrStatusResponse {
   statuses: HarborAssistantSearchDvrRecordingStatus[];
 }
 
+export interface HarborAssistantCameraLiveSessionResponse {
+  device_id: string;
+  session_id?: string | null;
+  status: string;
+  playlist_url?: string | null;
+  playlist_ready: boolean;
+  webrtc_url?: string | null;
+  webrtc_status?: string;
+  webrtc_message?: string | null;
+  mode: string;
+  codec: string;
+  stream_profile?: string;
+  started_at?: string | null;
+  updated_at: string;
+  message?: string | null;
+  diagnostics?: {
+    playlist_exists: boolean;
+    segment_count: number;
+    startup_elapsed_seconds?: number;
+    playlist_modified_at?: string | null;
+    playlist_created_after_seconds?: number | null;
+    latest_segment_name?: string | null;
+    latest_segment_size_bytes?: number | null;
+    latest_segment_modified_at?: string | null;
+    latest_segment_created_after_seconds?: number | null;
+    ready_after_seconds?: number | null;
+    ffmpeg_running: boolean;
+  } | null;
+}
+
+export interface HarborAssistantHarborLinkFeatureStatus {
+  status?: string | null;
+  basePath?: string | null;
+  message?: string | null;
+}
+
+export interface HarborAssistantHarborLinkCapabilitiesResponse {
+  ok?: boolean;
+  status?: string | null;
+  contractVersion?: string | null;
+  contract?: {
+    version?: string | null;
+    major?: string | null;
+  } | null;
+  dependency?: string | null;
+  error?: string | null;
+  features?: {
+    camera?: HarborAssistantHarborLinkFeatureStatus | null;
+    homeAssistant?: HarborAssistantHarborLinkFeatureStatus | null;
+    recording?: HarborAssistantHarborLinkFeatureStatus | null;
+    hls?: HarborAssistantHarborLinkFeatureStatus | null;
+    webrtc?: HarborAssistantHarborLinkFeatureStatus | null;
+  } | null;
+}
+
 export interface HarborAssistantSearchDvrTimelineSegment {
   device_id: string;
   file_path: string;
   sidecar_path?: string | null;
-  media_kind?: 'snapshot' | 'recording' | string;
+  media_kind?: string;
   stream_kind: string;
   started_at: string;
   created_at?: string;

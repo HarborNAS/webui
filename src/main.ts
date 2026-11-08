@@ -1,5 +1,5 @@
 import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
-import { provideHttpClient, withInterceptorsFromDi, HttpClient } from '@angular/common/http';
+import { provideHttpClient, withInterceptors, withInterceptorsFromDi, HttpClient } from '@angular/common/http';
 import {
   enableProdMode, ErrorHandler, importProvidersFrom, inject, provideAppInitializer,
 } from '@angular/core';
@@ -39,6 +39,7 @@ import { IcuMissingTranslationHandler } from 'app/modules/language/translations/
 import { createTranslateLoader } from 'app/modules/language/translations/icu-translations-loader';
 import { ApiService } from 'app/modules/websocket/api.service';
 import { provideWebSocketDebugState } from 'app/modules/websocket-debug-panel/providers/websocket-debug.providers';
+import { harborAssistantAuthInterceptor } from 'app/pages/harbor-assistant/services/harbor-assistant-auth.interceptor';
 import { ErrorHandlerService } from 'app/services/errors/error-handler.service';
 import { ServiceWorkerService } from 'app/services/service-worker.service';
 import { rootReducers, rootEffects } from 'app/store';
@@ -127,7 +128,7 @@ bootstrapApplication(AppComponent, {
     }),
     ApiService,
     provideCharts(withDefaultRegisterables()),
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptorsFromDi(), withInterceptors([harborAssistantAuthInterceptor])),
     provideRouter(
       rootRoutes,
       withPreloading(PreloadAllModules),

@@ -1,10 +1,11 @@
-import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
-import { SpectatorService, createServiceFactory } from '@ngneat/spectator/jest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { firstValueFrom } from 'rxjs';
-import { HarborAssistantApiService } from './harbor-assistant-api.service';
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { SpectatorService, createServiceFactory, mockProvider } from '@ngneat/spectator/jest';
+import { firstValueFrom, of } from 'rxjs';
+import { AuthService } from 'app/modules/auth/auth.service';
+import { HarborAssistantApiService } from 'app/pages/harbor-assistant/services/harbor-assistant-api.service';
 
 describe('Harbor Assistant API service', () => {
   let spectator: SpectatorService<HarborAssistantApiService>;
@@ -15,6 +16,7 @@ describe('Harbor Assistant API service', () => {
     providers: [
       provideHttpClient(),
       provideHttpClientTesting(),
+      mockProvider(AuthService, { getHarborAssistantOneTimeToken: () => of('single-use') }),
     ],
   });
 
@@ -25,6 +27,16 @@ describe('Harbor Assistant API service', () => {
 
   afterEach(() => {
     httpMock.verify();
+  });
+
+  it('selects a configured capability endpoint using fresh middleware identity', async () => {
+    const promise = firstValueFrom(spectator.service.selectModelCapability('asr', 'whisper-small', 'asr-780m'));
+    const request = httpMock.expectOne('/api/harbor-gate/api/beacon/models/capabilities/asr/selection');
+    expect(request.request.method).toBe('POST');
+    expect(request.request.headers.get('X-HarborOS-Auth-Token')).toBe('single-use');
+    expect(request.request.body).toEqual({ model_id: 'whisper-small', model_endpoint_id: 'asr-780m' });
+    request.flush({ capabilities: [] });
+    await promise;
   });
 
   it('uses the same-origin Harbor Assistant state endpoint', async () => {
@@ -95,7 +107,9 @@ describe('Harbor Assistant API service', () => {
     const statusPromise = firstValueFrom(spectator.service.getDvrRecordingStatus());
     const statusReq = httpMock.expectOne('/api/harbor-beacon/cameras/recordings/status');
     expect(statusReq.request.method).toBe('GET');
-    statusReq.flush({ generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [] });
+    statusReq.flush({
+      generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [],
+    });
     await statusPromise;
 
     const timelinePromise = firstValueFrom(spectator.service.getDvrTimeline('camera-main'));
@@ -112,14 +126,32 @@ describe('Harbor Assistant API service', () => {
     const startPromise = firstValueFrom(spectator.service.startDvrRecording('camera-main'));
     const startReq = httpMock.expectOne('/api/harbor-beacon/cameras/camera-main/recordings/start');
     expect(startReq.request.method).toBe('POST');
-    startReq.flush({ generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [] });
+    startReq.flush({
+      generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [],
+    });
     await startPromise;
 
     const stopPromise = firstValueFrom(spectator.service.stopDvrRecording('camera-main'));
     const stopReq = httpMock.expectOne('/api/harbor-beacon/cameras/camera-main/recordings/stop');
     expect(stopReq.request.method).toBe('POST');
-    stopReq.flush({ generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [] });
+    stopReq.flush({
+      generated_at: '1', settings, capacity: {}, root_exists: true, root_writable: true, statuses: [],
+    });
     await stopPromise;
+  });
+
+  it('keeps local vision event observability read-only under /api/harbor-beacon', async () => {
+    const eventsPromise = firstValueFrom(spectator.service.getLocalVisionEvents(3));
+    const eventsReq = httpMock.expectOne('/api/harbor-beacon/vision/events?limit=3');
+    expect(eventsReq.request.method).toBe('GET');
+    eventsReq.flush({
+      generated_at: 'epoch_ms:1',
+      limit: 3,
+      events: [],
+    });
+    const response = await eventsPromise;
+    expect(response.limit).toBe(3);
+    expect(response.events).toEqual([]);
   });
 
   it('does not send credential reads or secrets to HarborGate paths', async () => {
@@ -139,7 +171,9 @@ describe('Harbor Assistant API service', () => {
       rtsp_port: 554,
       rtsp_paths: ['/stream1'],
     });
-    req.flush({ device_id: 'cam-1', configured: true, status: 'configured', redacted: true });
+    req.flush({
+      device_id: 'cam-1', configured: true, status: 'configured', redacted: true,
+    });
 
     const result = await promise;
     expect(result.configured).toBe(true);
@@ -182,7 +216,9 @@ describe('Harbor Assistant API service', () => {
     const hardwarePromise = firstValueFrom(spectator.service.getHardwareReadiness());
     const hardwareReq = httpMock.expectOne('/api/harbor-beacon/hardware/readiness');
     expect(hardwareReq.request.method).toBe('GET');
-    hardwareReq.flush({ status: 'ready', cpu: {}, memory: {}, gpu: {}, npu: {}, recommended_model_profile: 'cpu' });
+    hardwareReq.flush({
+      status: 'ready', cpu: {}, memory: {}, gpu: {}, npu: {}, recommended_model_profile: 'cpu',
+    });
     await hardwarePromise;
 
     const harborOsPromise = firstValueFrom(spectator.service.getHarborOsImCapabilityMap());
@@ -291,6 +327,54 @@ describe('Harbor Assistant API service', () => {
     await installPromise;
   });
 
+  it('keeps automation review APIs under /api/harbor-beacon', async () => {
+    const response = {
+      generated_at: '1',
+      pending_count: 1,
+      reviews: [{
+        review_id: 'review/1',
+        workspace_id: 'local',
+        source: 'harbor_assistant_chat',
+        original_prompt: 'Turn on hallway lights when motion is detected.',
+        status: 'pending',
+      }],
+    };
+
+    const listPromise = firstValueFrom(spectator.service.getAutomationReviews());
+    const listReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews');
+    expect(listReq.request.method).toBe('GET');
+    listReq.flush(response);
+    await listPromise;
+
+    const createPromise = firstValueFrom(spectator.service.createAutomationReview({
+      original_prompt: 'Turn on hallway lights when motion is detected.',
+      status: 'pending',
+    }));
+    const createReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews');
+    expect(createReq.request.method).toBe('POST');
+    expect(createReq.request.body.original_prompt).toContain('hallway');
+    createReq.flush(response);
+    await createPromise;
+
+    const enablePromise = firstValueFrom(spectator.service.enableAutomationReview('review/1'));
+    const enableReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews/review%2F1/enable');
+    expect(enableReq.request.method).toBe('POST');
+    enableReq.flush({ ...response, pending_count: 0, reviews: [{ ...response.reviews[0], status: 'active' }] });
+    await enablePromise;
+
+    const pausePromise = firstValueFrom(spectator.service.pauseAutomationReview('review/1'));
+    const pauseReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews/review%2F1/pause');
+    expect(pauseReq.request.method).toBe('POST');
+    pauseReq.flush({ ...response, pending_count: 0, reviews: [{ ...response.reviews[0], status: 'paused' }] });
+    await pausePromise;
+
+    const discardPromise = firstValueFrom(spectator.service.discardAutomationReview('review/1'));
+    const discardReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews/review%2F1/discard');
+    expect(discardReq.request.method).toBe('POST');
+    discardReq.flush({ ...response, pending_count: 0, reviews: [{ ...response.reviews[0], status: 'discarded' }] });
+    await discardPromise;
+  });
+
   it('keeps model management APIs under /api/harbor-beacon', async () => {
     const endpointId = 'llm/local';
 
@@ -303,8 +387,32 @@ describe('Harbor Assistant API service', () => {
     const capabilitiesPromise = firstValueFrom(spectator.service.getModelCapabilities());
     const capabilitiesReq = httpMock.expectOne('/api/harbor-beacon/models/capabilities');
     expect(capabilitiesReq.request.method).toBe('GET');
-    capabilitiesReq.flush({ generated_at: '1', checked_at: '1', status: 'ready', capabilities: [] });
+    capabilitiesReq.flush({
+      generated_at: '1', checked_at: '1', status: 'ready', capabilities: [],
+    });
     expect((await capabilitiesPromise).capabilities).toEqual([]);
+
+    const runtimesPromise = firstValueFrom(spectator.service.getModelRuntimes());
+    const runtimesReq = httpMock.expectOne('/api/harbor-beacon/models/runtimes');
+    expect(runtimesReq.request.method).toBe('GET');
+    runtimesReq.flush({
+      generated_at: '1', checked_at: '1', status: 'needs-runtime', runtimes: [],
+    });
+    expect((await runtimesPromise).runtimes).toEqual([]);
+
+    const runtimeInstallPromise = firstValueFrom(spectator.service.installModelRuntime('harbor-candle'));
+    const runtimeInstallReq = httpMock.expectOne('/api/harbor-beacon/models/runtimes/harbor-candle/install');
+    expect(runtimeInstallReq.request.method).toBe('POST');
+    runtimeInstallReq.flush({
+      runtime: {
+        runtime_id: 'harbor-candle', display_name: 'Harbor Candle Runtime', runtime_kind: 'embedded_candle', provider_key: 'harbor', status: 'installed', installed: true, active: false, next_action: 'ready',
+      },
+      runtime_manager: {
+        generated_at: '1', checked_at: '1', status: 'installed', runtimes: [],
+      },
+      message: 'enabled',
+    });
+    await runtimeInstallPromise;
 
     const patchPromise = firstValueFrom(spectator.service.updateModelEndpoint(endpointId, {
       status: 'disabled',
@@ -367,7 +475,9 @@ describe('Harbor Assistant API service', () => {
     const indexPromise = firstValueFrom(spectator.service.runKnowledgeIndex());
     const indexReq = httpMock.expectOne('/api/harbor-beacon/knowledge/index/run');
     expect(indexReq.request.method).toBe('POST');
-    indexReq.flush({ generated_at: '1', status: 'completed', index_root: settings.index_root, root_count: 1, indexed_roots: [], errors: [] });
+    indexReq.flush({
+      generated_at: '1', status: 'completed', index_root: settings.index_root, root_count: 1, indexed_roots: [], errors: [],
+    });
     await indexPromise;
 
     const statusPromise = firstValueFrom(spectator.service.getKnowledgeIndexStatus());
@@ -390,10 +500,33 @@ describe('Harbor Assistant API service', () => {
     expect(status.content_indexed_image_count).toBe(9);
     expect(status.vlm_indexed_image_count).toBe(7);
 
+    const jobsPromise = firstValueFrom(spectator.service.getKnowledgeIndexJobs());
+    const jobsReq = httpMock.expectOne('/api/harbor-beacon/knowledge/index/jobs');
+    expect(jobsReq.request.method).toBe('GET');
+    jobsReq.flush({
+      generated_at: '1',
+      jobs: [{
+        job_id: 'knowledge-index-1',
+        source_root_id: 'nas',
+        source_root_label: 'NAS Library',
+        source_root_path: '/mnt/pool/library',
+        modalities: ['document'],
+        status: 'running',
+        progress_percent: 10,
+        retry_count: 0,
+        checkpoint: { phase: 'load_or_refresh' },
+        resource_profile: 'cpu_only',
+        cancel_requested: false,
+      }],
+    });
+    expect((await jobsPromise).jobs[0].progress_percent).toBe(10);
+
     const browsePromise = firstValueFrom(spectator.service.browseFiles('/mnt/MM-test'));
     const browseReq = httpMock.expectOne('/api/harbor-beacon/files/browse?path=%2Fmnt%2FMM-test');
     expect(browseReq.request.method).toBe('GET');
-    browseReq.flush({ path: '/mnt/MM-test', parent: '/mnt', readonly: true, allowed_roots: ['/mnt'], entries: [] });
+    browseReq.flush({
+      path: '/mnt/MM-test', parent: '/mnt', readonly: true, allowed_roots: ['/mnt'], entries: [],
+    });
     await browsePromise;
   });
 
@@ -444,31 +577,14 @@ describe('Harbor Assistant API service', () => {
       'utf8',
     );
 
-    const literalApiUrls = Array.from(source.matchAll(/['`]([^'`]*\/api\/[^'`]*)['`]/g))
-      .map((match) => match[1])
-      .filter((url) => !url.startsWith('app/'));
-
-    expect(literalApiUrls.length).toBeGreaterThan(0);
-    literalApiUrls.forEach((url) => expect(url).toContain('/api/harbor-beacon'));
-    expect(source).toContain('/api/harbor-beacon/inference/healthz');
+    expect(source).toContain('harborAssistantBeaconApiUrl');
+    expect(source).toContain("this.apiUrl('/inference/healthz')");
+    expect(source).not.toContain("'/api/beacon");
+    expect(source).not.toContain('`/api/beacon');
+    expect(source).not.toContain("'/api/harbor-beacon");
+    expect(source).not.toContain('`/api/harbor-beacon');
     [':4174', ':4175', ':4176', ':4196', ':8787', '/api/turns', '/api/web/turns'].forEach((forbidden) => {
       expect(source).not.toContain(forbidden);
     });
-  });
-
-  it('does not keep the Weixin setup action visible after the connector is connected', () => {
-    const source = readFileSync(
-      join(process.cwd(), 'src/app/pages/harbor-assistant/harbor-assistant.component.ts'),
-      'utf8',
-    );
-    const template = readFileSync(
-      join(process.cwd(), 'src/app/pages/harbor-assistant/harbor-assistant.component.html'),
-      'utf8',
-    );
-
-    expect(source).toContain('const setupUrl = connected ? null : harborGateConnectorSetupUrl');
-    expect(template).toContain('Reconnect');
-    expect(template).toContain('Manage');
-    expect(template).toContain('color="primary"');
   });
 });

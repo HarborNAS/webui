@@ -37,13 +37,20 @@
   scrollbar-gutter: stable;
 }
 
+.live-secondary-slot {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  min-width: 0;
+}
+
 .playback-tab {
   align-items: start;
   display: grid;
   gap: 16px;
   grid-template-areas:
-    "viewer assistant"
-    "library assistant";
+    'viewer assistant'
+    'library assistant';
   grid-template-columns: minmax(0, 1fr) minmax(360px, 460px);
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
@@ -149,6 +156,15 @@
   border-color: var(--primary);
 }
 
+.stream-profile-toggle {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.stream-profile-toggle .mat-button-toggle {
+  min-width: 112px;
+}
+
 .dvr-preview-row {
   align-items: start;
   display: grid;
@@ -163,6 +179,20 @@
   max-width: 380px;
   min-width: 0;
   width: 100%;
+}
+
+.live-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.live-mode-line {
+  color: var(--fg2);
+  font-size: 0.86rem;
+  margin: 4px 0 0;
 }
 
 .live-panel {
@@ -188,11 +218,27 @@
   box-shadow: 0 0 0 1px rgba(217, 148, 39, 0.28);
 }
 
-.live-panel img {
+.live-panel img,
+.live-panel video {
   display: block;
   height: 100%;
   object-fit: contain;
   width: 100%;
+}
+
+.live-transition-frame {
+  height: 100%;
+  inset: 0;
+  object-fit: contain;
+  pointer-events: none;
+  position: absolute;
+  visibility: hidden;
+  width: 100%;
+  z-index: 2;
+}
+
+.live-transition-frame.visible {
+  visibility: visible;
 }
 
 .live-empty-state {
@@ -226,7 +272,7 @@
   position: absolute;
   right: 10px;
   top: 10px;
-  z-index: 1;
+  z-index: 4;
 }
 
 .recording-badge span {
@@ -262,7 +308,13 @@
   padding: 7px 10px;
   position: absolute;
   top: 10px;
-  z-index: 1;
+  z-index: 4;
+}
+
+.live-feedback.warning {
+  background: rgba(95, 62, 18, 0.86);
+  border-radius: 8px;
+  max-width: calc(100% - 20px);
 }
 
 @keyframes recording-pulse {
@@ -499,6 +551,22 @@
   flex-wrap: wrap;
   gap: 8px;
   justify-content: flex-end;
+}
+
+.viewer-actions button[mat-stroked-button] {
+  background: #17212c;
+  border-color: rgba(255, 255, 255, 0.72);
+  color: #fff;
+}
+
+.viewer-actions button[mat-stroked-button]:hover,
+.viewer-actions button[mat-stroked-button]:focus-visible {
+  background: #24313e;
+  border-color: #fff;
+}
+
+.viewer-actions button[mat-stroked-button] .mdc-button__label {
+  color: #fff;
 }
 
 .media-viewer h3 {

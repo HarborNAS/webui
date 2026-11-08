@@ -37,7 +37,7 @@ describe('DesktopComponent', () => {
     spectator = createComponent();
   });
 
-  it('hides Harbor Assistant from desktop shortcuts only', () => {
-    expect(spectator.component.menuItems.map((item) => item.state)).toEqual(['dashboard']);
+  it('shows Harbor Assistant alongside the existing desktop shortcuts', () => {
+    expect(spectator.component.menuItems.map((item) => item.state)).toEqual(['harbor-assistant', 'dashboard']);
   });
 });
