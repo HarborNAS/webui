@@ -2336,7 +2336,7 @@ describe('Harbor Assistant component', () => {
     const flash = choices.find((card) => card.displayName === 'deepseek-ai/DeepSeek-V4-Flash');
 
     expect(qwen4b).toBeTruthy();
-    expect(component.modelRecommendationLabel(qwen4b)).toBe('Installed but not recommended for this hardware');
+    expect(component.modelRecommendationLabel(qwen4b)).toBe('Downloaded but not recommended for this hardware');
     expect(component.modelHardwareFitLabel(qwen4b)).toBe('Not recommended for this hardware');
     expect(qwen25).toBeTruthy();
     expect(component.modelRecommendationLabel(qwen25)).toBe('Lightweight local');
@@ -2396,14 +2396,83 @@ describe('Harbor Assistant component', () => {
     expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
       model_id: 'bge-m3',
       metadata: expect.objectContaining({
-        auto_select_after_download: true,
-        auto_select_capability_id: 'embedder',
-        auto_select_model_id: 'bge-m3',
+        auto_select_after_download: false,
         repo_id: 'BAAI/bge-m3',
         source_kind: 'huggingface',
         file_policy: 'runtime_snapshot',
       }),
     }));
+    const request = api.createLocalModelDownload.mock.calls[0][0];
+    expect(request.metadata).not.toHaveProperty('auto_select_capability_id');
+    expect(request.metadata).not.toHaveProperty('auto_select_model_id');
+  });
+
+  it('requires and forwards SHA-256 for a manual HTTPS model download', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      downloadForm: { patchValue: (value: Record<string, string>) => void };
+      createModelDownload: () => void;
+    };
+    component.downloadForm.patchValue({
+      modelId: 'manual-model',
+      sourceUrl: 'https://models.example/manual-model.gguf',
+      expectedSha256: '',
+    });
+
+    component.createModelDownload();
+    spectator.detectChanges();
+    expect(api.createLocalModelDownload).not.toHaveBeenCalled();
+    expect(spectator.element.textContent).toContain('HTTPS downloads require a 64-character SHA-256 checksum.');
+
+    const sha256 = 'a'.repeat(64);
+    component.downloadForm.patchValue({
+      sourceUrl: 'http://models.example/manual-model.gguf',
+      expectedSha256: sha256,
+    });
+    component.createModelDownload();
+    spectator.detectChanges();
+    expect(api.createLocalModelDownload).not.toHaveBeenCalled();
+    expect(spectator.element.textContent).toContain('Model download URLs must use HTTPS.');
+
+    component.downloadForm.patchValue({ sourceUrl: 'https://models.example/manual-model.gguf' });
+    component.createModelDownload();
+
+    expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
+      model_id: 'manual-model',
+      metadata: expect.objectContaining({
+        source_kind: 'https',
+        source_url: 'https://models.example/manual-model.gguf',
+        expected_sha256: sha256,
+      }),
+    }));
+  });
+
+  it('forwards an explicit Hugging Face revision without auto-activating the model', () => {
+    spectator = createComponent();
+    const component = spectator.component as unknown as {
+      downloadForm: { patchValue: (value: Record<string, string>) => void };
+      createModelDownload: () => void;
+    };
+    component.downloadForm.patchValue({
+      modelId: 'example/model',
+      sourceUrl: '',
+      revision: 'refs/pr/42',
+      expectedSha256: '',
+    });
+
+    component.createModelDownload();
+
+    expect(api.createLocalModelDownload).toHaveBeenCalledWith(expect.objectContaining({
+      model_id: 'example/model',
+      metadata: expect.objectContaining({
+        source_kind: 'huggingface',
+        repo_id: 'example/model',
+        revision: 'refs/pr/42',
+      }),
+    }));
+    const request = api.createLocalModelDownload.mock.calls[0][0];
+    expect(request.metadata).not.toHaveProperty('auto_select_after_download');
+    expect(request.metadata).not.toHaveProperty('auto_select_model_id');
   });
 
   it('normalizes scan CIDR defaults and sends RTSP port separately', () => {

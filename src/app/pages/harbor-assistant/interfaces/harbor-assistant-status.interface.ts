@@ -1104,6 +1104,10 @@ export interface LocalModelCatalogItem {
   fit_reason?: string;
   recommendation_group?: string;
   acceptance_note?: string;
+  file_state?: string;
+  integrity_status?: string;
+  runtime_state?: string;
+  validation_state?: string;
   evidence?: string[];
   metadata?: Record<string, unknown>;
 }
