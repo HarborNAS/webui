@@ -43,29 +43,313 @@
     </div>
   }
 
-  <nav
-    class="tab-strip"
-    [attr.aria-label]="'Harbor Assistant sections' | translate"
-  >
-    @for (tab of tabs; track tab.id) {
-      <button
-        type="button"
-        class="tab-button"
-        [attr.aria-current]="isTab(tab.id) ? 'page' : null"
-        [class.active]="isTab(tab.id)"
-        (click)="selectTab(tab.id)"
-      >
-        {{ tab.label | translate }}
-      </button>
-    }
-  </nav>
+  <div class="assistant-workspace">
+    <aside class="workspace-sidebar">
+      <nav class="workspace-navigation" [attr.aria-label]="'Harbor Assistant sections' | translate">
+        <div class="workspace-nav-group">
+          <span class="workspace-nav-label">{{ 'Workspace' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="overview"
+            [class.active]="isTab('overview')" [attr.aria-current]="isTab('overview') ? 'page' : null" (click)="selectTab('overview')">
+            {{ 'Overview' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="rules"
+            [class.active]="isTab('rules')" [attr.aria-current]="isTab('rules') ? 'page' : null" (click)="selectTab('rules')">
+            <span>{{ 'Rules' | translate }}</span><span class="workspace-nav-count">{{ pendingRuleCount() }}</span>
+          </button>
+        </div>
+        <div class="workspace-nav-group workspace-tools">
+          <span class="workspace-nav-label">{{ 'Tools' | translate }}</span>
+          <button type="button" class="workspace-nav-item" data-section="search"
+            [class.active]="isTab('search')" [attr.aria-current]="isTab('search') ? 'page' : null" (click)="selectTab('search')">
+            {{ 'Search' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="camera"
+            [class.active]="isTab('camera')" [attr.aria-current]="isTab('camera') ? 'page' : null" (click)="selectTab('camera')">
+            {{ 'Camera' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="home-assistant"
+            [class.active]="isTab('home-assistant')" [attr.aria-current]="isTab('home-assistant') ? 'page' : null" (click)="selectTab('home-assistant')">
+            {{ 'Home Assistant' | translate }}
+          </button>
+          <button type="button" class="workspace-nav-item" data-section="settings"
+            [class.active]="isTab('settings') || isTab('messages')"
+            [attr.aria-current]="isTab('settings') || isTab('messages') ? 'page' : null"
+            (click)="selectSettingsDestination('models')">{{ 'Settings' | translate }}</button>
+        </div>
+      </nav>
+    </aside>
+    <main class="workspace-content">
+      @if (isTab('search')) {
+        <section class="tab-panel assistant-search-tab">
+          <ix-harbor-assistant-search
+            [knowledgeIndexJob]="activeKnowledgeIndexJob()"
+            [knowledgeSourceRoots]="knowledgeSourceRoots()"
+          ></ix-harbor-assistant-search>
+        </section>
+      }
+  @if (rulesDrawerOpen()) {
+    <mat-card class="settings-card native-panel rules-review-drawer">
+      <mat-card-header>
+        <mat-card-title>{{ 'Rules / Pending Reviews' | translate }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <form class="rule-draft-form" [formGroup]="ruleDraftForm" (ngSubmit)="saveRuleDraft()">
+          <mat-form-field>
+            <mat-label>{{ 'Natural-language rule draft' | translate }}</mat-label>
+            <textarea matInput rows="3" formControlName="prompt"></textarea>
+          </mat-form-field>
+          <button mat-button color="primary" type="submit" [disabled]="actionBusy('automation-review-create')">
+            {{ actionBusy('automation-review-create') ? ('Saving' | translate) : ('Save draft' | translate) }}
+          </button>
+        </form>
 
-  @if (isTab('search')) {
-    <section class="tab-panel assistant-search-tab">
-      <ix-harbor-assistant-search
-        [knowledgeIndexJob]="activeKnowledgeIndexJob()"
-        [knowledgeSourceRoots]="knowledgeSourceRoots()"
-      ></ix-harbor-assistant-search>
+        @if (pendingRuleReviews().length === 0) {
+          <div class="empty-state">{{ 'No rule reviews are waiting.' | translate }}</div>
+        } @else {
+          <div class="rule-review-list">
+            @for (review of pendingRuleReviews(); track review.review_id) {
+              <article class="rule-review-card">
+                <div>
+                  <div class="rule-review-meta">
+                    <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                    <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                    <span class="pill">{{ review.risk_level || 'medium' }}</span>
+                  </div>
+                  <h2>{{ review.original_prompt }}</h2>
+                  <p class="muted">{{ 'Expires' | translate }}: {{ review.expires_at || 'Unknown' }}</p>
+                </div>
+                <div class="row-actions">
+                  <button mat-button color="primary" type="button" [disabled]="isBusy()" (click)="enableRuleReview(review)">
+                    {{ actionBusy('automation-review-enable:' + review.review_id) ? ('Enabling' | translate) : ('Enable' | translate) }}
+                  </button>
+                  <button mat-button type="button" [disabled]="isBusy()" (click)="discardRuleReview(review)">
+                    {{ actionBusy('automation-review-discard:' + review.review_id) ? ('Discarding' | translate) : ('Discard' | translate) }}
+                  </button>
+                </div>
+              </article>
+            }
+          </div>
+        }
+
+        @if (activeRuleReviews().length > 0) {
+          <mat-divider></mat-divider>
+          <div class="rule-review-list">
+            @for (review of activeRuleReviews().slice(0, 8); track review.review_id) {
+              <article class="rule-review-card compact">
+                <div>
+                  <div class="rule-review-meta">
+                    <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                    <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                  </div>
+                  <h2>{{ review.original_prompt }}</h2>
+                </div>
+                <div class="row-actions">
+                  @if (review.status === 'active') {
+                    <button mat-button type="button" [disabled]="isBusy()" (click)="pauseRuleReview(review)">
+                      {{ actionBusy('automation-review-pause:' + review.review_id) ? ('Pausing' | translate) : ('Pause' | translate) }}
+                    </button>
+                  }
+                </div>
+              </article>
+            }
+          </div>
+        }
+
+        <mat-divider></mat-divider>
+        <section class="audit-stream-panel" data-testid="harbor-assistant-audit-stream">
+          <div class="section-heading">
+            <div>
+              <h2>{{ 'Audit stream' | translate }}</h2>
+              <p class="muted">{{ 'Append-only governance records, shown as metadata only.' | translate }}</p>
+            </div>
+            @if (auditSummary(); as summary) {
+              <span class="pill" [ngClass]="summary.secret_scan === 'clean' ? 'tone-good' : 'tone-warn'">
+                {{ summary.total }} {{ 'records' | translate }}
+              </span>
+            }
+          </div>
+
+          @if (endpointError('auditRecords') || endpointError('auditSummary')) {
+            <div class="notice error compact">
+              {{ endpointErrorNotice(endpointError('auditRecords') ? 'auditRecords' : 'auditSummary') | translate }}
+            </div>
+          }
+
+          <form class="audit-filter-form" [formGroup]="auditFilterForm" (ngSubmit)="applyAuditFilters()">
+            <mat-form-field>
+              <mat-label>{{ 'Entity kind' | translate }}</mat-label>
+              <mat-select formControlName="entityKind">
+                @for (option of auditEntityKindOptions(); track option.value) {
+                  <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Action' | translate }}</mat-label>
+              <mat-select formControlName="action">
+                @for (option of auditActionOptions(); track option.value) {
+                  <mat-option [value]="option.value">{{ option.label | translate }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Entity id' | translate }}</mat-label>
+              <input matInput formControlName="entityId" autocomplete="off" />
+            </mat-form-field>
+            <mat-form-field>
+              <mat-label>{{ 'Limit' | translate }}</mat-label>
+              <mat-select formControlName="limit">
+                @for (option of auditLimitOptions; track option.value) {
+                  <mat-option [value]="option.value">{{ option.label }}</mat-option>
+                }
+              </mat-select>
+            </mat-form-field>
+            <div class="audit-filter-actions">
+              <button mat-button color="primary" type="submit" [disabled]="actionBusy('audit-records')">
+                {{ actionBusy('audit-records') ? ('Refreshing' | translate) : ('Apply' | translate) }}
+              </button>
+              <button mat-button type="button" [disabled]="actionBusy('audit-records')" (click)="resetAuditFilters()">
+                {{ 'Reset' | translate }}
+              </button>
+            </div>
+          </form>
+
+          @if (auditSummary(); as summary) {
+            <div class="audit-summary-grid">
+              <div>
+                <span class="field-label">{{ 'Window' | translate }}</span>
+                <strong>{{ summary.window }}</strong>
+              </div>
+              <div>
+                <span class="field-label">{{ 'Metadata' | translate }}</span>
+                <strong>{{ summary.metadata_only ? ('metadata only' | translate) : ('unknown' | translate) }}</strong>
+              </div>
+              <div>
+                <span class="field-label">{{ 'Secret scan' | translate }}</span>
+                <strong>{{ summary.secret_scan | translate }}</strong>
+              </div>
+            </div>
+          }
+
+          @if (auditRecordsResponse(); as page) {
+            <div class="audit-pagination-row">
+              <span class="muted">
+                {{ page.total }} {{ 'records' | translate }} · {{ 'Limit' | translate }} {{ page.limit }}
+              </span>
+              <div class="row-actions">
+                <button mat-button type="button" [disabled]="!auditHasPreviousPage() || actionBusy('audit-records')" (click)="previousAuditPage()">
+                  {{ 'Previous' | translate }}
+                </button>
+                <button mat-button type="button" [disabled]="!auditHasNextPage() || actionBusy('audit-records')" (click)="nextAuditPage()">
+                  {{ 'Next' | translate }}
+                </button>
+              </div>
+            </div>
+          }
+
+          @if (auditActionEntries().length || auditEntityEntries().length) {
+            <div class="audit-counts">
+              @for (entry of auditActionEntries(); track entry.label) {
+                <span class="pill">{{ entry.label }} · {{ entry.count }}</span>
+              }
+              @for (entry of auditEntityEntries(); track entry.label) {
+                <span class="pill muted-pill">{{ entry.label }} · {{ entry.count }}</span>
+              }
+            </div>
+          }
+
+          @if (auditRecords().length === 0) {
+            <div class="empty-state">{{ 'No audit records yet.' | translate }}</div>
+          } @else {
+            <div class="audit-record-list">
+              @for (record of auditRecords(); track record.audit_id) {
+                <article class="audit-record-row">
+                  <div>
+                    <div class="rule-review-meta">
+                      <span class="pill">{{ record.actor_kind | translate }}</span>
+                      <span class="pill">{{ record.created_at || ('unknown' | translate) }}</span>
+                      <span class="pill">{{ 'metadata only' | translate }}</span>
+                      <span class="pill">{{ 'Secret scan' | translate }}: {{ auditRecordsResponse()?.secret_scan || 'clean' }}</span>
+                    </div>
+                    <h2>{{ record.action | translate }}</h2>
+                    <p class="muted">{{ auditRecordEntity(record) | translate }}</p>
+                    <div class="audit-metadata-grid">
+                      <div>
+                        <span class="field-label">{{ 'Audit ID' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.audit_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Workspace' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.workspace_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Entity kind' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.entity_kind) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Entity id' | translate }}</span>
+                        <strong>{{ safeMetadataLabel(record.entity_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Actor' | translate }}</span>
+                        <strong>{{ record.actor_kind | translate }} · {{ safeMetadataLabel(record.actor_id) | translate }}</strong>
+                      </div>
+                      <div>
+                        <span class="field-label">{{ 'Created' | translate }}</span>
+                        <strong>{{ record.created_at || ('unknown' | translate) }}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              }
+            </div>
+          }
+        </section>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (isTab('overview')) {
+    <section class="workspace-overview" aria-labelledby="assistant-workspace-title">
+      <header class="workspace-heading">
+        <span class="workspace-eyebrow">{{ 'Harbor Assistant' | translate }}</span>
+        <h2 id="assistant-workspace-title">{{ 'Your NAS workspace' | translate }}</h2>
+        <p>{{ 'Find photos, ask about your documents, and keep working with your NAS. Use the composer below from any page.' | translate }}</p>
+      </header>
+      <div class="workspace-readiness">
+        <article class="workspace-status">
+          <h3>{{ 'Data sources' | translate }}</h3>
+          <strong>{{ overviewSources() }}</strong>
+          <p>{{ 'Search uses the NAS folders you have enabled.' | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('sources')">{{ 'Manage data sources' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Models' | translate }}</h3>
+          <strong [ngClass]="'tone-' + aiWorkflowSummary().tone">{{ aiWorkflowSummary().label | translate }}</strong>
+          <p>{{ aiWorkflowSummary().detail | translate }}</p>
+          <button mat-button type="button" (click)="selectAiSettingsTab('models')">{{ 'Manage models' | translate }}</button>
+        </article>
+        <article class="workspace-status">
+          <h3>{{ 'Connections' | translate }}</h3>
+          @if (connectedConnectorCount() !== null) {
+            <strong>{{ connectedConnectorCount() }} {{ 'connected' | translate }}</strong>
+            <p>{{ 'Use your connected messaging accounts to reach this workspace.' | translate }}</p>
+          } @else {
+            <strong>{{ loading() ? ('Loading connections' | translate) : ('Connection status unavailable' | translate) }}</strong>
+            <p>{{ 'Open connections to review account availability.' | translate }}</p>
+          }
+          <button mat-button type="button" (click)="selectTab('messages')">{{ 'Manage connections' | translate }}</button>
+        </article>
+      </div>
+      <section class="workspace-context">
+        <div>
+          <h3>{{ 'One conversation, wherever you work' | translate }}</h3>
+          <p>{{ 'Choose folders and search options with + in the composer. Your draft and conversation stay with you as you move between pages.' | translate }}</p>
+        </div>
+        <button mat-button type="button" [disabled]="!assistantSession.hasResults()" (click)="assistantSession.resultsOpen.set(true)">
+          {{ 'Open conversation' | translate }}
+        </button>
+      </section>
     </section>
   }
 
@@ -124,16 +408,265 @@
                           {{ 'VLM' | translate }}
                         </span>
                       </div>
+                      <div class="row-actions">
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="describeVisionEventWithVlm(stored)">
+                          {{ actionBusy('vlm-enrich:' + stored.event.event_id) ? ('Describing' | translate) : ('VLM describe' | translate) }}
+                        </button>
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="createGuardianNotifyRule(stored)">
+                          {{ actionBusy('guardian-rule-create:' + stored.event.event_id) ? ('Creating rule' | translate) : ('Notify rule' | translate) }}
+                        </button>
+                        <button mat-button type="button" [disabled]="isBusy() || !selectedGuardianHaEntity()" (click)="createGuardianHaRule(stored)">
+                          {{ actionBusy('guardian-rule-create:' + stored.event.event_id) ? ('Creating rule' | translate) : ('HA action rule' | translate) }}
+                        </button>
+                      </div>
                     </article>
                   }
                 </div>
               }
+
+              <mat-divider></mat-divider>
+
+              <div class="family-timeline-panel">
+                <div class="section-heading-row">
+                  <div>
+                    <h2>{{ 'Family Timeline' | translate }}</h2>
+                    <p class="muted">
+                      {{ familyTimelineDigest()?.headline || ('No family timeline digest yet.' | translate) }}
+                    </p>
+                    @if (familyTimelineDigest()?.vlm_coverage; as coverage) {
+                      <p class="muted">
+                        {{ 'VLM coverage' | translate }}:
+                        {{ coverage.active }} {{ 'active' | translate }},
+                        {{ coverage.degraded }} {{ 'degraded' | translate }},
+                        {{ coverage.not_sampled }} {{ 'not sampled' | translate }}
+                      </p>
+                    } @else {
+                      <p class="muted">{{ 'VLM coverage unavailable' | translate }}</p>
+                    }
+                  </div>
+                  <span class="pill" [ngClass]="toneClass(familyTimelineDigest()?.status || 'unknown')">
+                    {{ familyTimelineDigest()?.status || ('unknown' | translate) }}
+                  </span>
+                </div>
+                @if (endpointError('familyTimeline') || endpointError('familyTimelineDigest')) {
+                  <div class="notice error compact">
+                    {{ endpointErrorNotice(endpointError('familyTimeline') ? 'familyTimeline' : 'familyTimelineDigest') | translate }}
+                  </div>
+                }
+                @if (familyTimelineDigest()?.bullets?.length) {
+                  <ul class="compact-list">
+                    @for (bullet of familyTimelineDigest()?.bullets ?? []; track bullet) {
+                      <li>{{ bullet }}</li>
+                    }
+                  </ul>
+                }
+                @if (familyTimeline()?.buckets?.length) {
+                  <div class="event-intelligence-list compact">
+                    @for (bucket of familyTimeline()?.buckets ?? []; track bucket.bucket_id) {
+                      <article class="event-intelligence-row">
+                        <div class="event-intelligence-main">
+                          <div class="event-intelligence-meta">
+                            <span class="pill">{{ bucket.camera_id }}</span>
+                            <span class="pill">{{ bucket.event_count }} {{ 'events' | translate }}</span>
+                          </div>
+                          <h2>{{ bucket.top_labels.join(', ') || ('No labels' | translate) }}</h2>
+                          <p class="muted">{{ bucket.event_types.join(', ') }}</p>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+                <div class="memory-review-panel">
+                  <div class="section-heading-row compact">
+                    <div>
+                      <h2>{{ 'Memory Review' | translate }}</h2>
+                      <p class="muted">
+                        {{ familyMemoryStats()?.confirmed_count ?? 0 }} {{ 'confirmed' | translate }} ·
+                        {{ familyMemoryStats()?.favorite_count ?? 0 }} {{ 'favorites' | translate }} ·
+                        {{ familyMemoryStats()?.hidden_count ?? 0 }} {{ 'hidden' | translate }} ·
+                        {{ familyMemoryStats()?.corrected_count ?? 0 }} {{ 'corrected' | translate }}
+                      </p>
+                    </div>
+                    <div class="segmented-control compact">
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'pending'" (click)="setFamilyMemoryReviewFilter('pending')">
+                        {{ 'Pending' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'favorites'" (click)="setFamilyMemoryReviewFilter('favorites')">
+                        {{ 'Favorites' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'hidden'" (click)="setFamilyMemoryReviewFilter('hidden')">
+                        {{ 'Hidden' | translate }}
+                      </button>
+                      <button mat-button type="button" [class.active]="familyMemoryReviewFilter() === 'corrected'" (click)="setFamilyMemoryReviewFilter('corrected')">
+                        {{ 'Corrected' | translate }}
+                      </button>
+                    </div>
+                  </div>
+                  @if (endpointError('familyMemoryEvents')) {
+                    <div class="notice error compact">{{ endpointErrorNotice('familyMemoryEvents') | translate }}</div>
+                  }
+                  @if (familyMemoryReviewItems().length) {
+                    <div class="memory-review-list">
+                      @for (event of familyMemoryReviewItems().slice(0, 8); track event.event_id) {
+                        <article class="memory-review-row">
+                          <div class="event-intelligence-main">
+                            <div class="event-intelligence-meta">
+                              <span class="pill">{{ event.camera_id }}</span>
+                              <span class="pill">{{ event.event_type }}</span>
+                              <span class="pill" [ngClass]="toneClass(event.vlm_status)">{{ event.vlm_status | translate }}</span>
+                            </div>
+                            <h2>{{ event.summary }}</h2>
+                            <p class="muted">{{ event.labels.join(', ') || ('No labels' | translate) }}</p>
+                            <div class="event-intelligence-meta">
+                              @if (event.overlay.confirmed_useful) {
+                                <span class="pill">{{ 'confirmed' | translate }}</span>
+                              }
+                              @if (event.overlay.favorite) {
+                                <span class="pill">{{ 'favorite' | translate }}</span>
+                              }
+                              @if (event.overlay.hidden) {
+                                <span class="pill">{{ 'hidden' | translate }}</span>
+                              }
+                              @if (event.overlay.corrected_summary || event.overlay.corrected_labels?.length) {
+                                <span class="pill">{{ 'corrected' | translate }}</span>
+                              }
+                            </div>
+                          </div>
+                          <div class="memory-review-actions">
+                            <div class="row-actions">
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'confirm_useful')">
+                                {{ 'Useful' | translate }}
+                              </button>
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'favorite')">
+                                {{ 'Favorite' | translate }}
+                              </button>
+                              @if (event.overlay.hidden) {
+                                <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'restore')">
+                                  {{ 'Restore' | translate }}
+                                </button>
+                              } @else {
+                                <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'hide')">
+                                  {{ 'Hide' | translate }}
+                                </button>
+                              }
+                            </div>
+                            <div class="memory-correction-row">
+                              <input type="text" [placeholder]="'Correct summary or labels' | translate" [value]="familyMemoryCorrectionText()" (input)="setFamilyMemoryCorrectionText($event)" />
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'correct_summary')">
+                                {{ 'Summary' | translate }}
+                              </button>
+                              <button mat-button type="button" [disabled]="isBusy()" (click)="familyMemoryFeedback(event, 'correct_labels')">
+                                {{ 'Labels' | translate }}
+                              </button>
+                            </div>
+                          </div>
+                        </article>
+                      }
+                    </div>
+                  } @else {
+                    <p class="muted">{{ 'No family memory review items for this filter.' | translate }}</p>
+                  }
+                </div>
+              </div>
+
+              <mat-divider></mat-divider>
+
+              <div class="home-guardian-panel">
+                <div class="section-heading-row">
+                  <div>
+                    <h2>{{ 'Home Guardian' | translate }}</h2>
+                    <p class="muted">
+                      {{ homeGuardianActivity()?.rule_count ?? homeGuardianRules().length }} {{ 'rules' | translate }} ·
+                      {{ homeGuardianActivity()?.active_count ?? 0 }} {{ 'active' | translate }}
+                    </p>
+                  </div>
+                  <label class="compact-select">
+                    <span>{{ 'HA target' | translate }}</span>
+                    <select [value]="selectedGuardianHaEntity()?.entity_id || ''" (change)="selectGuardianHaEntity($event)">
+                      @for (entity of safeGuardianHaEntities(); track entity.entity_id) {
+                        <option [value]="entity.entity_id">{{ entity.display_name || entity.entity_id }} · {{ entity.domain }}</option>
+                      }
+                    </select>
+                  </label>
+                </div>
+                @if (endpointError('homeGuardianActivity')) {
+                  <div class="notice error compact">{{ endpointErrorNotice('homeGuardianActivity') | translate }}</div>
+                }
+                @if (!safeGuardianHaEntities().length) {
+                  <p class="muted">{{ 'No low-risk Home Assistant entity is available for HA guardian presets.' | translate }}</p>
+                }
+                <div class="rule-review-list compact">
+                  @for (review of activeHomeGuardianRules().slice(0, 6); track review.review_id) {
+                    <article class="rule-review-card compact">
+                      <div>
+                        <div class="rule-review-meta">
+                          <span class="pill" [ngClass]="'tone-' + ruleReviewStatusTone(review)">{{ review.status | translate }}</span>
+                          <span class="pill">{{ ruleReviewSourceLabel(review) | translate }}</span>
+                        </div>
+                        <h2>{{ review.original_prompt }}</h2>
+                      </div>
+                      <div class="row-actions">
+                        @if (review.status !== 'active') {
+                          <button mat-button type="button" [disabled]="isBusy()" (click)="enableRuleReview(review)">
+                            {{ 'Enable' | translate }}
+                          </button>
+                        }
+                        @if (review.status === 'active') {
+                          <button mat-button type="button" [disabled]="isBusy()" (click)="pauseRuleReview(review)">
+                            {{ 'Pause' | translate }}
+                          </button>
+                        }
+                        <button mat-button type="button" [disabled]="isBusy()" (click)="evaluateGuardianLatest(review)">
+                          {{ actionBusy('guardian-evaluate:' + review.review_id) ? ('Evaluating' | translate) : ('Evaluate latest' | translate) }}
+                        </button>
+                      </div>
+                    </article>
+                  }
+                </div>
+                @if (guardianActivityItems().length) {
+                  <div class="event-intelligence-list compact">
+                    @for (item of guardianActivityItems(); track item['run_id'] || item['event_id']) {
+                      <article class="event-intelligence-row">
+                        <div class="event-intelligence-main">
+                          <div class="event-intelligence-meta">
+                            <span class="pill" [ngClass]="toneClass(guardianActivityStatus(item))">{{ guardianActivityStatus(item) | translate }}</span>
+                          </div>
+                          <h2>{{ guardianActivitySummary(item) }}</h2>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+              </div>
             </mat-card-content>
           </mat-card>
         </section>
       </ix-harbor-assistant-camera>
     </section>
   }
+
+  @if (isTab('home-assistant')) {
+    <section class="tab-panel home-assistant-tab">
+      <ix-harbor-assistant-home-assistant></ix-harbor-assistant-home-assistant>
+    </section>
+  }
+
+  @if (isTab('settings') || isTab('messages')) {
+    <section class="tab-panel settings-tab">
+      <nav class="settings-section-strip" [attr.aria-label]="'Assistant settings sections' | translate">
+        @for (section of settingsSections; track section.id) {
+          <button
+            type="button"
+            class="settings-section-button"
+            [attr.data-settings-section]="section.id"
+            [class.active]="isSettingsDestination(section.id)"
+            [attr.aria-current]="isSettingsDestination(section.id) ? 'page' : null"
+            (click)="selectSettingsDestination(section.id)"
+          >
+            {{ section.label | translate }}
+          </button>
+        }
+      </nav>
 
   @if (isTab('messages')) {
     <section class="tab-panel im-tab">
@@ -199,28 +732,6 @@
     </section>
   }
 
-  @if (isTab('home-assistant')) {
-    <section class="tab-panel home-assistant-tab">
-      <ix-harbor-assistant-home-assistant></ix-harbor-assistant-home-assistant>
-    </section>
-  }
-
-  @if (isTab('settings')) {
-    <section class="tab-panel settings-tab">
-      <nav class="settings-section-strip" [attr.aria-label]="'Assistant settings sections' | translate">
-        @for (section of settingsSections; track section.id) {
-          <button
-            type="button"
-            class="settings-section-button"
-            [class.active]="isSettingsSection(section.id)"
-            [attr.aria-current]="isSettingsSection(section.id) ? 'page' : null"
-            (click)="selectSettingsSection(section.id)"
-          >
-            {{ section.label | translate }}
-          </button>
-        }
-      </nav>
-
       @if (isSettingsSection('ai')) {
     <section class="settings-section-panel models-tab">
       @if (endpointError('models')) {
@@ -235,32 +746,6 @@
 
       <mat-card class="settings-card ai-settings-card">
         <mat-card-content>
-          <section class="ai-status-toolbar" [ngClass]="'tone-' + aiWorkflowSummary().tone">
-            <div>
-              <span class="field-label">{{ 'AI settings status' | translate }}</span>
-              <strong>{{ aiWorkflowSummary().label | translate }}</strong>
-              <p>{{ aiWorkflowSummary().detail | translate }}</p>
-            </div>
-            <button mat-button type="button" [disabled]="loading()" (click)="refresh()">
-              {{ 'Refresh' | translate }}
-            </button>
-          </section>
-
-          <section class="ai-settings-subtabs" [attr.aria-label]="'AI settings' | translate">
-            @for (tab of aiSettingsTabs(); track tab.id) {
-              <button
-                type="button"
-                class="ai-settings-subtab"
-                [class.active]="activeAiSettingsTab() === tab.id"
-                [ngClass]="'tone-' + tab.tone"
-                (click)="selectAiSettingsTab(tab.id)"
-              >
-                <strong>{{ tab.label | translate }}</strong>
-                <span>{{ tab.summary | translate }}</span>
-              </button>
-            }
-          </section>
-
           @if (activeAiSettingsTab() === 'sources') {
             <section class="ai-settings-panel sources-settings-panel">
               <section class="knowledge-section source-roots-card">
@@ -412,89 +897,15 @@
             </section>
           }
 
-          @if (activeAiSettingsTab() === 'models') {
-            @if (modelCapabilitiesResponse()?.model_store; as modelStore) {
-              <section class="ai-settings-panel model-store-panel">
-                <div class="model-store-line">
-                  <div>
-                    <span class="field-label">{{ 'Model storage location' | translate }}</span>
-                    <strong>{{ modelStore.path }}</strong>
-                    @if (modelStore.warnings?.length) {
-                      <p class="muted">{{ modelStore.warnings?.[0] | translate }}</p>
-                    }
-                  </div>
-                  <span class="pill" [ngClass]="modelStore.status === 'ready' ? 'tone-good' : 'tone-danger'">
-                    {{ modelStore.next_action | translate }}
-                  </span>
-                  <button mat-button type="button" [disabled]="actionBusy('model-store')" (click)="openModelStoreFolderPicker()">
-                    {{ 'Change location' | translate }}
-                  </button>
-                </div>
-              </section>
-            }
-            @if (hardware(); as hardwareProfile) {
-              <section class="ai-settings-panel model-store-panel">
-                <div class="model-store-line">
-                  <div>
-                    <span class="field-label">{{ 'Local capabilities and model recommendations' | translate }}</span>
-                    <strong>{{ hardwareProfile.hardware_class || hardwareProfile.recommended_model_profile }}</strong>
-                    <p class="muted">
-                      {{ hardwareProfile.memory.summary | translate }}
-                      @if (hardwareProfile.gpu_vram_total_mb) {
-                        · GPU {{ hardwareProfile.gpu_vram_total_mb }} MiB
-                      }
-                    </p>
-                  </div>
-                  <span class="pill" [ngClass]="toneClass(hardwareProfile.status)">
-                    {{ hardwareProfile.recommended_model_profile | translate }}
-                  </span>
-                </div>
-              </section>
-            }
-            @if (modelRuntimeCards().length) {
-              <section class="ai-settings-panel runtime-manager-panel">
-                <div class="runtime-manager-heading">
-                  <div>
-                    <span class="field-label">{{ 'Runtime Manager' | translate }}</span>
-                    <strong>{{ (modelRuntimeManagerResponse()?.status || modelCapabilitiesResponse()?.runtime_manager?.status || 'unknown') | translate }}</strong>
-                  </div>
-                  @if (modelRuntimeManagerResponse()?.blockers?.length || modelCapabilitiesResponse()?.runtime_manager?.blockers?.length) {
-                    <p class="muted warn">
-                      {{ (modelRuntimeManagerResponse()?.blockers || modelCapabilitiesResponse()?.runtime_manager?.blockers || [])[0] | translate }}
-                    </p>
-                  }
-                </div>
-                <div class="runtime-card-grid">
-                  @for (runtime of modelRuntimeCards(); track runtime.runtime_id) {
-                    <article class="runtime-card">
-                      <div>
-                        <strong>{{ runtime.display_name }}</strong>
-                        <p class="muted">{{ runtimeCapabilitiesLabel(runtime) | translate }}</p>
-                        @if (runtime.model_store_path) {
-                          <p class="muted mono-text">{{ runtime.model_store_path }}</p>
-                        }
-                        @if (runtime.message) {
-                          <p class="muted">{{ runtime.message | translate }}</p>
-                        }
-                      </div>
-                      <div class="runtime-card-actions">
-                        <span class="pill" [ngClass]="runtimeToneClass(runtime)">
-                          {{ runtime.status | translate }}
-                        </span>
-                        <button
-                          mat-button
-                          color="primary"
-                          type="button"
-                          [disabled]="runtimeActionDisabled(runtime)"
-                          (click)="installModelRuntime(runtime)"
-                        >
-                          {{ actionBusy('model-runtime-install:' + runtime.runtime_id) ? ('Installing...' | translate) : (runtimeActionLabel(runtime) | translate) }}
-                        </button>
-                      </div>
-                    </article>
-                  }
-                </div>
-              </section>
+          @if (activeAiSettingsTab() !== 'sources') {
+            @if (modelProjectionLoading()) {
+              <div class="notice info compact" data-testid="model-projection-loading">
+                {{ 'Loading runtime and model status...' | translate }}
+              </div>
+            } @else if (modelProjectionIncomplete()) {
+              <div class="notice warn compact" data-testid="model-projection-incomplete">
+                {{ 'Runtime and model status could not be loaded. Refresh to retry.' | translate }}
+              </div>
             }
 
             <section class="ai-settings-panel model-capability-list">
@@ -505,7 +916,7 @@
                 <span>{{ 'Actions' | translate }}</span>
               </div>
               @for (capability of aiModelCapabilities(); track capability.id) {
-                <article class="model-capability-row" [class.optional]="capability.optional">
+                <article class="model-capability-row" [class.optional]="capability.optional" [attr.data-capability]="capability.capabilityId">
                   <div class="model-setting-line">
                     <div class="model-capability-name">
                       <span class="field-label">{{ capability.optional ? ('Optional capability' | translate) : ('Core capability' | translate) }}</span>
@@ -513,29 +924,38 @@
                       <p class="muted">{{ capability.detail | translate }}</p>
                     </div>
                     <div class="model-current-cell">
-                      @if (workflowSharedModelOwner(capability.capabilityId); as owner) {
-                        <strong>{{ 'Shared model' | translate }}</strong>
-                        <p class="muted">
-                          {{ 'Uses the same running model as' | translate }} {{ owner.label | translate }}
-                        </p>
+                      @if (workflowDesiredModelName(capability.capabilityId); as desired) {
+                        <p class="model-selected-target">{{ 'Selected model:' | translate }} {{ desired }}</p>
+                        <strong>{{ 'Currently running:' | translate }} {{ workflowCurrentModelName(capability.capabilityId) }}</strong>
                       } @else {
                         <strong>{{ workflowCurrentModelName(capability.capabilityId) }}</strong>
-                        <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
-                        @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
-                          <p class="muted warn">{{ runtimeNotice | translate }}</p>
-                        }
+                      }
+                      @if (workflowSelectionNotice(capability.capabilityId); as notice) {
+                        <p class="muted warn" role="status">{{ notice | translate }}</p>
+                      }
+                      @if (workflowSelectionError(capability.capabilityId); as error) {
+                        <p class="muted error" role="alert">{{ error }}</p>
+                      }
+                      <p class="muted">{{ workflowCurrentModelDetail(capability.capabilityId) }}</p>
+                      @if (workflowCurrentModelDevice(capability.capabilityId); as device) {
+                        <p class="muted model-device">{{ device }}</p>
+                      }
+                      @if (workflowRuntimeNotice(capability.capabilityId); as runtimeNotice) {
+                        <p class="muted warn">{{ runtimeNotice | translate }}</p>
                       }
                     </div>
                     <span class="pill" [ngClass]="workflowCapabilityToneClass(capability.capabilityId)">
                       {{ workflowCapabilityStatusLabel(capability.capabilityId) | translate }}
                     </span>
                     <div class="row-actions">
-                      <button mat-button color="primary" type="button" (click)="toggleModelCapabilityChooser(capability)">
+                      <button mat-button color="primary" type="button" [disabled]="loading() || !modelProjectionReady()" (click)="toggleModelCapabilityChooser(capability)">
                         {{ 'Select model' | translate }}
                       </button>
-                      <button mat-button type="button" (click)="openModelCapabilityMoreModels(capability)">
-                        {{ 'More models' | translate }}
-                      </button>
+                      @if (canBrowseCapabilityModels(capability.capabilityId)) {
+                        <button mat-button type="button" [disabled]="loading() || !modelProjectionReady()" (click)="openModelCapabilityMoreModels(capability)">
+                          {{ 'More models' | translate }}
+                        </button>
+                      }
                       @if (workflowRuntimeInstallCandidate(capability.capabilityId); as runtime) {
                         <button
                           mat-button
@@ -545,16 +965,6 @@
                           (click)="installModelRuntime(runtime)"
                         >
                           {{ 'Install runtime' | translate }}
-                        </button>
-                      }
-                      @if (workflowTestEndpoint(capability.capabilityId); as endpoint) {
-                        <button
-                          mat-button
-                          type="button"
-                          [disabled]="actionBusy('model-test:' + endpoint.model_endpoint_id)"
-                          (click)="testModelEndpoint(endpoint)"
-                        >
-                          {{ actionBusy('model-test:' + endpoint.model_endpoint_id) ? ('Testing...' | translate) : ('Test' | translate) }}
                         </button>
                       }
                     </div>
@@ -574,7 +984,7 @@
                           <article class="model-option-row">
                             <div>
                               <strong>{{ card.displayName }}</strong>
-                              <p class="muted">{{ card.localPath || card.modelId }}</p>
+                              <p class="muted">{{ card.configuredEndpoint ? (card.hardware || card.source) : card.modelId }}</p>
                               <p class="muted">{{ modelRecommendationLabel(card) | translate }} · {{ modelHardwareFitLabel(card) | translate }}</p>
                               @if (card.fitReason) {
                                 <p class="muted warn">{{ card.fitReason | translate }}</p>
@@ -684,7 +1094,9 @@
             </section>
           }
 
-          @if (activeAiSettingsTab() === 'cloud-api') {
+          @if (activeAiSettingsTab() !== 'sources') {
+            <details class="cloud-model-settings" [attr.open]="activeAiSettingsTab() === 'cloud-api' ? '' : null">
+              <summary>{{ 'Cloud API' | translate }}</summary>
             <section class="ai-settings-panel cloud-api-panel">
               <section class="knowledge-section cloud-api-card">
               <form class="form-grid cloud-api-form" [formGroup]="cloudApiForm" (ngSubmit)="saveCloudApiSettings()">
@@ -746,10 +1158,12 @@
               </form>
               </section>
             </section>
+            </details>
           }
         </mat-card-content>
       </mat-card>
 
+      @if (activeAiSettingsTab() !== 'sources') {
       <details
         class="advanced-settings"
         [attr.open]="modelsAdvancedOpen() ? '' : null"
@@ -758,6 +1172,188 @@
         <summary>{{ 'Advanced settings' | translate }}</summary>
         @if (modelsAdvancedOpen()) {
           <div class="advanced-settings-body">
+            @if (modelCapabilitiesResponse()?.model_store; as modelStore) {
+              <section class="ai-settings-panel model-store-panel">
+                <div class="model-store-line">
+                  <div>
+                    <span class="field-label">{{ 'Model storage location' | translate }}</span>
+                    <strong>{{ modelStore.path }}</strong>
+                    @if (modelStore.warnings?.length) {
+                      <p class="muted">{{ modelStore.warnings?.[0] | translate }}</p>
+                    }
+                  </div>
+                  <span class="pill" [ngClass]="modelStore.status === 'ready' ? 'tone-good' : 'tone-danger'">
+                    {{ modelStore.next_action | translate }}
+                  </span>
+                  <button mat-button type="button" [disabled]="actionBusy('model-store')" (click)="openModelStoreFolderPicker()">
+                    {{ 'Change location' | translate }}
+                  </button>
+                </div>
+              </section>
+            }
+            @if (hardware(); as hardwareProfile) {
+              <section class="ai-settings-panel model-store-panel">
+                <div class="model-store-line">
+                  <div>
+                    <span class="field-label">{{ 'Local capabilities and model recommendations' | translate }}</span>
+                    <strong>{{ hardwareProfile.hardware_class || hardwareProfile.recommended_model_profile }}</strong>
+                    <p class="muted">
+                      {{ hardwareProfile.memory.summary | translate }}
+                      @if (hardwareProfile.gpu_vram_total_mb) {
+                        · GPU {{ hardwareProfile.gpu_vram_total_mb }} MiB
+                      }
+                    </p>
+                  </div>
+                  <span class="pill" [ngClass]="toneClass(hardwareProfile.status)">
+                    {{ hardwareProfile.recommended_model_profile | translate }}
+                  </span>
+                </div>
+              </section>
+            }
+            @if (modelRuntimeCards().length) {
+              <section class="ai-settings-panel runtime-manager-panel">
+                <div class="runtime-manager-heading">
+                  <div>
+                    <span class="field-label">{{ 'Runtime Manager' | translate }}</span>
+                    <strong>{{ (modelRuntimeManagerResponse()?.status || modelCapabilitiesResponse()?.runtime_manager?.status || 'unknown') | translate }}</strong>
+                  </div>
+                  @if (modelRuntimeManagerResponse()?.blockers?.length || modelCapabilitiesResponse()?.runtime_manager?.blockers?.length) {
+                    <p class="muted warn">
+                      {{ (modelRuntimeManagerResponse()?.blockers || modelCapabilitiesResponse()?.runtime_manager?.blockers || [])[0] | translate }}
+                    </p>
+                  }
+                </div>
+                <div class="runtime-card-grid">
+                  @for (runtime of modelRuntimeCards(); track runtime.runtime_id) {
+                    <article class="runtime-card">
+                      <div>
+                        <strong>{{ runtime.display_name }}</strong>
+                        <p class="muted">{{ runtimeCapabilitiesLabel(runtime) | translate }}</p>
+                        @if (runtime.model_store_path) {
+                          <p class="muted mono-text">{{ runtime.model_store_path }}</p>
+                        }
+                        @if (runtime.message) {
+                          <p class="muted">{{ runtime.message | translate }}</p>
+                        }
+                      </div>
+                      <div class="runtime-card-actions">
+                        <span class="pill" [ngClass]="runtimeToneClass(runtime)">
+                          {{ runtime.status | translate }}
+                        </span>
+                        <button
+                          mat-button
+                          color="primary"
+                          type="button"
+                          [disabled]="runtimeActionDisabled(runtime)"
+                          (click)="installModelRuntime(runtime)"
+                        >
+                          {{ actionBusy('model-runtime-install:' + runtime.runtime_id) ? ('Installing...' | translate) : (runtimeActionLabel(runtime) | translate) }}
+                        </button>
+                      </div>
+                    </article>
+                  }
+                </div>
+              </section>
+            }
+
+            <section class="ai-settings-panel routing-status-panel" data-testid="harbor-assistant-routing-status">
+              <div class="section-heading">
+                <div>
+                  <span class="field-label">{{ 'Routing status' | translate }}</span>
+                  <h2>{{ 'Platform orchestration' | translate }}</h2>
+                  <p class="muted">{{ 'Planner, domain route, model policy, and runtime readiness stay in HarborBeacon.' | translate }}</p>
+                </div>
+                @if (routingStatus(); as routing) {
+                  <span class="pill" [ngClass]="routing.secret_scan === 'clean' ? 'tone-good' : 'tone-warn'">
+                    {{ routing.scope | translate }}
+                  </span>
+                }
+              </div>
+
+              @if (endpointError('routingStatus')) {
+                <div class="notice error compact">{{ endpointErrorNotice('routingStatus') | translate }}</div>
+              }
+
+              @if (routingStatus(); as routing) {
+                <div class="routing-status-grid">
+                  <div>
+                    <span class="field-label">{{ 'Generated' | translate }}</span>
+                    <strong>{{ routing.generated_at }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Policies' | translate }}</span>
+                    <strong>{{ routingPolicyRows().length }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Runtimes' | translate }}</span>
+                    <strong>{{ routingRuntimeRows().length }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Blockers' | translate }}</span>
+                    <strong>{{ routingFallbackBlockers().length }}</strong>
+                  </div>
+                </div>
+
+                <div class="routing-domain-list">
+                  @for (route of routingExecutionRoutes(); track route.domain_id) {
+                    <article class="routing-domain-row">
+                      <div>
+                        <strong>{{ route.display_name | translate }}</strong>
+                        <p class="muted">{{ route.boundary | translate }}</p>
+                      </div>
+                      <div class="routing-order">
+                        @for (step of route.preferred_order; track step) {
+                          <span class="pill">{{ step | translate }}</span>
+                        }
+                      </div>
+                    </article>
+                  }
+                </div>
+
+                @if (routingPolicyRows().length) {
+                  <div class="routing-policy-list">
+                    @for (policy of routingPolicyRows(); track policy.route_policy_id) {
+                      <article class="routing-policy-row">
+                        <div>
+                          <strong>{{ policy.route_policy_id }}</strong>
+                          <p class="muted">
+                            {{ policy.domain_scope }} · {{ policy.modality }} · {{ policy.privacy_level }}
+                          </p>
+                        </div>
+                        <div class="routing-policy-meta">
+                          <span class="pill" [ngClass]="policy.blockers.length ? 'tone-warn' : 'tone-good'">
+                            {{ policy.status | translate }}
+                          </span>
+                          <span class="pill">{{ policy.selected_endpoint_kind || ('none' | translate) }}</span>
+                          <span class="pill">{{ policy.selected_endpoint_id || ('No selected endpoint' | translate) }}</span>
+                        </div>
+                      </article>
+                    }
+                  </div>
+                }
+
+                @if (routingCapabilityRows().length) {
+                  <div class="audit-counts">
+                    @for (capability of routingCapabilityRows(); track capability.capability_id) {
+                      <span class="pill" [ngClass]="capability.blockers.length ? 'tone-warn' : 'tone-good'">
+                        {{ capability.capability_id }} · {{ capability.readiness | translate }}
+                      </span>
+                    }
+                  </div>
+                }
+
+                @if (routingFallbackBlockers().length) {
+                  <div class="notice warn compact">
+                    @for (blocker of routingFallbackBlockers(); track blocker) {
+                      <p>{{ blocker }}</p>
+                    }
+                  </div>
+                }
+              } @else {
+                <div class="empty-state">{{ 'Routing status is unavailable.' | translate }}</div>
+              }
+            </section>
+
           <mat-card class="settings-card endpoint-editor-card">
             <mat-card-header>
               <mat-card-title>{{ modelEndpointEditingId() ? ('Edit Endpoint' | translate) : ('Add Endpoint' | translate) }}</mat-card-title>
@@ -1030,6 +1626,8 @@
           </div>
         }
       </details>
+
+      }
     </section>
       }
 
@@ -1595,6 +2193,133 @@
       </details>
     </section>
       }
+
+      @if (isSettingsSection('diagnostics')) {
+        <section class="settings-section-panel diagnostics-tab">
+          @if (endpointError('evtReadiness') || endpointError('evtPreflightLatest') || endpointError('evtEvidenceBundle')) {
+            <div class="notice warn">{{ endpointErrorNotice('evtReadiness') | translate }}</div>
+          }
+
+          <mat-card class="settings-card native-panel evt-readiness-panel" data-testid="harbor-assistant-evt-readiness-panel">
+            <mat-card-header>
+              <mat-card-title>{{ 'Device Readiness' | translate }}</mat-card-title>
+            </mat-card-header>
+            <mat-card-content>
+              <section class="section-heading evt-heading">
+                <div>
+                  <span class="field-label">{{ 'Profile' | translate }}</span>
+                  <strong>{{ evtProfileLabel() | translate }}</strong>
+                  <p class="muted">{{ 'Runs a quick local readiness check only.' | translate }}</p>
+                </div>
+                <div class="row-actions">
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="refreshEvtReadiness()">
+                    {{ actionBusy('evt-readiness') ? ('Refreshing...' | translate) : ('Refresh readiness' | translate) }}
+                  </button>
+                  <button mat-button color="primary" type="button" [disabled]="loading() || isBusy()" (click)="runEvtPreflight()">
+                    {{ actionBusy('evt-preflight') ? ('Running...' | translate) : ('Run quick check' | translate) }}
+                  </button>
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="viewEvtEvidenceBundle()">
+                    {{ 'View redacted evidence' | translate }}
+                  </button>
+                  <button mat-button type="button" [disabled]="loading() || isBusy()" (click)="downloadEvtEvidenceBundle()">
+                    {{ 'Download redacted evidence' | translate }}
+                  </button>
+                </div>
+              </section>
+
+              @if (evtReadiness(); as readiness) {
+                <div class="overview-grid compact-overview evt-overview">
+                  <div>
+                    <span class="field-label">{{ 'Overall' | translate }}</span>
+                    <strong [ngClass]="toneClass(readiness.status)">{{ userStatusLabel(readiness.status) | translate }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Generated' | translate }}</span>
+                    <strong>{{ evtGeneratedAtLabel(readiness.generated_at) }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Latest check' | translate }}</span>
+                    <strong>{{ evtPreflightCompletedAt() }}</strong>
+                  </div>
+                  <div>
+                    <span class="field-label">{{ 'Duration' | translate }}</span>
+                    <strong>{{ evtDurationLabel() }}</strong>
+                  </div>
+                </div>
+
+                @if (evtBlockers().length) {
+                  <div class="notice error compact evt-list">
+                    <p><strong>{{ 'Blockers' | translate }}</strong>: {{ evtBlockers().join(' · ') }}</p>
+                  </div>
+                }
+                @if (evtWarnings().length) {
+                  <div class="notice warn compact evt-list">
+                    <p><strong>{{ 'Warnings' | translate }}</strong>: {{ evtWarnings().join(' · ') }}</p>
+                  </div>
+                }
+
+                <section class="evt-metric-grid">
+                  @for (metric of evtReadinessMetrics(); track metric.id) {
+                    <article class="metric" [ngClass]="metric.tone">
+                      <span>{{ metric.label | translate }}</span>
+                      <strong>{{ metric.value }}</strong>
+                      <p>{{ metric.detail }}</p>
+                    </article>
+                  }
+                </section>
+
+                <section class="evt-service-list">
+                  <div class="section-heading compact-heading">
+                    <h2>{{ 'Services' | translate }}</h2>
+                    <p class="muted">{{ 'Service status is metadata-only.' | translate }}</p>
+                  </div>
+                  <div class="table-list compact-table">
+                    @for (service of evtServiceStatuses(); track service.service) {
+                      <article class="table-row">
+                        <div>
+                          <h2>{{ service.service }}</h2>
+                          <p class="muted">{{ service.status || ('unknown' | translate) }}</p>
+                        </div>
+                        <span class="pill" [ngClass]="service.active ? 'tone-good' : 'tone-warn'">
+                          {{ service.active ? ('Active' | translate) : ('Check' | translate) }}
+                        </span>
+                      </article>
+                    }
+                  </div>
+                </section>
+
+                <section class="evt-secret-scan">
+                  <div class="section-heading compact-heading">
+                    <h2>{{ 'Secret scan' | translate }}</h2>
+                    <p class="muted">{{ evtSecretScanSummary() }}</p>
+                  </div>
+                  @if (evtSecretScanCounts().length) {
+                    <div class="pill-row">
+                      @for (count of evtSecretScanCounts(); track count) {
+                        <span class="pill">{{ count }}</span>
+                      }
+                    </div>
+                  }
+                </section>
+
+                @if (evtEvidenceJson()) {
+                  <section class="evt-evidence-preview">
+                    <div class="section-heading compact-heading">
+                      <h2>{{ 'Redacted evidence JSON' | translate }}</h2>
+                      <p class="muted">{{ 'Payload contains summaries and counts only.' | translate }}</p>
+                    </div>
+                    <pre data-testid="harbor-assistant-evt-evidence-json">{{ evtEvidenceJson() }}</pre>
+                  </section>
+                }
+              } @else {
+                <div class="empty-state">{{ 'Device readiness has not been loaded yet.' | translate }}</div>
+              }
+            </mat-card-content>
+          </mat-card>
+        </section>
+      }
     </section>
   }
+    </main>
+  </div>
 </section>

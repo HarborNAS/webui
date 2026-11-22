@@ -1,0 +1,9 @@
+[Unit]
+Description=Reapply Harbor Assistant routes when middleware regenerates nginx
+
+[Path]
+PathChanged=/etc/nginx/nginx.conf
+Unit=harbor-webui-override.service
+
+[Install]
+WantedBy=multi-user.target

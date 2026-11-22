@@ -157,4 +157,57 @@ describe('AddGpuDeviceMenuComponent', () => {
     expect(menuText).toContain('confirm the upstream bridge');
     expect(menuText).not.toContain('resource_alignment');
   });
+  it('adds a ready ROCm GPU from a rich choice without changing the device API payload', async () => {
+    gpuChoices = {
+      '0000:03:00.0': {
+        pci_slot: '0000:03:00.0',
+        gpu_type: containerGpuType.Amd,
+        description: 'AMD Radeon PRO W7900',
+        available: true,
+        error: null,
+        capabilities: ['container-rocm'],
+      },
+    };
+    spectator = createComponent();
+    loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+    const menu = await loader.getHarness(MatMenuHarness.with({ triggerText: 'Add' }));
+    await menu.open();
+    const items = await menu.getItems();
+    expect(await items[0].getText()).toContain('Ready for ROCm containers');
+    expect(await items[0].isDisabled()).toBe(false);
+    await items[0].click();
+    expect(spectator.inject(ApiService).call).toHaveBeenCalledWith('container.device.create', [{
+      container: 123,
+      attributes: {
+        dtype: ContainerDeviceType.Gpu,
+        gpu_type: containerGpuType.Amd,
+        pci_address: '0000:03:00.0',
+      },
+    }]);
+  });
+
+  it.each([
+    { error: 'amd_kfd_missing', expected: 'AMD driver is loaded but /dev/kfd is missing' },
+    { error: null, expected: 'Unavailable for containers' },
+  ])('keeps unavailable GPU status honest when capability tags exist ($error)', async ({ error, expected }) => {
+    gpuChoices = {
+      '0000:03:00.0': {
+        pci_slot: '0000:03:00.0',
+        gpu_type: containerGpuType.Amd,
+        description: 'AMD Radeon PRO W7900',
+        available: false,
+        error,
+        capabilities: ['container-rocm'],
+      },
+    };
+    spectator = createComponent();
+    loader = TestbedHarnessEnvironment.loader(spectator.fixture);
+    const menu = await loader.getHarness(MatMenuHarness.with({ triggerText: 'Add' }));
+    await menu.open();
+    const items = await menu.getItems();
+    expect(await items[0].getText()).toContain(expected);
+    expect(await items[0].getText()).not.toContain('Ready for ROCm');
+    expect(await items[0].isDisabled()).toBe(true);
+    expect(spectator.inject(ApiService).call).not.toHaveBeenCalledWith('container.device.create', expect.anything());
+  });
 });

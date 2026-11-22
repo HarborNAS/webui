@@ -14,7 +14,22 @@ export interface HarborAssistantMetric {
   tone: HarborAssistantStatusTone;
 }
 
-export type HarborAssistantTabId = 'search' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+export type HarborAssistantTabId = 'overview' | 'search' | 'rules' | 'multimodal' | 'camera' | 'messages' | 'home-assistant' | 'settings';
+
+
+export interface ChatCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+  model?: string;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+}
 
 export interface HarborAssistantTab {
   id: HarborAssistantTabId;
@@ -383,6 +398,15 @@ export interface GatewayStatusResponse {
   channels?: GatewayPlatformStatus[];
   platforms?: GatewayPlatformStatus[];
   bridge_provider?: BridgeProviderConfig;
+  setup?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+    channels?: GatewayPlatformStatus[];
+  };
+  connectors?: {
+    feishu?: GatewayPlatformStatus;
+    weixin?: GatewayPlatformStatus;
+  };
   feishu?: GatewayPlatformStatus & { rehearsal_ready?: boolean };
   weixin?: GatewayPlatformStatus & {
     rehearsal_ready?: boolean;
@@ -676,6 +700,272 @@ export interface LocalVisionEventsResponse {
   events: StoredLocalVisionEvent[];
 }
 
+export interface VisionVlmStatusResponse {
+  generated_at: string;
+  kind: string;
+  readiness: Record<string, unknown>;
+  latest_enrichment?: Record<string, unknown> | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface VisionVlmEnrichResponse {
+  status: string;
+  reason?: string | null;
+  message?: string | null;
+  event?: StoredLocalVisionEvent | null;
+  event_id?: string | null;
+  camera_id?: string | null;
+  readiness?: Record<string, unknown> | null;
+  evidence?: Record<string, unknown> | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface FamilyTimelineArtifactMetadata {
+  artifact_id?: string | null;
+  mime_type?: string | null;
+  byte_size?: number | null;
+  sha256_present: boolean;
+  local_path_redacted: boolean;
+  raw_image_included: boolean;
+}
+
+export interface FamilyTimelineEvent {
+  event_id: string;
+  camera_id: string;
+  event_type: string;
+  summary: string;
+  confidence: number;
+  labels: string[];
+  started_at: string;
+  received_at: string;
+  latency_ms: number;
+  vlm_status: string;
+  artifact: FamilyTimelineArtifactMetadata;
+}
+
+export interface FamilyTimelineBucket {
+  bucket_id: string;
+  camera_id: string;
+  started_at: string;
+  ended_at: string;
+  event_count: number;
+  event_types: string[];
+  top_labels: string[];
+  event_ids: string[];
+}
+
+export interface FamilyTimelineResponse {
+  generated_at: string;
+  window_seconds: number;
+  event_count: number;
+  metadata_only: boolean;
+  buckets: FamilyTimelineBucket[];
+  events: FamilyTimelineEvent[];
+  memory_overlay?: FamilyMemoryStats | null;
+}
+
+export interface FamilyTimelineDigestResponse {
+  generated_at: string;
+  status: string;
+  window_seconds: number;
+  event_count: number;
+  headline: string;
+  bullets: string[];
+  top_labels: string[];
+  cameras: string[];
+  latest_event_id?: string | null;
+  metadata_only: boolean;
+  secret_scan: string;
+  vlm_coverage?: {
+    total: number;
+    active: number;
+    degraded: number;
+    not_sampled: number;
+  };
+  memory_overlay?: FamilyMemoryStats | null;
+}
+
+export interface FamilyMemoryStats {
+  generated_at: string;
+  total_feedback_records: number;
+  event_count: number;
+  confirmed_count: number;
+  favorite_count: number;
+  hidden_count: number;
+  corrected_count: number;
+  bounded_limit: number;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface FamilyMemoryOverlay {
+  event_id: string;
+  confirmed_useful: boolean;
+  favorite: boolean;
+  hidden: boolean;
+  corrected_summary?: string | null;
+  corrected_labels?: string[] | null;
+  corrected_at?: string | null;
+  updated_at?: string | null;
+  feedback_count: number;
+}
+
+export interface FamilyMemoryEventView extends FamilyTimelineEvent {
+  overlay: FamilyMemoryOverlay;
+}
+
+export interface FamilyMemoryEventsResponse {
+  generated_at: string;
+  limit: number;
+  metadata_only: boolean;
+  secret_scan: string;
+  memory_overlay: FamilyMemoryStats;
+  events: FamilyMemoryEventView[];
+}
+
+export interface FamilyMemoryFeedbackPayload {
+  action: 'confirm_useful' | 'favorite' | 'hide' | 'restore' | 'correct_summary' | 'correct_labels';
+  corrected_summary?: string;
+  corrected_labels?: string[];
+  note?: string;
+}
+
+export interface FamilyMemoryFeedbackResponse {
+  status: string;
+  event_id: string;
+  feedback: Record<string, unknown>;
+  memory_overlay: FamilyMemoryStats;
+  evidence: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface HomeGuardianActivityResponse {
+  generated_at: string;
+  rule_count: number;
+  active_count: number;
+  rules: Record<string, unknown>[];
+  activity: Record<string, unknown>[];
+  counters: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface HomeGuardianEvaluationResponse {
+  evaluation_id: string;
+  status: string;
+  event_id: string;
+  evaluated_at: string;
+  results: Record<string, unknown>[];
+  counters: Record<string, unknown>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface RoutingEndpointKindCounts {
+  local: number;
+  sidecar: number;
+  cloud: number;
+  disabled: number;
+}
+
+export interface RoutingExecutionRoute {
+  domain_id: string;
+  display_name: string;
+  owner_lane: string;
+  preferred_order: string[];
+  boundary: string;
+  status: string;
+}
+
+export interface RoutingModelRoutePolicy {
+  route_policy_id: string;
+  domain_scope: string;
+  modality: string;
+  privacy_level: string;
+  local_preferred: boolean;
+  fallback_order: string[];
+  status: string;
+  cloud_allowed: boolean;
+  cloud_fallback_allowed: boolean;
+  endpoint_counts: RoutingEndpointKindCounts;
+  selected_endpoint_id?: string | null;
+  selected_endpoint_kind?: string | null;
+  blockers: string[];
+}
+
+export interface RoutingCapabilityReadiness {
+  capability_id: string;
+  route_policy_id: string;
+  readiness: string;
+  local_only: boolean;
+  selected_endpoint_id?: string | null;
+  blockers: string[];
+}
+
+export interface RoutingRuntimeProjection {
+  runtime_id: string;
+  status: string;
+  enabled: boolean;
+  capabilities: string[];
+}
+
+export interface RoutingBoundaryProjection {
+  boundary_id: string;
+  owner_lane: string;
+  status: string;
+  note: string;
+}
+
+export interface RoutingStatusResponse {
+  kind: string;
+  generated_at: string;
+  metadata_only: boolean;
+  scope: string;
+  execution_routes: RoutingExecutionRoute[];
+  model_route_policies: RoutingModelRoutePolicy[];
+  capability_readiness: RoutingCapabilityReadiness[];
+  runtimes: RoutingRuntimeProjection[];
+  boundaries: RoutingBoundaryProjection[];
+  fallback_blockers: string[];
+  secret_scan: string;
+}
+
+export interface AuditRecord {
+  audit_id: string;
+  workspace_id: string;
+  entity_kind: string;
+  entity_id: string;
+  action: string;
+  actor_kind: string;
+  actor_id: string;
+  request_snapshot: Record<string, unknown>;
+  result_snapshot: Record<string, unknown>;
+  created_at?: string | null;
+}
+
+export interface AuditRecordsResponse {
+  records: AuditRecord[];
+  total: number;
+  limit: number;
+  cursor?: string | null;
+  next_cursor?: string | null;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
+export interface AuditSummaryResponse {
+  total: number;
+  window: string;
+  by_entity_kind: Record<string, number>;
+  by_action: Record<string, number>;
+  by_actor_kind: Record<string, number>;
+  metadata_only: boolean;
+  secret_scan: string;
+}
+
 export interface ModelEndpointRecord {
   model_endpoint_id: string;
   workspace_id?: string | null;
@@ -889,6 +1179,8 @@ export interface ModelCapabilityInstallableModel {
   expected_capabilities?: string[];
 }
 
+export type ModelCapabilityTransitionStatus = 'ready' | 'loading' | 'failed' | 'unknown';
+
 export interface ModelCapabilityStatus {
   capability_id: string;
   label: string;
@@ -984,6 +1276,63 @@ export interface RagReadinessResponse {
   blockers?: string[];
   warnings?: string[];
   evidence?: string[];
+}
+
+export interface EvtServiceStatus {
+  service: string;
+  status?: string;
+  active?: boolean;
+  error?: string | null;
+}
+
+export interface EvtReadinessResponse {
+  kind?: string;
+  profile?: string;
+  generated_at?: string | null;
+  status?: string;
+  summary?: string;
+  blockers?: string[];
+  warnings?: string[];
+  package?: Record<string, unknown>;
+  services?: EvtServiceStatus[];
+  gateway?: Record<string, unknown>;
+  default_notification_target?: Record<string, unknown>;
+  home_assistant?: Record<string, unknown>;
+  camera?: Record<string, unknown>;
+  models?: Record<string, unknown>;
+  resources?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  guards?: Record<string, unknown>;
+  redacted?: boolean;
+}
+
+export interface EvtPreflightResponse {
+  kind?: string;
+  profile?: string;
+  status?: string;
+  started_at?: string | null;
+  completed_at?: string | null;
+  duration_ms?: number;
+  long_run_started?: boolean;
+  short_run_started?: boolean;
+  operator_supervisor_required?: boolean;
+  blockers?: string[];
+  warnings?: string[];
+  checks?: Record<string, unknown>[];
+  readiness?: EvtReadinessResponse;
+  redacted?: boolean;
+}
+
+export interface EvtEvidenceBundleResponse {
+  kind?: string;
+  generated_at?: string | null;
+  profile?: string;
+  status?: string;
+  readiness?: EvtReadinessResponse;
+  preflight?: EvtPreflightResponse | Record<string, unknown>;
+  diagnostics_workflow?: Record<string, unknown>;
+  security?: Record<string, unknown>;
+  redacted?: boolean;
 }
 
 export interface KnowledgeSourceRoot {

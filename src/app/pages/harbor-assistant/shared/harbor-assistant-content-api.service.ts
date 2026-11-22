@@ -55,6 +55,13 @@ export class HarborAssistantContentApiService {
     );
   }
 
+  preview(path: string): Observable<Blob> {
+    return this.withUserToken((options) => this.http.get(
+      this.gateApiUrl(`/knowledge/preview?path=${encodeURIComponent(path)}`),
+      { ...options, responseType: 'blob' },
+    ));
+  }
+
   suggestions(): Observable<HarborAssistantKnowledgeSuggestionsResponse> {
     return this.http.get<HarborAssistantKnowledgeSuggestionsResponse>(
       this.apiUrl('/knowledge/suggestions'),
@@ -268,6 +275,10 @@ export function normalizeHarborAssistantSearchResponse(
     ...response.search,
     conversation_id: response.conversation_id ?? conversationId,
     answer: response.answer,
+    model: response.model ?? response.search.model,
+    verification_status: response.verification_status ?? response.search.verification_status,
+    response_preference: response.response_preference ?? response.search.response_preference,
+    image_verification: response.image_verification ?? response.search.image_verification,
     degraded,
     degraded_reason: degradedReason,
     answer_degraded: degraded,

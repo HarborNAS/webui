@@ -6,6 +6,8 @@ import { catchError, map } from 'rxjs/operators';
 import {
   AdminDefaultsPayload,
   AdminStateResponse,
+  AuditRecordsResponse,
+  AuditSummaryResponse,
   AutomationReviewPayload,
   AutomationReviewsResponse,
   DeviceCredentialStatus,
@@ -19,6 +21,15 @@ import {
   DvrRecordingSettings,
   DvrRecordingStatusResponse,
   DvrTimelineResponse,
+  EvtEvidenceBundleResponse,
+  EvtPreflightResponse,
+  EvtReadinessResponse,
+  FamilyMemoryEventsResponse,
+  FamilyMemoryFeedbackPayload,
+  FamilyMemoryFeedbackResponse,
+  FamilyMemoryStats,
+  FamilyTimelineDigestResponse,
+  FamilyTimelineResponse,
   FilesBrowseResponse,
   GatewayStatusResponse,
   HarborAssistantBackendStatus,
@@ -32,6 +43,8 @@ import {
   HomeAssistantStatusResponse,
   HomeAssistantSyncResponse,
   HomeAssistantTestResponse,
+  HomeGuardianActivityResponse,
+  HomeGuardianEvaluationResponse,
   HarborOsImCapabilityMapResponse,
   HarborOsStatusResponse,
   HardwareReadinessResponse,
@@ -41,6 +54,8 @@ import {
   KnowledgeIndexStatusResponse,
   KnowledgeSettings,
   LocalVisionEventsResponse,
+  VisionVlmEnrichResponse,
+  VisionVlmStatusResponse,
   LocalModelCatalogResponse,
   LocalModelDownloadJobResponse,
   LocalModelDownloadsResponse,
@@ -56,6 +71,7 @@ import {
   ModelRuntimeManagerResponse,
   NotificationTargetsResponse,
   RagReadinessResponse,
+  RoutingStatusResponse,
   RtspCheckPayload,
   RtspCheckResult,
   ShareLinkSummary,
@@ -125,6 +141,102 @@ export class HarborAssistantApiService {
 
   getRagReadiness(): Observable<RagReadinessResponse> {
     return this.http.get<RagReadinessResponse>(this.apiUrl('/rag/readiness'));
+  }
+
+  getEvtReadiness(): Observable<EvtReadinessResponse> {
+    return this.http.get<EvtReadinessResponse>(this.apiUrl('/evt/readiness'));
+  }
+
+  runEvtPreflight(): Observable<EvtPreflightResponse> {
+    return this.http.post<EvtPreflightResponse>(this.apiUrl('/evt/preflight'), {});
+  }
+
+  getEvtPreflightLatest(): Observable<EvtPreflightResponse> {
+    return this.http.get<EvtPreflightResponse>(this.apiUrl('/evt/preflight/latest'));
+  }
+
+  getEvtEvidenceBundle(): Observable<EvtEvidenceBundleResponse> {
+    return this.http.get<EvtEvidenceBundleResponse>(this.apiUrl('/evt/evidence-bundle'));
+  }
+
+  getFamilyTimeline(): Observable<FamilyTimelineResponse> {
+    return this.http.get<FamilyTimelineResponse>(this.apiUrl('/family/timeline'));
+  }
+
+  getFamilyTimelineDigest(): Observable<FamilyTimelineDigestResponse> {
+    return this.http.get<FamilyTimelineDigestResponse>(this.apiUrl('/family/timeline/digest'));
+  }
+
+  getFamilyMemoryEvents(params: {
+    include_hidden?: boolean;
+    favorites_only?: boolean;
+    hidden_only?: boolean;
+    corrected_only?: boolean;
+    limit?: number;
+  } = {}): Observable<FamilyMemoryEventsResponse> {
+    const query = new URLSearchParams();
+    const limit = params.limit ?? 50;
+    query.set('limit', String(limit));
+    if (params.include_hidden) {
+      query.set('include_hidden', 'true');
+    }
+    if (params.favorites_only) {
+      query.set('favorites_only', 'true');
+    }
+    if (params.hidden_only) {
+      query.set('hidden_only', 'true');
+    }
+    if (params.corrected_only) {
+      query.set('corrected_only', 'true');
+    }
+    return this.http.get<FamilyMemoryEventsResponse>(this.apiUrl(`/family/memory/events?${query.toString()}`));
+  }
+
+  getFamilyMemoryStats(): Observable<FamilyMemoryStats> {
+    return this.http.get<FamilyMemoryStats>(this.apiUrl('/family/memory/stats'));
+  }
+
+  submitFamilyMemoryFeedback(
+    eventId: string,
+    payload: FamilyMemoryFeedbackPayload,
+  ): Observable<FamilyMemoryFeedbackResponse> {
+    return this.http.post<FamilyMemoryFeedbackResponse>(
+      this.apiUrl(`/family/memory/events/${encodeURIComponent(eventId)}/feedback`),
+      payload,
+    );
+  }
+
+  getHomeGuardianActivity(): Observable<HomeGuardianActivityResponse> {
+    return this.http.get<HomeGuardianActivityResponse>(this.apiUrl('/home-guardian/activity'));
+  }
+
+  getRoutingStatus(): Observable<RoutingStatusResponse> {
+    return this.http.get<RoutingStatusResponse>(this.apiUrl('/routing/status'));
+  }
+
+  getAuditRecords(
+    limit = 50,
+    cursor?: string | null,
+    filters: { entity_kind?: string; entity_id?: string; action?: string } = {},
+  ): Observable<AuditRecordsResponse> {
+    const query = [`limit=${encodeURIComponent(String(limit))}`];
+    if (cursor) {
+      query.push(`cursor=${encodeURIComponent(cursor)}`);
+    }
+    if (filters.entity_kind) {
+      query.push(`entity_kind=${encodeURIComponent(filters.entity_kind)}`);
+    }
+    if (filters.entity_id) {
+      query.push(`entity_id=${encodeURIComponent(filters.entity_id)}`);
+    }
+    if (filters.action) {
+      query.push(`action=${encodeURIComponent(filters.action)}`);
+    }
+    return this.http.get<AuditRecordsResponse>(this.apiUrl(`/audit/records?${query.join('&')}`));
+  }
+
+  getAuditSummary(window = '24h'): Observable<AuditSummaryResponse> {
+    return this.http.get<AuditSummaryResponse>(this.apiUrl(`/audit/summary?window=${encodeURIComponent(window)}`));
   }
 
   getKnowledgeSettings(): Observable<KnowledgeSettings> {
@@ -227,6 +339,13 @@ export class HarborAssistantApiService {
     );
   }
 
+  evaluateAutomationReviewLatest(reviewId: string): Observable<HomeGuardianEvaluationResponse> {
+    return this.http.post<HomeGuardianEvaluationResponse>(
+      this.apiUrl(`/automation/reviews/${encodeURIComponent(reviewId)}/evaluate-latest`),
+      {},
+    );
+  }
+
   getModelEndpoints(): Observable<ModelEndpointsResponse> {
     return this.http.get<ModelEndpointsResponse>(this.apiUrl('/models/endpoints'));
   }
@@ -250,10 +369,14 @@ export class HarborAssistantApiService {
     return this.http.put<ModelStoreStatusResponse>(this.apiUrl('/models/store'), { path });
   }
 
-  selectModelCapability(capabilityId: string, modelId: string): Observable<ModelCapabilitiesResponse> {
+  selectModelCapability(
+    capabilityId: string,
+    modelId: string,
+    modelEndpointId?: string,
+  ): Observable<ModelCapabilitiesResponse> {
     return this.http.post<ModelCapabilitiesResponse>(
       this.apiUrl(`/models/capabilities/${encodeURIComponent(capabilityId)}/selection`),
-      { model_id: modelId },
+      { model_id: modelId, ...(modelEndpointId ? { model_endpoint_id: modelEndpointId } : {}) },
     );
   }
 
@@ -416,6 +539,24 @@ export class HarborAssistantApiService {
   getLocalVisionEvents(limit = 5): Observable<LocalVisionEventsResponse> {
     return this.http.get<LocalVisionEventsResponse>(
       this.apiUrl(`/vision/events?limit=${encodeURIComponent(String(limit))}`),
+    );
+  }
+
+  getVisionVlmStatus(): Observable<VisionVlmStatusResponse> {
+    return this.http.get<VisionVlmStatusResponse>(this.apiUrl('/vision/vlm/status'));
+  }
+
+  enrichLatestVisionEventWithVlm(): Observable<VisionVlmEnrichResponse> {
+    return this.http.post<VisionVlmEnrichResponse>(
+      this.apiUrl('/vision/events/latest/vlm-enrich'),
+      {},
+    );
+  }
+
+  enrichVisionEventWithVlm(eventId: string): Observable<VisionVlmEnrichResponse> {
+    return this.http.post<VisionVlmEnrichResponse>(
+      this.apiUrl(`/vision/events/${encodeURIComponent(eventId)}/vlm-enrich`),
+      {},
     );
   }
 

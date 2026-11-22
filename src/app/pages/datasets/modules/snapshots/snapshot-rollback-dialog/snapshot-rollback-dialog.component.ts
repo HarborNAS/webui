@@ -95,6 +95,17 @@ export class SnapshotRollbackDialog implements OnInit {
     ]),
   };
 
+  protected get snapshotCreatedAt(): number | undefined {
+    const parsed: unknown = this.publicSnapshot?.properties?.creation?.parsed;
+    let timestamp: unknown;
+    if (typeof parsed === 'number') {
+      timestamp = parsed * 1000;
+    } else if (parsed && typeof parsed === 'object' && '$date' in parsed) {
+      timestamp = parsed.$date;
+    }
+    return typeof timestamp === 'number' && Number.isFinite(timestamp) ? timestamp : undefined;
+  }
+
   readonly force = {
     fcName: 'force',
     label: helptextSnapshots.rollbackConfirm,
@@ -111,7 +122,10 @@ export class SnapshotRollbackDialog implements OnInit {
    * Possibly can be removed
    */
   private getSnapshotCreationInfo(): void {
-    this.api.call('pool.snapshot.query', [[['id', '=', this.snapshotName]]]).pipe(
+    this.api.call('pool.snapshot.query', [
+      [['id', '=', this.snapshotName]],
+      { extra: { properties: ['creation'] } },
+    ]).pipe(
       map((snapshots) => snapshots[0]),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe({

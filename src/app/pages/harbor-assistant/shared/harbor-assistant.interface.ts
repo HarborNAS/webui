@@ -1,10 +1,13 @@
 export type HarborAssistantSearchResultFilter = 'all' | 'audio' | 'images' | 'text' | 'videos';
 export type HarborAssistantSearchSourceScope = 'dvr_library' | 'nas_files' | 'all';
 export type HarborAssistantRetrievalMode = 'auto' | 'on' | 'off';
+export type HarborAssistantResponsePreference = 'auto' | 'fast' | 'careful';
 
 export interface HarborAssistantSearchRequest {
   query: string;
   conversation_id?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  filter?: HarborAssistantSearchResultFilter;
   limit?: number;
   include_documents: boolean;
   include_audio: boolean;
@@ -63,6 +66,10 @@ export interface HarborAssistantSearchReplyPack {
 }
 
 export interface HarborAssistantSearchResponse {
+  model?: string | Record<string, unknown> | null;
+  verification_status?: string;
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: { status?: string; [key: string]: unknown };
   conversation_id?: string;
   query: string;
   roots: string[];
@@ -105,6 +112,10 @@ export interface HarborAssistantQueryUnderstanding {
 }
 
 export interface HarborAssistantKnowledgeAnswerResponse {
+  model?: HarborAssistantSearchResponse['model'];
+  verification_status?: HarborAssistantSearchResponse['verification_status'];
+  response_preference?: HarborAssistantResponsePreference;
+  image_verification?: HarborAssistantSearchResponse['image_verification'];
   kind: 'rag.answer';
   conversation_id?: string;
   status: string;
