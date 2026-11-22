@@ -172,14 +172,16 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
 
   protected readonly metrics = computed<HomeAssistantMetric[]>(() => {
     const status = this.status();
+    const entityCount = this.entities().length || status?.entity_count || 0;
     const serviceDomainCount = this.serviceDomains().length;
-    const serviceCount = status?.service_count
-      ?? this.serviceDomains().reduce((count, domain) => count + domain.services.length, 0);
+    const inventoryServiceCount = this.serviceDomains()
+      .reduce((count, domain) => count + domain.services.length, 0);
+    const serviceCount = inventoryServiceCount || status?.service_count || 0;
     return [
       {
         label: T('Entities'),
-        value: String(status?.entity_count ?? this.entities().length),
-        tone: (status?.entity_count ?? this.entities().length) > 0 ? 'good' : 'neutral',
+        value: String(entityCount),
+        tone: entityCount > 0 ? 'good' : 'neutral',
       },
       {
         label: T('Service domains'),
@@ -314,8 +316,9 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
       'home-assistant-test',
       this.harborAssistantApi.testHomeAssistantConnection(),
       (response) => {
-        this.status.set(response.status);
-        this.patchConfigForm(response.status);
+        const status = this.statusFromConnectionTest(response);
+        this.status.set(status);
+        this.patchConfigForm(status);
         this.message.set(response.test.ok ? T('Home Assistant connection passed.') : T('Home Assistant connection failed.'));
         if (!response.test.ok && response.test.error) {
           this.error.set(response.test.error);
@@ -329,10 +332,11 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
       'home-assistant-sync',
       this.harborAssistantApi.syncHomeAssistant(),
       (response) => {
-        this.status.set(response.status);
+        const status = this.statusFromSync(response);
+        this.status.set(status);
         this.entities.set(response.entities);
         this.serviceDomains.set(response.service_domains);
-        this.patchConfigForm(response.status);
+        this.patchConfigForm(status);
         this.message.set(T('Home Assistant entities synced.'));
       },
     );
@@ -442,6 +446,32 @@ export class HarborAssistantHomeAssistantComponent implements OnInit {
       this.serviceDomains.set(services.data?.services ?? []);
       this.error.set(entities.error ?? services.error ?? this.error());
     });
+  }
+
+  private statusFromConnectionTest(response: HomeAssistantTestResponse): HomeAssistantStatusResponse {
+    const currentStatus = this.status();
+    return {
+      ...response.status,
+      status: response.test.status || response.status.status,
+      version: response.test.version || response.status.version || currentStatus?.version,
+      location_name: response.test.location_name || response.status.location_name || currentStatus?.location_name,
+    };
+  }
+
+  private statusFromSync(response: HomeAssistantSyncResponse): HomeAssistantStatusResponse {
+    const currentStatus = this.status();
+    return {
+      ...response.status,
+      status: 'synced',
+      last_sync_at: response.status.last_sync_at || new Date().toISOString(),
+      entity_count: response.entities.length,
+      service_count: response.service_domains.reduce(
+        (count: number, domain: HomeAssistantServiceDomain): number => count + domain.services.length,
+        0,
+      ),
+      version: response.status.version || currentStatus?.version,
+      location_name: response.status.location_name || currentStatus?.location_name,
+    };
   }
 
   private patchConfigForm(status: HomeAssistantStatusResponse): void {
