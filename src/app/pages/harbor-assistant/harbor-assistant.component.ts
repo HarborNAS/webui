@@ -703,6 +703,8 @@ export class HarborAssistantComponent implements OnInit {
     providerKey: [''],
     targetPath: [''],
     sourceUrl: [''],
+    revision: ['main'],
+    expectedSha256: [''],
   });
 
   protected readonly policyForm = this.fb.group({
@@ -2049,7 +2051,9 @@ export class HarborAssistantComponent implements OnInit {
       case 'lightweight_local':
         return T('Lightweight local');
       case 'installed_not_recommended':
-        return T('Installed but not recommended for this hardware');
+        return T('Downloaded but not recommended for this hardware');
+      case 'installed':
+        return T('Downloaded · file ready');
       case 'cloud_backup':
         return T('Cloud backup');
       case 'high_end_experimental':
@@ -2129,6 +2133,8 @@ export class HarborAssistantComponent implements OnInit {
           providerKey: card.providerKey,
           targetPath: card.localPath ?? '',
           sourceUrl: '',
+          revision: 'main',
+          expectedSha256: '',
         });
       }
     } else {
@@ -2138,6 +2144,8 @@ export class HarborAssistantComponent implements OnInit {
         providerKey: 'local',
         targetPath: '',
         sourceUrl: '',
+        revision: 'main',
+        expectedSha256: '',
       });
     }
     this.openAdvancedModels();
@@ -2151,6 +2159,8 @@ export class HarborAssistantComponent implements OnInit {
       providerKey: model.provider_key,
       targetPath: model.local_path ?? '',
       sourceUrl: '',
+      revision: model.revision ?? 'main',
+      expectedSha256: '',
     });
   }
 
@@ -2164,6 +2174,8 @@ export class HarborAssistantComponent implements OnInit {
         providerKey: card.providerKey,
         targetPath: card.localPath ?? '',
         sourceUrl: '',
+        revision: 'main',
+        expectedSha256: '',
       });
     }
     this.openAdvancedModels();
@@ -2177,6 +2189,17 @@ export class HarborAssistantComponent implements OnInit {
     }
 
     const value = this.downloadForm.getRawValue();
+    const sourceUrl = value.sourceUrl.trim();
+    const expectedSha256 = value.expectedSha256.trim().toLowerCase();
+    if (sourceUrl && !/^https:\/\//i.test(sourceUrl)) {
+      this.actionError.set(T('Model download URLs must use HTTPS.'));
+      return;
+    }
+    if (sourceUrl && !/^[a-f0-9]{64}$/.test(expectedSha256)) {
+      this.actionError.set(T('HTTPS downloads require a 64-character SHA-256 checksum.'));
+      return;
+    }
+    const sourceKind = sourceUrl ? 'https' : 'huggingface';
     this.runAction(
       `model-download:${value.modelId}`,
       this.harborAssistantApi.createLocalModelDownload({
@@ -2185,7 +2208,11 @@ export class HarborAssistantComponent implements OnInit {
         provider_key: this.emptyToNull(value.providerKey),
         target_path: this.emptyToNull(value.targetPath),
         metadata: {
-          source_url: this.emptyToNull(value.sourceUrl),
+          source_kind: sourceKind,
+          source_url: this.emptyToNull(sourceUrl),
+          repo_id: sourceKind === 'huggingface' ? value.modelId.trim() : null,
+          revision: sourceKind === 'huggingface' ? this.emptyToNull(value.revision) : null,
+          expected_sha256: sourceKind === 'https' ? expectedSha256 : null,
         },
       }),
       T('Local model download job was started by explicit action.'),
@@ -2218,9 +2245,7 @@ export class HarborAssistantComponent implements OnInit {
         metadata: {
           catalog_action: 'customer_download',
           capability_id: card.capabilityId ?? null,
-          auto_select_after_download: true,
-          auto_select_capability_id: card.capabilityId ?? null,
-          auto_select_model_id: card.modelId,
+          auto_select_after_download: false,
           source: card.source,
           source_kind: card.catalogModel?.source_kind ?? null,
           repo_id: card.catalogModel?.repo_id ?? null,
@@ -3234,6 +3259,8 @@ export class HarborAssistantComponent implements OnInit {
       providerKey: 'huggingface',
       targetPath: '',
       sourceUrl: '',
+      revision: 'main',
+      expectedSha256: '',
     });
   }
 

@@ -1082,6 +1082,12 @@
                           <mat-form-field>
                             <input matInput formControlName="sourceUrl" [placeholder]="'Download URL, optional' | translate" />
                           </mat-form-field>
+                          <mat-form-field>
+                            <input matInput formControlName="revision" [placeholder]="'Hugging Face revision' | translate" />
+                          </mat-form-field>
+                          <mat-form-field>
+                            <input matInput formControlName="expectedSha256" [placeholder]="'SHA-256 for HTTPS download' | translate" />
+                          </mat-form-field>
                           <button mat-button color="primary" type="submit" [disabled]="isBusy()">
                             {{ 'Start download' | translate }}
                           </button>
@@ -1584,7 +1590,13 @@
                   <input matInput formControlName="targetPath" [placeholder]="'Target path' | translate" />
                 </mat-form-field>
                 <mat-form-field class="full-span">
-                  <input matInput formControlName="sourceUrl" [placeholder]="'Explicit source URL or file path' | translate" />
+                  <input matInput formControlName="sourceUrl" [placeholder]="'HTTPS download URL, optional' | translate" />
+                </mat-form-field>
+                <mat-form-field>
+                  <input matInput formControlName="revision" [placeholder]="'Hugging Face revision' | translate" />
+                </mat-form-field>
+                <mat-form-field>
+                  <input matInput formControlName="expectedSha256" [placeholder]="'SHA-256 for HTTPS download' | translate" />
                 </mat-form-field>
                 <button mat-button color="primary" type="submit" [disabled]="isBusy()">
                   {{ 'Start Download' | translate }}
