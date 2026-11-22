@@ -76,6 +76,22 @@
                 }
               ]
             },
+            "harboros-nexus": {
+              "optimization": true,
+              "outputHashing": "all",
+              "namedChunks": false,
+              "extractLicenses": true,
+              "fileReplacements": [
+                {
+                  "replace": "src/environments/environment.ts",
+                  "with": "src/environments/environment.prod.ts"
+                },
+                {
+                  "replace": "src/app/pages/harbor-assistant/services/harbor-assistant-api-prefix.ts",
+                  "with": "src/app/pages/harbor-assistant/services/harbor-assistant-api-prefix.harboros-nexus.ts"
+                }
+              ]
+            },
             "harbornavi-k3": {
               "optimization": true,
               "outputHashing": "all",

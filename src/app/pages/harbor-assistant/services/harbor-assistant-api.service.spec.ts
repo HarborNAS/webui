@@ -38,6 +38,15 @@ describe('Harbor Assistant API service', () => {
     expect(result.devices).toEqual([]);
   });
 
+  it('preserves runtime binding identity when selecting an existing model endpoint', async () => {
+    const promise = firstValueFrom(spectator.service.selectModelCapability('asr', 'whisper-small', 'asr-780m'));
+    const req = httpMock.expectOne('/api/harbor-beacon/models/capabilities/asr/selection');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ model_id: 'whisper-small', model_endpoint_id: 'asr-780m' });
+    req.flush({ capabilities: [] });
+    await promise;
+  });
+
   it('keeps device management actions under /api/harbor-beacon', async () => {
     const deviceId = 'cam 1/left';
 
@@ -140,6 +149,124 @@ describe('Harbor Assistant API service', () => {
     const response = await eventsPromise;
     expect(response.limit).toBe(3);
     expect(response.events).toEqual([]);
+
+    const vlmStatusPromise = firstValueFrom(spectator.service.getVisionVlmStatus());
+    const vlmStatusReq = httpMock.expectOne('/api/harbor-beacon/vision/vlm/status');
+    expect(vlmStatusReq.request.method).toBe('GET');
+    vlmStatusReq.flush({
+      generated_at: 'epoch_ms:1',
+      kind: 'vision_vlm_status_v1',
+      readiness: { status: 'available', endpoint_ready: true },
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await vlmStatusPromise).secret_scan).toBe('clean');
+
+    const vlmEnrichPromise = firstValueFrom(spectator.service.enrichVisionEventWithVlm('event/latest'));
+    const vlmEnrichReq = httpMock.expectOne('/api/harbor-beacon/vision/events/event%2Flatest/vlm-enrich');
+    expect(vlmEnrichReq.request.method).toBe('POST');
+    expect(vlmEnrichReq.request.body).toEqual({});
+    vlmEnrichReq.flush({
+      status: 'busy',
+      reason: 'queue_busy',
+      event_id: 'event/latest',
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await vlmEnrichPromise).status).toBe('busy');
+
+    const timelinePromise = firstValueFrom(spectator.service.getFamilyTimeline());
+    const timelineReq = httpMock.expectOne('/api/harbor-beacon/family/timeline');
+    expect(timelineReq.request.method).toBe('GET');
+    expect(timelineReq.request.url).not.toContain('harborgate');
+    timelineReq.flush({
+      generated_at: 'epoch_ms:2',
+      window_seconds: 86400,
+      event_count: 0,
+      metadata_only: true,
+      buckets: [],
+      events: [],
+    });
+    expect((await timelinePromise).metadata_only).toBe(true);
+
+    const digestPromise = firstValueFrom(spectator.service.getFamilyTimelineDigest());
+    const digestReq = httpMock.expectOne('/api/harbor-beacon/family/timeline/digest');
+    expect(digestReq.request.method).toBe('GET');
+    digestReq.flush({
+      generated_at: 'epoch_ms:3',
+      status: 'quiet',
+      window_seconds: 86400,
+      event_count: 0,
+      headline: 'No events.',
+      bullets: [],
+      top_labels: [],
+      cameras: [],
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await digestPromise).secret_scan).toBe('clean');
+
+    const memoryPromise = firstValueFrom(spectator.service.getFamilyMemoryEvents({
+      include_hidden: true,
+      hidden_only: true,
+      limit: 12,
+    }));
+    const memoryReq = httpMock.expectOne(
+      '/api/harbor-beacon/family/memory/events?limit=12&include_hidden=true&hidden_only=true',
+    );
+    expect(memoryReq.request.method).toBe('GET');
+    memoryReq.flush({
+      generated_at: 'epoch_ms:4',
+      limit: 12,
+      metadata_only: true,
+      secret_scan: 'clean',
+      memory_overlay: {
+        generated_at: 'epoch_ms:4',
+        total_feedback_records: 0,
+        event_count: 0,
+        confirmed_count: 0,
+        favorite_count: 0,
+        hidden_count: 0,
+        corrected_count: 0,
+        bounded_limit: 5000,
+        metadata_only: true,
+        secret_scan: 'clean',
+      },
+      events: [],
+    });
+    expect((await memoryPromise).secret_scan).toBe('clean');
+
+    const feedbackPromise = firstValueFrom(spectator.service.submitFamilyMemoryFeedback('event/latest', {
+      action: 'correct_summary',
+      corrected_summary: 'delivery arrived',
+    }));
+    const feedbackReq = httpMock.expectOne('/api/harbor-beacon/family/memory/events/event%2Flatest/feedback');
+    expect(feedbackReq.request.method).toBe('POST');
+    expect(feedbackReq.request.body).toEqual({
+      action: 'correct_summary',
+      corrected_summary: 'delivery arrived',
+    });
+    feedbackReq.flush({
+      status: 'stored',
+      event_id: 'event/latest',
+      feedback: {},
+      memory_overlay: {
+        generated_at: 'epoch_ms:5',
+        total_feedback_records: 1,
+        event_count: 1,
+        confirmed_count: 0,
+        favorite_count: 0,
+        hidden_count: 0,
+        corrected_count: 1,
+        bounded_limit: 5000,
+        metadata_only: true,
+        secret_scan: 'clean',
+      },
+      evidence: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await feedbackPromise).status).toBe('stored');
   });
 
   it('does not send credential reads or secrets to HarborGate paths', async () => {
@@ -208,6 +335,30 @@ describe('Harbor Assistant API service', () => {
       status: 'ready', cpu: {}, memory: {}, gpu: {}, npu: {}, recommended_model_profile: 'cpu',
     });
     await hardwarePromise;
+
+    const evtReadinessPromise = firstValueFrom(spectator.service.getEvtReadiness());
+    const evtReadinessReq = httpMock.expectOne('/api/harbor-beacon/evt/readiness');
+    expect(evtReadinessReq.request.method).toBe('GET');
+    evtReadinessReq.flush({ status: 'ready', profile: 'k3-direct-72h-readiness', blockers: [], warnings: [] });
+    await evtReadinessPromise;
+
+    const evtPreflightPromise = firstValueFrom(spectator.service.runEvtPreflight());
+    const evtPreflightReq = httpMock.expectOne('/api/harbor-beacon/evt/preflight');
+    expect(evtPreflightReq.request.method).toBe('POST');
+    evtPreflightReq.flush({ status: 'ready', long_run_started: false, short_run_started: false });
+    expect((await evtPreflightPromise).long_run_started).toBe(false);
+
+    const evtLatestPromise = firstValueFrom(spectator.service.getEvtPreflightLatest());
+    const evtLatestReq = httpMock.expectOne('/api/harbor-beacon/evt/preflight/latest');
+    expect(evtLatestReq.request.method).toBe('GET');
+    evtLatestReq.flush({ status: 'not_run', long_run_started: false, short_run_started: false });
+    await evtLatestPromise;
+
+    const evtEvidencePromise = firstValueFrom(spectator.service.getEvtEvidenceBundle());
+    const evtEvidenceReq = httpMock.expectOne('/api/harbor-beacon/evt/evidence-bundle');
+    expect(evtEvidenceReq.request.method).toBe('GET');
+    evtEvidenceReq.flush({ status: 'ready', redacted: true });
+    expect((await evtEvidencePromise).redacted).toBe(true);
 
     const harborOsPromise = firstValueFrom(spectator.service.getHarborOsImCapabilityMap());
     const harborOsReq = httpMock.expectOne('/api/harbor-beacon/harboros/im-capability-map');
@@ -361,6 +512,90 @@ describe('Harbor Assistant API service', () => {
     expect(discardReq.request.method).toBe('POST');
     discardReq.flush({ ...response, pending_count: 0, reviews: [{ ...response.reviews[0], status: 'discarded' }] });
     await discardPromise;
+
+    const activityPromise = firstValueFrom(spectator.service.getHomeGuardianActivity());
+    const activityReq = httpMock.expectOne('/api/harbor-beacon/home-guardian/activity');
+    expect(activityReq.request.method).toBe('GET');
+    activityReq.flush({
+      generated_at: '1',
+      rule_count: 1,
+      active_count: 0,
+      rules: [],
+      activity: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await activityPromise).metadata_only).toBe(true);
+
+    const evaluatePromise = firstValueFrom(spectator.service.evaluateAutomationReviewLatest('review/1'));
+    const evaluateReq = httpMock.expectOne('/api/harbor-beacon/automation/reviews/review%2F1/evaluate-latest');
+    expect(evaluateReq.request.method).toBe('POST');
+    expect(evaluateReq.request.url).not.toContain('harborgate');
+    evaluateReq.flush({
+      evaluation_id: 'guardian_eval_1',
+      status: 'evaluated',
+      event_id: 'event-1',
+      evaluated_at: '1',
+      results: [],
+      counters: {},
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await evaluatePromise).secret_scan).toBe('clean');
+  });
+
+  it('keeps Routing and Audit APIs as separate same-origin Beacon surfaces', async () => {
+    const routingPromise = firstValueFrom(spectator.service.getRoutingStatus());
+    const routingReq = httpMock.expectOne('/api/harbor-beacon/routing/status');
+    expect(routingReq.request.method).toBe('GET');
+    expect(routingReq.request.url).not.toContain('harborgate');
+    routingReq.flush({
+      kind: 'harborbeacon.routing_status.v1',
+      generated_at: 'epoch_ms:1',
+      metadata_only: true,
+      scope: 'beacon_internal_orchestration',
+      execution_routes: [],
+      model_route_policies: [],
+      capability_readiness: [],
+      runtimes: [],
+      boundaries: [],
+      fallback_blockers: [],
+      secret_scan: 'clean',
+    });
+    expect((await routingPromise).scope).toBe('beacon_internal_orchestration');
+
+    const recordsPromise = firstValueFrom(spectator.service.getAuditRecords(20, '5', {
+      entity_kind: 'home_guardian',
+      action: 'evaluate_latest',
+    }));
+    const recordsReq = httpMock.expectOne('/api/harbor-beacon/audit/records?limit=20&cursor=5&entity_kind=home_guardian&action=evaluate_latest');
+    expect(recordsReq.request.method).toBe('GET');
+    expect(recordsReq.request.url).not.toContain('routing');
+    recordsReq.flush({
+      records: [],
+      total: 0,
+      limit: 20,
+      cursor: '5',
+      next_cursor: null,
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await recordsPromise).metadata_only).toBe(true);
+
+    const summaryPromise = firstValueFrom(spectator.service.getAuditSummary('24h'));
+    const summaryReq = httpMock.expectOne('/api/harbor-beacon/audit/summary?window=24h');
+    expect(summaryReq.request.method).toBe('GET');
+    summaryReq.flush({
+      total: 1,
+      window: '24h',
+      by_entity_kind: { home_guardian: 1 },
+      by_action: { evaluate_latest: 1 },
+      by_actor_kind: { user: 1 },
+      metadata_only: true,
+      secret_scan: 'clean',
+    });
+    expect((await summaryPromise).secret_scan).toBe('clean');
   });
 
   it('keeps model management APIs under /api/harbor-beacon', async () => {

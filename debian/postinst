@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+if [ "${1:-}" = configure ]; then
+    python3 /usr/lib/harboros/assistant-deployment/adopt_packaged_webui.py
+fi
+exit 0

@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply Harbor Assistant WebUI and authenticated edge nginx routes
+After=nginx.service harbor-gate-webui-edge.service
+Requires=nginx.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /var/lib/harborbeacon-agent-ci/deployment/nginx.py
+
+[Install]
+WantedBy=multi-user.target

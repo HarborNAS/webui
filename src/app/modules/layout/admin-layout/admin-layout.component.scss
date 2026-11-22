@@ -32,3 +32,50 @@
   min-width: 0 !important;
   overflow-x: hidden !important;
 }
+
+
+.assistant-page-workspace {
+  height: calc(100% - var(--assistant-composer-height, 152px) - var(--assistant-bottom-offset, 0px) - 24px) !important;
+}
+
+.assistant-mobile-home { display: none; }
+
+@media (max-width: 767px) {
+  .app-side-nav-container {
+    --assistant-bottom-offset: #{$topbar-mobile-height};
+    &.assistant-console-footer {
+      --assistant-bottom-offset: #{$topbar-mobile-height + $console-footer-height};
+    }
+  }
+
+  ix-app-bar { display: none; }
+
+  .assistant-mobile-home {
+    background: var(--bg1, #fff);
+    border: 1px solid var(--lines, #ddd);
+    border-radius: 16px;
+    display: inline-flex;
+    font-size: 12px;
+    height: 28px;
+    padding: 0 10px;
+    position: fixed;
+    right: 12px;
+    top: 68px;
+    z-index: 101;
+  }
+
+  main[mat-sidenav-content] {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
+
+// On wide screens keep the current page beside the conversation, as in the
+// Navi workspace. Narrow screens retain the results/page switch above Composer.
+@media (min-width: 1280px) {
+  .app-side-nav-container:has(ix-global-assistant-composer.assistant-results-open) {
+    main[mat-sidenav-content] {
+      padding-right: 486px;
+    }
+  }
+}

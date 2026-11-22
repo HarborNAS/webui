@@ -1,0 +1,140 @@
+<section class="multimodal-page">
+  <p>{{ 'Automatic routing uses the configured Harbor Assistant endpoints.' | translate }}</p>
+  <div class="multimodal-statuses" aria-live="polite">
+    @for (status of statuses(); track status.kind) {
+      <article class="multimodal-status">
+        <h3>{{ status.kind.toUpperCase() }}</h3>
+        @if (endpointsLoading()) {
+          <p>{{ 'Loading endpoint status…' | translate }}</p>
+        } @else if (endpointsError()) {
+          <p class="blocker">{{ 'Endpoint status unavailable. Refresh to retry.' | translate }}</p>
+        } @else if (status.endpoint; as endpoint) {
+          <p>{{ endpoint.status }} · {{ endpoint.model_name }}</p>
+          @if (metadata(endpoint, 'runtime_backend_kind')) {
+            <p>{{ metadata(endpoint, 'runtime_backend_kind') }}</p>
+          }
+          @if (metadata(endpoint, 'runtime_device')) {
+            <p>{{ metadata(endpoint, 'runtime_device') }}</p>
+          }
+          @if (metadata(endpoint, 'base_url')) {
+            <p>{{ metadata(endpoint, 'base_url') }}</p>
+          }
+          @if (metadata(endpoint, 'persistent')) {
+            <p>{{ 'Persistent' | translate }}: {{ metadata(endpoint, 'persistent') }}</p>
+          }
+        } @else {
+          <p class="blocker">{{ 'Not configured — needs runtime' | translate }}</p>
+        }
+      </article>
+    }
+  </div>
+
+  <div class="multimodal-tools">
+    <section class="multimodal-tool">
+      <h2>{{ 'Direct image understanding' | translate }}</h2>
+      <p class="tool-description">{{ 'Uploads this image to the VLM endpoint for a direct answer. It does not search indexed sources or create citations.' | translate }}</p>
+      <label>
+        {{ 'Image (PNG, JPEG or WebP, up to 10 MiB)' | translate }}
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          [disabled]="imageBusy()"
+          (change)="selectImage($event)"
+        >
+      </label>
+      @if (imagePreview()) {
+        <img class="image-preview" [src]="imagePreview()" [alt]="imageName()">
+      }
+      <form (ngSubmit)="describeImage()">
+        <label>
+          {{ 'Question about this image' | translate }}
+          <textarea
+            name="imageQuestion"
+            rows="3"
+            maxlength="2000"
+            [ngModel]="question()"
+            (ngModelChange)="question.set($event)"
+          ></textarea>
+        </label>
+        <button mat-button type="submit" [disabled]="imageBusy() || !imageName() || !question().trim()">
+          {{ (imageBusy() ? 'Understanding image…' : 'Ask about image') | translate }}
+        </button>
+      </form>
+      @if (imageError()) {
+        <p class="blocker" role="alert">{{ imageError() | translate }}</p>
+      }
+      @if (imageReply()) {
+        <p class="endpoint-output" aria-live="polite">{{ imageReply() }}</p>
+      }
+    </section>
+
+    <section class="multimodal-tool">
+      <h2>{{ 'Speech-to-text' | translate }}</h2>
+      <label>
+        {{ 'Audio file (up to 25 MiB)' | translate }}
+        <input
+          type="file"
+          accept=".wav,.mp3,.m4a,.webm,.ogg,.flac,.mp4,audio/*"
+          [disabled]="transcriptionBusy()"
+          (change)="selectAudio($event)"
+        >
+      </label>
+      <label>
+        {{ 'Audio language' | translate }}
+        <select [ngModel]="language()" (ngModelChange)="language.set($event)">
+          <option value="auto">{{ 'Automatic' | translate }}</option>
+          <option value="en">{{ 'English' | translate }}</option>
+          <option value="zh">{{ 'Chinese' | translate }}</option>
+        </select>
+      </label>
+      <button mat-button type="button" [disabled]="transcriptionBusy() || !audioName()" (click)="transcribe()">
+        {{ (transcriptionBusy() ? 'Transcribing…' : 'Transcribe audio') | translate }}
+      </button>
+      @if (transcriptionError()) {
+        <p class="blocker" role="alert">{{ transcriptionError() | translate }}</p>
+      }
+      @if (transcript()) {
+        <p class="endpoint-output" aria-live="polite">{{ transcript() }}</p>
+        <button mat-button type="button" [disabled]="transcriptCopied()" (click)="useTranscript()">
+          {{ 'Add transcript to conversation draft' | translate }}
+        </button>
+        @if (transcriptCopied()) {
+          <p>{{ 'Added to the composer below. Review it and send when ready.' | translate }}</p>
+        }
+      }
+    </section>
+
+    <section class="multimodal-tool">
+      <h2>{{ 'Text-to-speech' | translate }}</h2>
+      <form (ngSubmit)="speak()">
+        <label>
+          {{ 'Text to read (up to 2000 characters)' | translate }}
+          <textarea
+            name="speechText"
+            rows="4"
+            maxlength="2000"
+            [ngModel]="speechText()"
+            (ngModelChange)="speechText.set($event)"
+          ></textarea>
+        </label>
+        <label>
+          {{ 'Voice' | translate }}
+          <select name="voice" [ngModel]="voice()" (ngModelChange)="voice.set($event)">
+            <option value="">{{ 'Automatic' | translate }}</option>
+            <option value="zh_CN-huayan-medium">{{ 'Chinese — Huayan' | translate }}</option>
+            <option value="en_US-lessac-medium">{{ 'English — Lessac' | translate }}</option>
+          </select>
+        </label>
+        <button mat-button type="submit" [disabled]="speechBusy() || !speechText().trim()">
+          {{ (speechBusy() ? 'Generating speech…' : 'Generate speech') | translate }}
+        </button>
+      </form>
+      @if (speechError()) {
+        <p class="blocker" role="alert">{{ speechError() | translate }}</p>
+      }
+      @if (speechUrl()) {
+        <audio controls aria-label="Generated speech" [src]="speechUrl()"></audio>
+      }
+    </section>
+  </div>
+</section>

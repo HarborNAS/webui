@@ -132,12 +132,17 @@ export class AddGpuDeviceMenuComponent {
   }
 
   private getGpuStatus(gpu: AvailableGpu): string | null {
-    if (gpu.failure_reason === 'amd_w7900_bar_rebar_failure') {
+    const failureReason = gpu.failure_reason || gpu.error;
+    if (failureReason === 'amd_w7900_bar_rebar_failure') {
       return this.getW7900BarFailureStatus(gpu);
     }
 
-    if (gpu.failure_reason) {
-      return this.translate.instant(this.getFailureLabel(gpu.failure_reason));
+    if (failureReason) {
+      return this.translate.instant(this.getFailureLabel(failureReason));
+    }
+
+    if (gpu.available === false) {
+      return this.translate.instant('Unavailable for containers');
     }
 
     if (gpu.capabilities?.includes('container-rocm')) {
@@ -166,6 +171,7 @@ export class AddGpuDeviceMenuComponent {
       nvidia_container_runtime_missing: 'NVIDIA container runtime is missing',
       nvidia_device_nodes_missing: 'NVIDIA device nodes are missing',
       nvidia_procfs_details_missing: 'NVIDIA driver details are missing',
+      nvidia_driver_details_missing: 'NVIDIA driver details are missing',
     };
 
     return failureLabels[reason] || reason;

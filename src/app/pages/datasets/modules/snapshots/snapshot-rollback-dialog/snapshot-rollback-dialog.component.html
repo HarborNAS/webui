@@ -16,7 +16,9 @@
           : {
               snapshot: publicSnapshot.snapshot_name,
               dataset: publicSnapshot.dataset,
-              datetime: publicSnapshot.properties.creation.parsed.$date | formatDateTime
+              datetime: snapshotCreatedAt === undefined
+                ? ('an unknown creation time' | translate)
+                : (snapshotCreatedAt | formatDateTime)
             }
         "
       ></p>
