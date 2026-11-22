@@ -98,7 +98,11 @@ describe('Harbor Assistant component', () => {
         cancel_requested: false,
       }],
     }));
-    spectator = createComponent();
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, {
+        queryParamMap: of(convertToParamMap({ tab: 'settings', section: 'sources' })),
+      })],
+    });
     spectator.detectChanges();
 
     expect(spectator.query('.knowledge-index-job-progress')).toHaveText('Scanning files and detecting changes');
@@ -107,7 +111,11 @@ describe('Harbor Assistant component', () => {
   });
 
   it('shows indexed totals for every supported file category', () => {
-    spectator = createComponent();
+    spectator = createComponent({
+      providers: [mockProvider(ActivatedRoute, {
+        queryParamMap: of(convertToParamMap({ tab: 'settings', section: 'sources' })),
+      })],
+    });
     spectator.detectChanges();
 
     expect(spectator.query('.knowledge-index-stat--total')).toHaveText('33');
